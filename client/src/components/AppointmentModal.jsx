@@ -1,28 +1,47 @@
 import { useEffect, useState } from "react";
 
-const AppointmentModal = ({ isOpen, onClose, onCreate }) => {
+const AppointmentModal = ({ isOpen, onClose, onCreate, initialDate = new Date(), appointments = [], friends = [] }) => {
     const [title, setTitle] = useState("");
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
     const [duration, setDuration] = useState("1 hour");
     const [message, setMessage] = useState("");
+    const [participant, setParticipant] = useState("");
+    const [error, setError] = useState("");
 
     useEffect(() => {
         if (isOpen) {
-            // reset form when opened
+            // reset form when opened and set initial date
+            setError("");
             setTitle("");
-            setDate("");
-            setTime("");
+            setDate(initialDate ? initialDate.toISOString().split('T')[0] : "");
+            setTime("09:00");
             setDuration("1 hour");
             setMessage("");
+            setParticipant(friends.length ? friends[0].id : "");
         }
-    }, [isOpen]);
+    }, [isOpen, initialDate, friends]);
 
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const payload = { title, date, time, duration, message };
+        setError("");
+
+        // Basic validation: participant must be a friend
+        if (friends.length && !friends.find(f => String(f.id) === String(participant))) {
+            setError("Selected participant is not in your friends list. Only friends can schedule an appointment.");
+            return;
+        }
+
+        // Conflict check: same date and time already exists
+        const conflict = appointments.some(a => a.date === date && a.time === time);
+        if (conflict) {
+            setError("This schedule has been taken. Please pick another time.");
+            return;
+        }
+
+        const payload = { title, date, time, duration, message, participant };
         if (onCreate) onCreate(payload);
         onClose();
     };
@@ -43,6 +62,11 @@ const AppointmentModal = ({ isOpen, onClose, onCreate }) => {
                 <h3 className="text-lg font-semibold mb-4">Create Appointment</h3>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && (
+                        <div className="alert alert-error">
+                            <span>{error}</span>
+                        </div>
+                    )}
                     <div>
                         <label className="label">
                             <span className="label-text">Appointment Name</span>
@@ -99,6 +123,22 @@ const AppointmentModal = ({ isOpen, onClose, onCreate }) => {
                                 <option>2 hours</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="label">
+                            <span className="label-text">With (choose friend)</span>
+                        </label>
+                        <select
+                            className="select select-bordered w-full"
+                            value={participant}
+                            onChange={(e) => setParticipant(e.target.value)}
+                        >
+                            <option value="">Select a friend</option>
+                            {friends.map(f => (
+                                <option key={f.id} value={f.id}>{f.fullName}</option>
+                            ))}
+                        </select>
                     </div>
 
                     <div>

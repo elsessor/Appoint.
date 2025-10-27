@@ -134,10 +134,10 @@ const SignUpPage = () => {
             </div>
 
                 <div className="text-center space-y-3 mt-6">
-                    <h2 className="text-xl font-semibold">Connect with language partners worldwide</h2>
-                        <p className="opacity-70">
-                            Practice conversations, make friends, and improve skills together!
-                        </p>
+                    <h2 className="text-xl font-semibold">Schedule meetings with ease and efficiency</h2>
+                            <p className="opacity-70">
+                                Streamline your calendar, manage appointments, and stay organized with our intuitive platform
+                            </p>
                     </div>
                 </div>
             </div>
