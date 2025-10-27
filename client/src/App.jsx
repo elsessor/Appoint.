@@ -8,6 +8,13 @@ const App = () => {
 
   return <div className="h-screen" data-theme="night">
       <Routes>
+        <Route path = "/call/:id" element ={
+          isAuthenticated && isOnboarded ?(
+            <CallPage />
+          ) : (
+            <Navigate to={isAuthenticated ? "/login" : "/onboarding"} />
+          )
+        } />
         <Route path = "/notifications" element = {<NotificationsPage />} />
         <Route path = "/" element = {<Navigate to="/notifications" />} />
       </Routes>
