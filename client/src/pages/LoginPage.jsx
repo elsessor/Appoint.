@@ -3,6 +3,7 @@ import { ShipWheelIcon } from "lucide-react";
 import { useState } from "react";
 import { login } from "../lib/api.js";
 import { Link } from "react-router";
+import { useNavigate } from "react-router";
 
 const LoginPage = () => {
     const [loginData, setLoginData] = useState({
@@ -12,6 +13,8 @@ const LoginPage = () => {
 
     const queryClient = useQueryClient();
 
+    const navigate = useNavigate();
+
     const {
         mutate: loginMutation,
         isPending,
@@ -19,7 +22,16 @@ const LoginPage = () => {
         error
     } = useMutation({
         mutationFn: login,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["authUser"] });
+            // navigate after login depending on onboard state
+            const user = data?.user;
+            if (user && user.isOnboarded === false) {
+                navigate("/onboarding", { replace: true });
+            } else {
+                navigate("/homepage", { replace: true });
+            }
+        },
     });
 
     const handleLogin = (e) => {
@@ -44,7 +56,7 @@ const LoginPage = () => {
             {/* Error message*/}
             {error && (
                 <div className="alert alert-error mb-4">
-                    <span>{error.response.data.message}</span>
+                    <span>{error?.response?.data?.message || error?.message || "An error occurred"}</span>
                 </div>
             )}
 

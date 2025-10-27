@@ -11,21 +11,23 @@ import {
 import { getLanguageFlag } from "../components/FriendCard";
 import { capitalize } from "../lib/utils";
 
+const EMPTY_ARR = [];
+
 const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
 
-  const { data: friends = [], isLoading: loadingFriends } = useQuery({
+  const { data: friends = EMPTY_ARR, isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
+  const { data: recommendedUsers = EMPTY_ARR, isLoading: loadingUsers } = useQuery({
     queryKey: ["recommendedUsers"],
     queryFn: getRecommendedUsers,
   });
 
-  const { data: outgoingFriendReqs = [] } = useQuery({
+  const { data: outgoingFriendReqs = EMPTY_ARR } = useQuery({
     queryKey: ["outgoingFriendReqs"],
     queryFn: getOutgoingFriendReqs,
   });
@@ -50,7 +52,7 @@ const HomePage = () => {
     {
       _id: "ph-1",
       fullName: "Chambers",
-      profilePic: "/profile.jpg",
+      profilePic: "/chamber.jpg",
       location: "Madrid, Spain",
       nativeLanguage: "Spanish",
       learningLanguage: "English",
@@ -59,7 +61,7 @@ const HomePage = () => {
     {
       _id: "ph-2",
       fullName: "Lings",
-      profilePic: "/profile.jpg",
+      profilePic: "/ling.jpg",
       location: "Madrid, Spain",
       nativeLanguage: "Spanish",
       learningLanguage: "English",
@@ -68,7 +70,7 @@ const HomePage = () => {
     {
       _id: "ph-3",
       fullName: "Richard Suñas",
-      profilePic: "/profile.jpg",
+      profilePic: "/richard.jpg",
       location: "Bato, France",
       nativeLanguage: "French",
       learningLanguage: "Mandarin",
@@ -77,7 +79,7 @@ const HomePage = () => {
     {
       _id: "ph-4",
       fullName: "Mick Morales",
-      profilePic: "/profile.jpg",
+      profilePic: "/mick.jpg",
       location: "Bagasbas, Poland",
       nativeLanguage: "Polish",
       learningLanguage: "Filipino",
@@ -86,9 +88,9 @@ const HomePage = () => {
   ];
     
   const friendPlaceholders = [
-    { _id: "f-ph-1", fullName: "Aray ko", profilePic: "/sungjinwoo.jpg" },
-    { _id: "f-ph-2", fullName: "Bon", profilePic: "/profile.jpg" },
-    { _id: "f-ph-3", fullName: "Aray", profilePic: "/profile.jpg" },
+    { _id: "f-ph-1", fullName: "Larry", profilePic: "/larry.jpg" },
+    { _id: "f-ph-2", fullName: "Bon", profilePic: "/bon.jpg" },
+    { _id: "f-ph-3", fullName: "Jinwoo", profilePic: "/sungjinwoo.jpg" },
     { _id: "f-ph-4", fullName: "Nina", profilePic: "/profile.jpg" },
     { _id: "f-ph-5", fullName: "Sam", profilePic: "/profile.jpg" },
     { _id: "f-ph-6", fullName: "Maya", profilePic: "/profile.jpg" },

@@ -8,12 +8,12 @@ const Layout = ({ children, showSidebar = false }) => {
       {showSidebar && (
         <aside className="w-64 bg-base-200 text-white flex flex-col justify-between p-6 hidden lg:flex">
           <div>
-            <Link to="/" className="flex items-center gap-3 mb-8">
+            <Link to="/homepage" className="flex items-center gap-3 mb-8">
               <span className="text-3xl font-extrabold text-primary">Appoint.</span>
             </Link>
 
             <nav className="space-y-3">
-              <Link to="/" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
+              <Link to="/homepage" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
                 <Home className="size-5 text-primary" />
                 <span className="font-medium">Home</span>
               </Link>

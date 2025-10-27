@@ -3,6 +3,7 @@ import { ShipWheelIcon } from "lucide-react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { signup } from "../lib/api";
+import { useNavigate } from "react-router";
 
 const SignUpPage = () => {
   const [signupData, setSignupData] = useState({
@@ -13,9 +14,19 @@ const SignUpPage = () => {
 
     const queryClient = useQueryClient();
 
+    const navigate = useNavigate();
+
     const {mutate:signupMutation ,isPending, error} = useMutation({
         mutationFn: signup,
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["authUser"] });
+            const user = data?.user;
+            if (user && user.isOnboarded === false) {
+                navigate("/onboarding", { replace: true });
+            } else {
+                navigate("/homepage", { replace: true });
+            }
+        },
     });
 
     const handleSignup = (e) => {

@@ -60,11 +60,21 @@ export const signup = async (signupData) => {
 };
 
 export const login = async (loginData) => {
-  const response = await axiosInstance.post("/auth/login", signupData);
+  const response = await axiosInstance.post("/auth/login", loginData);
   return response.data;
 };
 
 export const getAuthUser = async () => {
+  // Dev helper: set localStorage['DEV_FORCE_LOGOUT'] = '1' to force unauthenticated state
+  try {
+    if (import.meta.env.DEV && typeof window !== "undefined" && window.localStorage?.getItem("DEV_FORCE_LOGOUT") === "1") {
+      if (process.env.NODE_ENV !== "production") console.debug("api.getAuthUser: DEV_FORCE_LOGOUT active — returning null (unauthenticated)");
+      return null;
+    }
+  } catch (e) {
+    // ignore localStorage access errors
+  }
+
   const res = await axiosInstance.get("/auth/me");
   return res.data;
 };
