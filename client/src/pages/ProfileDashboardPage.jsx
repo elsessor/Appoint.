@@ -22,9 +22,9 @@ const ProfileDashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 flex">
-      {/* Sidebar */}
+
       <div className="w-64 bg-slate-800 flex flex-col">
-        {/* Brand */}
+
         <div className="p-6">
           <h1 className="text-2xl font-bold">
             <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
@@ -34,7 +34,7 @@ const ProfileDashboardPage = () => {
           </h1>
         </div>
 
-        {/* Navigation */}
+
         <nav className="flex-1 px-4">
           {sidebarItems.map((item) => (
             <button
@@ -52,7 +52,7 @@ const ProfileDashboardPage = () => {
           ))}
         </nav>
 
-        {/* User Profile at bottom */}
+
         <div className="p-4 border-t border-slate-700">
           <div className="flex items-center space-x-3">
             <div className="relative">
@@ -71,9 +71,8 @@ const ProfileDashboardPage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Top Navigation */}
+
         <header className="bg-slate-800 border-b border-slate-700 px-6 py-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-slate-300">Profile Dashboard</h2>
@@ -98,9 +97,9 @@ const ProfileDashboardPage = () => {
           </div>
         </header>
 
-        {/* Main Content Area */}
+
         <div className="flex-1 p-6 space-y-6">
-          {/* Profile Header Card */}
+
           <div className="bg-slate-800 rounded-xl border-t-4 border-cyan-400 p-6">
             <div className="flex items-start space-x-6">
               <img
@@ -149,7 +148,7 @@ const ProfileDashboardPage = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-8">
-                  {/* Contact Information */}
+
                   <div>
                     <h3 className="text-lg font-semibold text-white mb-4">Contact Information</h3>
                     <div className="space-y-3">
@@ -180,7 +179,6 @@ const ProfileDashboardPage = () => {
                     </div>
                   </div>
 
-                  {/* Statistics */}
                   <div>
                     <h3 className="text-lg font-semibold text-white mb-4">Statistics</h3>
                     <div className="grid grid-cols-3 gap-6">
@@ -203,9 +201,7 @@ const ProfileDashboardPage = () => {
             </div>
           </div>
 
-          {/* Bottom Section - About and Recent Activity Side by Side */}
           <div className="flex gap-8">
-            {/* About Section */}
             <div className="flex-1">
               <div className="bg-slate-800 rounded-xl p-6">
                 <h3 className="text-2xl font-bold text-white mb-6">About</h3>
@@ -217,8 +213,6 @@ const ProfileDashboardPage = () => {
                     Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
                   </p>
                 </div>
-
-                {/* Skills & Interests */}
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-4">Skills & Interests</h3>
                   <div className="flex flex-wrap gap-3">
@@ -235,7 +229,7 @@ const ProfileDashboardPage = () => {
               </div>
             </div>
 
-            {/* Recent Activity */}
+
             <div className="flex-1">
               <div className="bg-slate-800 rounded-xl p-6">
                 <h3 className="text-2xl font-bold text-white mb-6">Recent Activity</h3>
