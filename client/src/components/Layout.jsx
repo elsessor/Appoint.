@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Home, Users, Bell, LogOut } from "lucide-react";
+import { Home, Users, Bell, LogOut, Calendar as CalendarIcon } from "lucide-react";
 
 const Layout = ({ children, showSidebar = false }) => {
   return (
@@ -21,6 +21,11 @@ const Layout = ({ children, showSidebar = false }) => {
               <Link to="/friends" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
                 <Users className="size-5 text-primary" />
                 <span className="font-medium">Friends</span>
+              </Link>
+
+              <Link to="/calendar" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
+                <CalendarIcon className="size-5 text-primary" />
+                <span className="font-medium">Calendar</span>
               </Link>
 
               <Link to="/notifications" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">

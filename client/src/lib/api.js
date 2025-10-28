@@ -14,6 +14,16 @@ const MOCK_USER_PAYLOAD = {
   token: "mock-token",
 };
 
+export async function getMyFriends() {
+  try {
+    const response = await axiosInstance.get("/user/friends");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching friends:", error);
+    throw error;
+  }
+}
+
 const FRIENDS_FALLBACK = [
   {
     _id: "friend-1",
