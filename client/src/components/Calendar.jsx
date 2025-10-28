@@ -35,12 +35,28 @@ const MonthPicker = ({ currentDate, onSelect, onClose }) => {
 };
 
 
-const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedFriendId, onSelectFriend }) => {
+const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedFriendId, onSelectFriend, currentUser }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
     
-    const selectedFriend = friends.find(f => String(f.id) === String(selectedFriendId));
+    const selectedFriend = friends.find(f => String(f._id) === String(selectedFriendId));
+
+    // Filter appointments based on selected friend
+    const filteredAppointments = useMemo(() => {
+        if (!selectedFriendId) {
+            // Show my appointments (where I'm the creator or participant)
+            return appointments.filter(apt => 
+                apt.userId === currentUser?._id || 
+                apt.participant === currentUser?._id
+            );
+        }
+        // Show appointments with the selected friend
+        return appointments.filter(apt => 
+            (apt.participant === selectedFriendId) || 
+            (apt.userId === selectedFriendId)
+        );
+    }, [appointments, selectedFriendId, currentUser]);
 
     // Get first day of month and total days
     const firstDayOfMonth = useMemo(() => {
@@ -84,7 +100,7 @@ const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedF
         const dayNum = day;
         const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
 
-        return appointments.filter(a => a.date === dateStr);
+        return filteredAppointments.filter(a => a.date === dateStr);
     };
 
     return (
@@ -93,16 +109,19 @@ const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedF
                 <div className="w-full sm:w-auto">
                     <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-lg sm:text-xl font-semibold">
-                            {selectedFriend ? `${selectedFriend.fullName}'s Schedule` : 'Select a Friend'}
+                            {!selectedFriendId 
+                                ? 'My Schedule' 
+                                : `${selectedFriend?.fullName || 'Friend'}'s Schedule`
+                            }
                         </h2>
                         <select 
                             className="select select-bordered select-sm" 
                             value={selectedFriendId || ''}
                             onChange={(e) => onSelectFriend(e.target.value)}
                         >
-                            <option value="">Choose friend</option>
+                            <option value="">My Schedule</option>
                             {friends.map(friend => (
-                                <option key={friend.id} value={friend.id}>
+                                <option key={friend._id} value={friend._id}>
                                     {friend.fullName}
                                 </option>
                             ))}

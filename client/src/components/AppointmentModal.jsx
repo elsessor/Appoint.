@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 
-const AppointmentModal = ({ isOpen, onClose, onCreate, initialDate = new Date(), appointments = [], friends = [] }) => {
+const AppointmentModal = ({ 
+    isOpen, 
+    onClose, 
+    onCreate, 
+    initialDate = new Date(), 
+    appointments = [], 
+    friends = [],
+    initialParticipant = "",
+    currentUser
+}) => {
     const [title, setTitle] = useState("");
     const [date, setDate] = useState("");
     const [time, setTime] = useState("");
@@ -11,16 +20,17 @@ const AppointmentModal = ({ isOpen, onClose, onCreate, initialDate = new Date(),
 
     useEffect(() => {
         if (isOpen) {
-            // reset form when opened and set initial date
+            // reset form when opened and set initial values
             setError("");
             setTitle("");
             setDate(initialDate ? initialDate.toISOString().split('T')[0] : "");
             setTime("09:00");
             setDuration("1 hour");
             setMessage("");
-            setParticipant(friends.length ? friends[0].id : "");
+            // Use initialParticipant if provided, otherwise default to first friend
+            setParticipant(initialParticipant || (friends.length ? friends[0]._id : ""));
         }
-    }, [isOpen, initialDate, friends]);
+    }, [isOpen, initialDate, friends, initialParticipant]);
 
     if (!isOpen) return null;
 
@@ -29,19 +39,37 @@ const AppointmentModal = ({ isOpen, onClose, onCreate, initialDate = new Date(),
         setError("");
 
         // Basic validation: participant must be a friend
-        if (friends.length && !friends.find(f => String(f.id) === String(participant))) {
+        if (friends.length && !friends.find(f => String(f._id) === String(participant))) {
             setError("Selected participant is not in your friends list. Only friends can schedule an appointment.");
             return;
         }
 
-        // Conflict check: same date and time already exists
-        const conflict = appointments.some(a => a.date === date && a.time === time);
+        // Conflict check: same date and time already exists for either participant
+        const conflict = appointments.some(a => {
+            const sameDateTime = a.date === date && a.time === time;
+            const involvesSameUsers = 
+                a.participant === participant || 
+                a.participant === currentUser?._id ||
+                a.userId === participant ||
+                a.userId === currentUser?._id;
+            return sameDateTime && involvesSameUsers;
+        });
+
         if (conflict) {
-            setError("This schedule has been taken. Please pick another time.");
+            setError("There's already an appointment at this time with you or the selected friend.");
             return;
         }
 
-        const payload = { title, date, time, duration, message, participant };
+        const payload = {
+            title,
+            date,
+            time,
+            duration,
+            message,
+            participant,
+            userId: currentUser?._id, // Add creator's ID
+            status: "pending"
+        };
         if (onCreate) onCreate(payload);
         onClose();
     };
@@ -136,7 +164,7 @@ const AppointmentModal = ({ isOpen, onClose, onCreate, initialDate = new Date(),
                         >
                             <option value="">Select a friend</option>
                             {friends.map(f => (
-                                <option key={f.id} value={f.id}>{f.fullName}</option>
+                                <option key={f._id} value={f._id}>{f.fullName}</option>
                             ))}
                         </select>
                     </div>

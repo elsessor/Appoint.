@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Calendar from "../components/Calendar";
 import AppointmentModal from "../components/AppointmentModal";
-import { getMyFriends } from "../lib/api";
+import { getMyFriends, getAuthUser } from "../lib/api";
 import PageLoader from "../components/PageLoader";
 
 const CalendarPage = () => {
@@ -11,6 +11,13 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedFriendId, setSelectedFriendId] = useState('');
 
+  // Get current user
+  const { data: currentUser } = useQuery({
+    queryKey: ["authUser"],
+    queryFn: getAuthUser
+  });
+
+  // Get friends list
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getMyFriends
@@ -40,6 +47,7 @@ const CalendarPage = () => {
           friends={friends}
           selectedFriendId={selectedFriendId}
           onSelectFriend={setSelectedFriendId}
+          currentUser={currentUser}
         />
 
         <div className="mt-6">
@@ -72,6 +80,8 @@ const CalendarPage = () => {
           initialDate={selectedDate}
           appointments={appointments}
           friends={friends}
+          initialParticipant={selectedFriendId}
+          currentUser={currentUser}
         />
       </div>
     </div>
