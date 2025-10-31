@@ -77,7 +77,6 @@ export const getAuthUser = async () => {
 
   const res = await axiosInstance.get("/auth/me");
   return res.data;
-  
 };
 
 export const completeOnboarding = async (userData) => {
@@ -114,16 +113,3 @@ export const sendFriendRequest = handleNetwork(async (userId) => {
   const response = await axiosInstance.post(`/users/friend-requests/${userId}`);
   return response.data;
 }, { success: true });
-
-export async function getStreamToken() {
-  try {
-    const response = await axiosInstance.get("/chat/token");
-    if (!response.data?.token) {
-      throw new Error("No token received from server");
-    }
-    return response.data;
-  } catch (error) {
-    console.error("Error getting stream token:", error);
-    throw error;
-  }
-}
