@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite --open /signup",
-  "dev:signup": "vite --open /signup",
+    "dev": "vite --open /signup",
+    "dev:signup": "vite --open /signup",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -17,7 +17,9 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.6.0",
-    "react-router": "^7.9.4"
+    "react-router": "^7.9.4",
+    "stream-chat": "^9.25.0",
+    "stream-chat-react": "^13.10.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",
