@@ -26,7 +26,10 @@ const DayDetailsModal = ({ date, appointments = [], onClose, availableSlots = []
                 </div>
 
                 {isHoliday && (
-                    <div className="mb-3 p-3 bg-yellow-100 text-yellow-800 rounded">This day is a public holiday.</div>
+                    <div className="mb-3 p-3 bg-yellow-100 text-yellow-800 rounded">
+                        <div className="font-medium">🎉 {isHoliday}</div>
+                        <div className="text-sm">Public Holiday</div>
+                    </div>
                 )}
 
                 {(!appointments || appointments.length === 0) ? (

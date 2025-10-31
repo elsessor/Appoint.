@@ -2,24 +2,41 @@ import { useMemo, useState } from "react";
 import DayDetailsModal from "./DayDetailsModal";
 import { formatYMD } from "../lib/date";
 
-// Example PH holidays (month-day). You can expand this list or load from API.
-const PH_HOLIDAYS_MD = [
-    '01-01', // New Year's Day
-    '04-09', // Araw ng Kagitingan
-    '05-01', // Labor Day
-    '06-12', // Independence Day
-    '11-30', // Bonifacio Day
-    '12-25', // Christmas
-    '12-30', // Rizal Day
-];
+// Philippine Holidays 2024 (month-day)
+const PH_HOLIDAYS = {
+    // Regular Holidays
+    '01-01': "New Year's Day",
+    '03-28': 'Maundy Thursday',
+    '03-29': 'Good Friday',
+    '04-09': 'Araw ng Kagitingan',
+    '05-01': 'Labor Day',
+    '06-12': 'Independence Day',
+    '08-26': 'National Heroes Day',
+    '11-30': 'Bonifacio Day',
+    '12-25': 'Christmas Day',
+    '12-30': 'Rizal Day',
+    
+    // Special Non-Working Holidays
+    '02-10': 'Chinese New Year',
+    '03-30': 'Black Saturday',
+    '08-21': 'Ninoy Aquino Day',
+    '11-01': "All Saints' Day",
+    '12-08': 'Feast of the Immaculate Conception',
+    '12-31': 'Last Day of the Year',
+    
+    // Special movable holidays
+    '2024-05-13': 'National Elections Day'
+};
 
 const isPhilippineHoliday = (date) => {
-    if (!date) return false;
-    // use formatYMD and take MM-DD
+    if (!date) return null;
     const ymd = formatYMD(date); // YYYY-MM-DD
     const mmdd = ymd.slice(5);
-    return PH_HOLIDAYS_MD.includes(mmdd);
+    // Check both MM-DD and YYYY-MM-DD formats
+    return PH_HOLIDAYS[mmdd] || PH_HOLIDAYS[ymd] || null;
 }
+
+const PH_HOLIDAYS_MD = Object.keys(PH_HOLIDAYS).filter(k => k.length === 5); // Only MM-DD keys
 
 const MonthPicker = ({ currentDate, onSelect, onClose }) => {
     const [year, setYear] = useState(currentDate.getFullYear());
@@ -248,10 +265,15 @@ const Calendar = ({ onOpenCreate, appointments = [], friends = [], selectedFrien
                     if (day === null) {
                         return <div key={`empty-${idx}`} className="h-12 sm:h-14 md:h-16 lg:h-20" />;
                     }
-
+                    const currentDateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                    const holidayName = isPhilippineHoliday(currentDateObj);
+                    const dayAppointments = getAppointmentsForDay(day);
+                    const isHoliday = !!holidayName;
+                    const availableSlots = getAvailableSlotsForDay(day);
+                    const isAvailable = availableSlots.length > 0;
+                    const hasAppointments = dayAppointments.length > 0;
                     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                     const isToday = new Date().toDateString() === date.toDateString();
-                    const dayAppointments = getAppointmentsForDay(day);
                     const isSelected = selectedDate?.toDateString() === date.toDateString();
 
                     return (
@@ -280,10 +302,10 @@ const Calendar = ({ onOpenCreate, appointments = [], friends = [], selectedFrien
 
                             {isSelected && (
                                 <DayDetailsModal
-                                    date={date}
+                                    date={new Date(currentDate.getFullYear(), currentDate.getMonth(), day)}
                                     appointments={dayAppointments}
                                     onClose={() => setSelectedDate(null)}
-                                    availableSlots={getAvailableSlotsForDay(day)}
+                                    availableSlots={availableSlots}
                                     onCreateSlot={(time) => {
                                         // forward to parent create handler with specific date/time
                                         if (onOpenCreate) {
@@ -291,7 +313,7 @@ const Calendar = ({ onOpenCreate, appointments = [], friends = [], selectedFrien
                                             onOpenCreate(d, time);
                                         }
                                     }}
-                                    isHoliday={isPhilippineHoliday(date)}
+                                    isHoliday={holidayName}
                                 />
                             )}
                         </div>
