@@ -1,5 +1,25 @@
 import { useMemo, useState } from "react";
 import DayDetailsModal from "./DayDetailsModal";
+import { formatYMD } from "../lib/date";
+
+// Example PH holidays (month-day). You can expand this list or load from API.
+const PH_HOLIDAYS_MD = [
+    '01-01', // New Year's Day
+    '04-09', // Araw ng Kagitingan
+    '05-01', // Labor Day
+    '06-12', // Independence Day
+    '11-30', // Bonifacio Day
+    '12-25', // Christmas
+    '12-30', // Rizal Day
+];
+
+const isPhilippineHoliday = (date) => {
+    if (!date) return false;
+    // use formatYMD and take MM-DD
+    const ymd = formatYMD(date); // YYYY-MM-DD
+    const mmdd = ymd.slice(5);
+    return PH_HOLIDAYS_MD.includes(mmdd);
+}
 
 const MonthPicker = ({ currentDate, onSelect, onClose }) => {
     const [year, setYear] = useState(currentDate.getFullYear());
@@ -35,12 +55,15 @@ const MonthPicker = ({ currentDate, onSelect, onClose }) => {
 };
 
 
-const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedFriendId, onSelectFriend, currentUser }) => {
+const Calendar = ({ onOpenCreate, appointments = [], friends = [], selectedFriendId, onSelectFriend, currentUser, availability }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(null);
     const [showMonthPicker, setShowMonthPicker] = useState(false);
     
     const selectedFriend = friends.find(f => String(f._id) === String(selectedFriendId));
+
+    // fallback availability
+    const avail = availability || { days: [1,2,3,4,5], start: '09:00', end: '16:30', slotMinutes: 30, maxPerDay: 5, bufferMinutes: 15 };
 
     // Filter appointments based on selected friend
     const filteredAppointments = useMemo(() => {
@@ -94,14 +117,58 @@ const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedF
 
     // Get appointments for a specific day
     const getAppointmentsForDay = (day) => {
-        // Build YYYY-MM-DD in local time to avoid timezone shifts caused by toISOString()
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1; // months are 0-indexed
-        const dayNum = day;
-        const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-
+        // Use centralized util to produce local YYYY-MM-DD
+        const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+        const dateStr = formatYMD(d);
         return filteredAppointments.filter(a => a.date === dateStr);
     };
+
+    // generate available slots for the given day respecting availability, buffer and existing appointments
+    const getAvailableSlotsForDay = (day) => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const dateObj = new Date(year, month, day);
+        // if this weekday isn't available, return []
+        if (!avail.days.includes(dateObj.getDay())) return [];
+
+    const dateStr = formatYMD(dateObj);
+
+        const [sH, sM] = avail.start.split(':').map(Number);
+        const [eH, eM] = avail.end.split(':').map(Number);
+        const startDate = new Date(year, month, day, sH, sM);
+        const endDate = new Date(year, month, day, eH, eM);
+
+        const slots = [];
+        for (let t = new Date(startDate); t < endDate; t.setMinutes(t.getMinutes() + avail.slotMinutes)) {
+            slots.push(new Date(t));
+        }
+
+        // helper to format time to HH:MM
+        const fmt = (d) => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+        // filter out slots that conflict with existing appointments (buffer considered)
+        const dayApts = appointments.filter(a => a.date === dateStr);
+
+        const slotStrings = slots.map(s => fmt(s)).filter(slot => {
+            // count total bookings on this day (for maxPerDay enforcement)
+            if (dayApts.length >= (avail.maxPerDay || Infinity)) return false;
+
+            // buffer check: no appointment within bufferMinutes of slot
+            const slotTime = new Date(year, month, day, Number(slot.split(':')[0]), Number(slot.split(':')[1]));
+            const buffer = (avail.bufferMinutes || 0);
+            const conflicts = dayApts.some(a => {
+                if (!a.time) return false;
+                const [ah, am] = a.time.split(':').map(Number);
+                const aptDate = new Date(year, month, day, ah, am);
+                const diff = Math.abs(aptDate - slotTime) / 60000; // minutes
+                return diff < buffer;
+            });
+
+            return !conflicts;
+        });
+
+        return slotStrings;
+    }
 
     return (
         <div className="p-3 sm:p-4 md:p-5 lg:p-6 bg-base-200 rounded-lg shadow-md">
@@ -143,9 +210,32 @@ const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedF
                         </div>
                         <button onClick={handleNextMonth} className="btn btn-ghost btn-xs px-2">▶</button>
                     </div>
-                    <button className="btn btn-primary btn-sm" onClick={onNewAppointment}>
-                        + New Appointment
-                    </button>
+                    {/* Check if current time is within availability */}
+                    {(() => {
+                        const now = new Date();
+                        const withinHours = (() => {
+                            const [startH, startM] = avail.start.split(':').map(Number);
+                            const [endH, endM] = avail.end.split(':').map(Number);
+                            const timeNow = now.getHours() * 60 + now.getMinutes();
+                            const startTime = startH * 60 + startM;
+                            const endTime = endH * 60 + endM;
+                            return timeNow >= startTime && timeNow < endTime;
+                        })();
+                        
+                        const isAvailableDay = avail.days.includes(now.getDay());
+                        const canSchedule = isAvailableDay && withinHours;
+
+                        return (
+                            <button 
+                                className={`btn btn-sm ${canSchedule ? 'btn-primary' : 'btn-disabled opacity-50'}`}
+                                onClick={() => canSchedule && onOpenCreate && onOpenCreate(new Date())}
+                                title={!canSchedule ? "New appointments can only be created during available hours" : ""}
+                                disabled={!canSchedule}
+                            >
+                                + New Appointment
+                            </button>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -188,11 +278,20 @@ const Calendar = ({ onNewAppointment, appointments = [], friends = [], selectedF
                                 </div>
                             )}
 
-                            {isSelected && dayAppointments.length > 0 && (
+                            {isSelected && (
                                 <DayDetailsModal
                                     date={date}
                                     appointments={dayAppointments}
                                     onClose={() => setSelectedDate(null)}
+                                    availableSlots={getAvailableSlotsForDay(day)}
+                                    onCreateSlot={(time) => {
+                                        // forward to parent create handler with specific date/time
+                                        if (onOpenCreate) {
+                                            const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                                            onOpenCreate(d, time);
+                                        }
+                                    }}
+                                    isHoliday={isPhilippineHoliday(date)}
                                 />
                             )}
                         </div>

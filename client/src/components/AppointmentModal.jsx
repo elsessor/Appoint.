@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatYMD } from "../lib/date";
 
 const AppointmentModal = ({ 
     isOpen, 
@@ -8,7 +9,9 @@ const AppointmentModal = ({
     appointments = [], 
     friends = [],
     initialParticipant = "",
-    currentUser
+    currentUser,
+    availability = { days: [1,2,3,4,5], start: '09:00', end: '17:00', slotMinutes: 30, maxPerDay: 5, bufferMinutes: 15 }
+    , initialTime = ''
 }) => {
     const [title, setTitle] = useState("");
     const [date, setDate] = useState("");
@@ -23,8 +26,10 @@ const AppointmentModal = ({
             // reset form when opened and set initial values
             setError("");
             setTitle("");
-            setDate(initialDate ? initialDate.toISOString().split('T')[0] : "");
-            setTime("09:00");
+            // Use utility to get local YYYY-MM-DD
+            setDate(formatYMD(initialDate) || "");
+            // if initialTime is supplied (from clicking an available slot), use it
+            setTime(initialTime || "09:00");
             setDuration("1 hour");
             setMessage("");
             // Use initialParticipant if provided, otherwise default to first friend
@@ -44,19 +49,54 @@ const AppointmentModal = ({
             return;
         }
 
-        // Conflict check: same date and time already exists for either participant
+        // Validate availability: date/day must be allowed and time within availability
+        if (date) {
+            const [yy, mm, dd] = date.split('-').map(Number);
+            const dt = new Date(yy, mm - 1, dd);
+            if (!availability.days.includes(dt.getDay())) {
+                setError('Selected date is outside your general availability.');
+                return;
+            }
+        }
+
+        // conflict & buffer check: ensure no existing appointment for either user/participant is within buffer minutes
+        const buffer = availability.bufferMinutes || 0;
+        const [nh, nm] = time.split(':').map(Number);
+        const newAptDate = new Date();
+        if (date) {
+            const [yy, mm, dd] = date.split('-').map(Number);
+            newAptDate.setFullYear(yy, mm - 1, dd);
+        }
+        newAptDate.setHours(nh, nm, 0, 0);
+
+        // Prevent scheduling an appointment in the past (local time)
+        const now = new Date();
+        if (newAptDate <= now) {
+            setError('Cannot schedule an appointment in the past or at a time that has already passed.');
+            return;
+        }
+
         const conflict = appointments.some(a => {
-            const sameDateTime = a.date === date && a.time === time;
-            const involvesSameUsers = 
-                a.participant === participant || 
-                a.participant === currentUser?._id ||
-                a.userId === participant ||
-                a.userId === currentUser?._id;
-            return sameDateTime && involvesSameUsers;
+            if (!a.time || !a.date) return false;
+            const sameUsers = [a.participant, a.userId, a.user?._id].some(id => id && (String(id) === String(participant) || String(id) === String(currentUser?._id)));
+            if (!sameUsers) return false;
+
+            const [ah, am] = a.time.split(':').map(Number);
+            const [ay, amon, ad] = a.date.split('-').map(Number);
+            const aptDate = new Date(ay, amon - 1, ad, ah, am);
+            const diffMin = Math.abs((aptDate - newAptDate) / 60000);
+            return diffMin < buffer || (a.date === date && a.time === time);
         });
 
         if (conflict) {
-            setError("There's already an appointment at this time with you or the selected friend.");
+            setError("This time conflicts with an existing appointment considering buffer time.");
+            return;
+        }
+
+        // max bookings per day check (count existing for participant or self)
+        const sameDayCount = appointments.filter(a => a.date === date && (String(a.participant) === String(participant) || String(a.userId) === String(currentUser?._id))).length;
+        if (availability.maxPerDay && sameDayCount >= availability.maxPerDay) {
+            setError(`Maximum of ${availability.maxPerDay} bookings reached for this day.`);
             return;
         }
 
@@ -119,6 +159,8 @@ const AppointmentModal = ({
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
                                 required
+                                min="1900-01-01"
+                                max="2100-12-31"
                             />
                         </div>
 
