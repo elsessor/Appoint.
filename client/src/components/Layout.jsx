@@ -48,14 +48,24 @@ const Layout = ({ children, showSidebar = false }) => {
       <div className="flex-1">
         {/* Top bar */}
         <header className="flex items-center justify-between px-6 py-4 bg-transparent">
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-full max-w-2xl">
-              <input
-                className="input input-sm input-bordered w-full bg-base-200"
-                placeholder="Search appointments, chats, or meeting notes..."
-              />
+          {!showSidebar && (
+            <Link to="/homepage">
+              <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
+                Appoint.
+              </span>
+            </Link>
+          )}
+
+          {showSidebar && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-full max-w-2xl">
+                <input
+                  className="input input-sm input-bordered w-full bg-base-200"
+                  placeholder="Search appointments, chats, or meeting notes..."
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-4 px-4">
             <button className="btn btn-ghost btn-circle">

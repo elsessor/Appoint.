@@ -113,3 +113,8 @@ export const sendFriendRequest = handleNetwork(async (userId) => {
   const response = await axiosInstance.post(`/users/friend-requests/${userId}`);
   return response.data;
 }, { success: true });
+
+export const getStreamToken = async (targetUserId) => {
+  const response = await axiosInstance.get(`/chat/token?targetUserId=${targetUserId}`);
+  return response.data;
+};

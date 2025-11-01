@@ -33,7 +33,7 @@ export async function signup(req, res) {
             email,
             fullName,
             password,
-            ProfilePic: randomAvatar,
+            profilePic: randomAvatar,
         });
 
         try {

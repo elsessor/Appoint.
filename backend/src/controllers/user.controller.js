@@ -1,6 +1,22 @@
 import FriendRequest from "../models/FriendRequest.js";
 import User from "../models/User.js";
 
+
+export async function getUserById(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    console.log("Error in getUserById:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
 export async function getRecommendedUsers(req, res) {
     try {
         const currentUserId = req.user._id;
@@ -143,3 +159,13 @@ export async function getOutgoingFriendReqs(req, res) {
     }
 }
 
+export async function getAllUsers(req, res) {
+  try {
+    const users = await User.find().select("_id fullName email");
+    console.log("All users in database:", users);
+    res.status(200).json(users);
+  } catch (error) {
+    console.log("Error getting all users:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
