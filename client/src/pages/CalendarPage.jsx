@@ -129,7 +129,7 @@ const CalendarPage = () => {
     <div className="min-h-screen bg-gray-950 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-100">Appointment Calendar</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Calendar</h1>
           <div className="mt-4 md:mt-0">
           </div>
         </div>

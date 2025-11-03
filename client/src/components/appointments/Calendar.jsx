@@ -197,6 +197,32 @@ const Calendar = ({
         </div>
       </div>
 
+      {/* Legend */}
+      <div className="px-6 py-3 bg-gray-850 border-b border-gray-700">
+        <div className="flex items-center justify-center gap-6 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <span className="text-gray-300">Today</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <span className="text-gray-300">Available</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-blue-900"></div>
+            <span className="text-gray-300">Has Appointments</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-red-900"></div>
+            <span className="text-gray-300">Holiday</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded bg-gray-700 border border-gray-600"></div>
+            <span className="text-gray-300">Unavailable</span>
+          </div>
+        </div>
+      </div>
+
       {/* Calendar Grid */}
       <div className="grid grid-cols-7 gap-px bg-gray-700 border-b border-gray-700">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
