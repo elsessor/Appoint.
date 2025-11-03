@@ -55,7 +55,7 @@ const TimeSlotPicker = ({
 
   return (
     <div className="w-full">
-      <h3 className="text-lg font-medium text-gray-700 mb-3">Available Time Slots</h3>
+      <h3 className="text-lg font-medium text-gray-300 mb-3">Available Time Slots</h3>
       <div className="grid grid-cols-4 gap-2">
         {slots.map((slot, index) => {
           const isSelected = selectedTime24 === slot.time24;
@@ -70,10 +70,10 @@ const TimeSlotPicker = ({
               className={`
                 py-2 px-1 text-sm rounded-md transition-colors duration-200
                 ${isSelected 
-                  ? 'bg-blue-500 text-white' 
+                  ? 'bg-blue-600 text-white' 
                   : isDisabled 
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                    : 'bg-white border border-gray-300 hover:border-blue-500 hover:bg-blue-50 text-gray-700'}
+                    ? 'bg-gray-900 text-gray-600 cursor-not-allowed' 
+                    : 'bg-gray-700 border border-gray-600 hover:border-blue-500 hover:bg-gray-600 text-gray-200'}
               `}
               title={isDisabled ? 'This slot is not available' : `Select ${slot.time12}`}
             >

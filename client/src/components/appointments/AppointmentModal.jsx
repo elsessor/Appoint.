@@ -163,23 +163,23 @@ const AppointmentModal = ({
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0" aria-hidden="true">
           <div 
-            className="absolute inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+            className="absolute inset-0 bg-black bg-opacity-75 transition-opacity"
             onClick={onClose}
           ></div>
         </div>
 
         <div className="fixed inset-y-0 right-0 pl-10 max-w-full flex">
           <div className="w-screen max-w-md">
-            <div className="h-full flex flex-col bg-white shadow-xl overflow-y-scroll">
+            <div className="h-full flex flex-col bg-gray-900 shadow-xl overflow-y-scroll">
               <div className="flex-1 py-6 overflow-y-auto px-4 sm:px-6">
                 <div className="flex items-start justify-between">
-                  <h2 className="text-lg font-medium text-gray-900" id="slide-over-title">
+                  <h2 className="text-lg font-medium text-gray-100" id="slide-over-title">
                     {formData._id ? 'Edit Appointment' : 'New Appointment'}
                   </h2>
                   <div className="ml-3 h-7 flex items-center">
                     <button
                       type="button"
-                      className="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="bg-gray-800 rounded-md text-gray-400 hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       onClick={onClose}
                     >
                       <span className="sr-only">Close panel</span>
@@ -203,14 +203,14 @@ const AppointmentModal = ({
                 </div>
 
                 {error && (
-                  <div className="mt-4 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                  <div className="mt-4 p-3 bg-red-900 text-red-200 rounded-md text-sm">
                     {error}
                   </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Title *
                     </label>
                     <input
@@ -218,7 +218,7 @@ const AppointmentModal = ({
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
                       placeholder="E.g., Language Practice"
                       required
                     />
@@ -226,7 +226,7 @@ const AppointmentModal = ({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
                         Date *
                       </label>
                       <input
@@ -235,20 +235,20 @@ const AppointmentModal = ({
                         value={formData.date}
                         onChange={handleInputChange}
                         min={format(new Date(), 'yyyy-MM-dd')}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-300 mb-1">
                         Duration *
                       </label>
                       <select
                         name="duration"
                         value={formData.duration}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="30">30 mins</option>
                         <option value="60">60 mins</option>
@@ -259,14 +259,14 @@ const AppointmentModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       With
                     </label>
                     <select
                       name="participant"
                       value={formData.participant}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {friends.map(friend => (
                         <option key={friend._id} value={friend._id}>
@@ -277,7 +277,7 @@ const AppointmentModal = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
                       Message (Optional)
                     </label>
                     <textarea
@@ -285,14 +285,14 @@ const AppointmentModal = ({
                       value={formData.message}
                       onChange={handleInputChange}
                       rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
                       placeholder="Add any additional details..."
                     />
                   </div>
 
                   <div className="pt-2">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Select Time Slot</h4>
-                    <div className="border rounded-md p-3">
+                    <h4 className="text-sm font-medium text-gray-300 mb-2">Select Time Slot</h4>
+                    <div className="border border-gray-700 rounded-md p-3 bg-gray-800">
                       <TimeSlotPicker
                         selectedDate={selectedDate}
                         selectedTime={selectedTime}
@@ -307,11 +307,11 @@ const AppointmentModal = ({
                     </div>
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 mt-6">
+                  <div className="flex justify-end space-x-3 pt-4 border-t border-gray-700 mt-6">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="px-4 py-2 text-sm font-medium text-gray-200 bg-gray-800 border border-gray-600 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                       Cancel
                     </button>

@@ -126,15 +126,15 @@ const CalendarPage = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-950 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Appointment Calendar</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Appointment Calendar</h1>
           <div className="mt-4 md:mt-0">
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="rounded-lg shadow-2xl overflow-hidden">
           <Calendar
             appointments={appointments}
             friends={friends}
@@ -149,7 +149,7 @@ const CalendarPage = () => {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-gray-100 mb-4">
             Today's Appointments ({format(new Date(), 'EEEE, MMMM d, yyyy')})
           </h2>
           
@@ -168,32 +168,32 @@ const CalendarPage = () => {
                 return (
                   <div 
                     key={appointment._id || appointment.id} 
-                    className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                    className="p-4 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-750 hover:shadow-lg transition-all cursor-pointer"
                     onClick={() => handleEditAppointment(appointment)}
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="font-medium text-gray-900">{appointment.title}</h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <h3 className="font-medium text-gray-100">{appointment.title}</h3>
+                        <p className="text-sm text-gray-400 mt-1">
                           {format(startTime, 'h:mm a')}
                           {endTime && ` - ${format(endTime, 'h:mm a')}`}
                         </p>
                         {appointment.participant && (
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-gray-400 mt-1">
                             With: {appointment.participant.name || 'Friend'}
                           </p>
                         )}
                       </div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-blue-100 text-blue-800'
+                        appointment.status === 'confirmed' ? 'bg-green-900 text-green-200' :
+                        appointment.status === 'cancelled' ? 'bg-red-900 text-red-200' :
+                        'bg-blue-900 text-blue-200'
                       }`}>
                         {appointment.status || 'Scheduled'}
                       </span>
                     </div>
                     {appointment.message && (
-                      <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                      <p className="mt-2 text-sm text-gray-400 line-clamp-2">
                         {appointment.message}
                       </p>
                     )}
@@ -202,8 +202,8 @@ const CalendarPage = () => {
               })}
             </div>
           ) : (
-            <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">No appointments scheduled for today</p>
+            <div className="text-center py-8 bg-gray-900 rounded-lg border border-gray-800">
+              <p className="text-gray-400">No appointments scheduled for today</p>
             </div>
           )}
         </div>
