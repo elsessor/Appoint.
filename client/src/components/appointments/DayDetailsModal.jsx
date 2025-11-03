@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO, isToday, isBefore } from 'date-fns';
 import { Clock, User, MessageSquare, Calendar, X } from 'lucide-react';
@@ -11,6 +11,15 @@ const DayDetailsModal = ({
   isHoliday,
   currentUser,
 }) => {
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
   const formatTime = (timeString) => {
     if (!timeString) return '';
     try {

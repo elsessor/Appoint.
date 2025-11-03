@@ -47,6 +47,19 @@ const AppointmentModal = ({
     }
   }, [isOpen, initialDate, initialTime, friends]);
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const fetchAvailableSlots = async (date) => {
     try {
       setIsLoading(true);
@@ -73,12 +86,12 @@ const AppointmentModal = ({
     
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += availability.slotDuration) {
-        // Randomly make some slots unavailable for demonstration
-        const isAvailable = Math.random() > 0.3;
+        // All slots are available by default
+        // In a real app, you would check against existing appointments
         slots.push({
           hour,
           minute,
-          available: isAvailable,
+          available: true,
         });
       }
     }

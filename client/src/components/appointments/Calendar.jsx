@@ -417,7 +417,7 @@ const Calendar = ({
       </div>
 
       {/* Day Details Modal */}
-      {selectedDate && (
+      {selectedDate && !showAppointmentModal && (
         <DayDetailsModal
           date={selectedDate}
           appointments={getAppointmentsForDate(selectedDate)}
@@ -436,6 +436,7 @@ const Calendar = ({
             setShowAppointmentModal(false);
             setSelectedAppointment(null);
             setSelectedTime(null);
+            setSelectedDate(null);
           }}
           onSubmit={handleAppointmentSubmit}
           initialDate={selectedDate || new Date()}
