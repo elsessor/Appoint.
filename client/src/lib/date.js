@@ -40,13 +40,13 @@ export function combineDateAndTime(ymd, time) {
   return date;
 }
 
-// format time 'HH:MM' -> 'h:MM am/pm'
+// format time 'HH:MM' -> 'h:MM A.M.' or 'h:MM P.M.'
 export function formatTime12(time) {
   if (!time) return '';
   const parts = time.split(':');
   const hour = Number(parts[0] || 0);
   const min = String(Number(parts[1] || 0)).padStart(2, '0');
-  const ampm = hour >= 12 ? 'pm' : 'am';
+  const ampm = hour >= 12 ? 'P.M.' : 'A.M.';
   const h12 = hour % 12 === 0 ? 12 : hour % 12;
   return `${h12}:${min} ${ampm}`;
 }

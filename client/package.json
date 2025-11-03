@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite --open /signup",
-  "dev:signup": "vite --open /signup",
+    "dev": "vite --open /signup",
+    "dev:signup": "vite --open /signup",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -13,8 +13,10 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
     "axios": "^1.12.2",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.546.0",
     "react": "^19.1.1",
+    "react-big-calendar": "^1.19.4",
     "react-dom": "^19.1.1",
     "react-hot-toast": "^2.6.0",
     "react-router": "^7.9.4"

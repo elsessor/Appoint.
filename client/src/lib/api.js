@@ -99,6 +99,26 @@ export const getFriendRequests = handleNetwork(async () => {
   return response.data;
 }, FRIEND_REQUESTS_FALLBACK);
 
+export const createAppointment = async (appointmentData) => {
+  const response = await axiosInstance.post('/appointments', appointmentData);
+  return response.data;
+};
+
+export const updateAppointment = async ({ id, ...appointmentData }) => {
+  const response = await axiosInstance.put(`/appointments/${id}`, appointmentData);
+  return response.data;
+};
+
+export const deleteAppointment = async (id) => {
+  const response = await axiosInstance.delete(`/appointments/${id}`);
+  return response.data;
+};
+
+export const getAppointments = async () => {
+  const response = await axiosInstance.get('/appointments');
+  return response.data;
+};
+
 export const acceptFriendRequest = handleNetwork(async (requestId) => {
   const response = await axiosInstance.post(`/user/accept-friend-request/${requestId}/accept`);
   return response.data;
