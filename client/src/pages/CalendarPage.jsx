@@ -12,6 +12,7 @@ const CalendarPage = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedFriendId, setSelectedFriendId] = useState('');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [viewingFriendId, setViewingFriendId] = useState(null);
 
   // Scheduling constraints / availability (can be moved to API or config later)
   const generalAvailability = {
@@ -145,6 +146,8 @@ const CalendarPage = () => {
             availability={generalAvailability}
             onDateSelect={setSelectedDate}
             onAppointmentSelect={handleEditAppointment}
+            viewingFriendId={viewingFriendId}
+            onViewingFriendChange={setViewingFriendId}
           />
         </div>
 

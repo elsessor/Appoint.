@@ -20,6 +20,8 @@ const Calendar = ({
     buffer: 15,
   },
   holidays = {},
+  viewingFriendId = null,
+  onViewingFriendChange,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -27,12 +29,25 @@ const Calendar = ({
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [phHolidays, setPhHolidays] = useState([]);
+  const [showFriendDropdown, setShowFriendDropdown] = useState(false);
 
   // Load Philippine holidays for the current year
   useEffect(() => {
     const year = currentMonth.getFullYear();
     setPhHolidays(getPhilippineHolidays(year));
   }, [currentMonth]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFriendDropdown && !event.target.closest('.friend-dropdown-container')) {
+        setShowFriendDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFriendDropdown]);
 
   // Navigation functions
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -145,20 +160,114 @@ const Calendar = ({
     return true;
   };
 
+  // Get the currently viewed user (either current user or selected friend)
+  const viewedUser = useMemo(() => {
+    if (viewingFriendId && friends.length > 0) {
+      return friends.find(f => f._id === viewingFriendId) || currentUser;
+    }
+    return currentUser;
+  }, [viewingFriendId, friends, currentUser]);
+
+  // Check if viewing own calendar
+  const isViewingOwnCalendar = !viewingFriendId || viewingFriendId === currentUser?._id;
+
   return (
     <div className="bg-gray-900 rounded-lg shadow-2xl overflow-hidden">
       {/* Calendar Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
         <div>
-          <h2 className="text-lg font-semibold text-gray-100">
-            {format(currentMonth, 'MMMM yyyy')}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-gray-100">
+              {format(currentMonth, 'MMMM yyyy')}
+            </h2>
+            {!isViewingOwnCalendar && (
+              <span className="px-2 py-1 text-xs font-medium bg-purple-900 text-purple-200 rounded-md">
+                Viewing: {viewedUser?.name || viewedUser?.email}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-400">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
         
         <div className="flex items-center space-x-3">
+          {/* Friend Calendar Selector */}
+          <div className="relative friend-dropdown-container">
+            <button
+              onClick={() => setShowFriendDropdown(!showFriendDropdown)}
+              className="px-3 py-1.5 text-sm font-medium text-gray-200 bg-gray-800 border border-gray-600 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              View Calendar
+            </button>
+            
+            {showFriendDropdown && (
+              <div className="absolute right-0 mt-2 w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      onViewingFriendChange && onViewingFriendChange(null);
+                      setShowFriendDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-700 ${
+                      isViewingOwnCalendar ? 'bg-gray-700 text-blue-400' : 'text-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">My Calendar</div>
+                        <div className="text-xs text-gray-400">{currentUser?.email}</div>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {friends.length > 0 && (
+                    <>
+                      <div className="border-t border-gray-700 my-1"></div>
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Friends' Calendars
+                      </div>
+                      {friends.map((friend) => (
+                        <button
+                          key={friend._id}
+                          onClick={() => {
+                            onViewingFriendChange && onViewingFriendChange(friend._id);
+                            setShowFriendDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-700 ${
+                            viewingFriendId === friend._id ? 'bg-gray-700 text-purple-400' : 'text-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            </svg>
+                            <div>
+                              <div className="font-medium">{friend.name || 'Friend'}</div>
+                              <div className="text-xs text-gray-400">{friend.email}</div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  
+                  {friends.length === 0 && (
+                    <div className="px-4 py-3 text-sm text-gray-400 text-center">
+                      No friends added yet
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          
           <button
             onClick={resetToToday}
             className="px-3 py-1 text-sm font-medium text-gray-200 bg-gray-800 border border-gray-600 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -188,12 +297,14 @@ const Calendar = ({
             </button>
           </div>
           
-          <button
-            onClick={() => handleCreateAppointment(new Date())}
-            className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            New Appointment +
-          </button>
+          {isViewingOwnCalendar && (
+            <button
+              onClick={() => handleCreateAppointment(new Date())}
+              className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              New Appointment +
+            </button>
+          )}
         </div>
       </div>
 
@@ -378,6 +489,8 @@ Calendar.propTypes = {
     buffer: PropTypes.number,
   }),
   holidays: PropTypes.object,
+  viewingFriendId: PropTypes.string,
+  onViewingFriendChange: PropTypes.func,
 };
 
 Calendar.defaultProps = {
