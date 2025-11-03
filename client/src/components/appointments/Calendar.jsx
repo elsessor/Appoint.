@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO } from 'date-fns';
 import DayDetailsModal from './DayDetailsModal';
 import AppointmentModal from './AppointmentModal';
+import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 
 const Calendar = ({
   appointments = [],
@@ -25,6 +26,13 @@ const Calendar = ({
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [phHolidays, setPhHolidays] = useState([]);
+
+  // Load Philippine holidays for the current year
+  useEffect(() => {
+    const year = currentMonth.getFullYear();
+    setPhHolidays(getPhilippineHolidays(year));
+  }, [currentMonth]);
 
   // Navigation functions
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -118,9 +126,8 @@ const Calendar = ({
     // Check if it's a weekend
     if (isWeekend(date)) return false;
     
-    // Check if it's a holiday
-    const dateStr = format(date, 'MM-dd');
-    if (holidays[dateStr]) return false;
+    // Check if it's a Philippine holiday
+    if (isHoliday(date, phHolidays)) return false;
     
     // Check if it's in the past
     const today = new Date();
@@ -206,6 +213,7 @@ const Calendar = ({
           const isDateAvailableNow = isDateAvailable(day);
           const hasAppts = hasAppointments(day);
           const isDayToday = isToday(day);
+          const dayHoliday = isHoliday(day, phHolidays) ? getHolidayName(day, phHolidays) : null;
           
           return (
             <div 
@@ -227,12 +235,18 @@ const Calendar = ({
                     {format(day, 'd')}
                   </span>
                   
-                  {isDateAvailableNow && !hasAppts && (
+                  {isDateAvailableNow && !hasAppts && !dayHoliday && (
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                   )}
                 </div>
                 
                 <div className="flex-1 overflow-hidden">
+                  {dayHoliday && (
+                    <div className="text-xs text-red-600 font-medium truncate mb-1">
+                      {dayHoliday}
+                    </div>
+                  )}
+                  
                   {hasAppts && (
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
@@ -272,7 +286,7 @@ const Calendar = ({
           appointments={getAppointmentsForDate(selectedDate)}
           onClose={() => setSelectedDate(null)}
           onCreateAppointment={handleCreateAppointment}
-          isHoliday={holidays[format(selectedDate, 'MM-dd')]}
+          isHoliday={getHolidayName(selectedDate, phHolidays)}
           currentUser={currentUser}
         />
       )}
