@@ -1,7 +1,10 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Home, Users, Bell, LogOut, Calendar as CalendarIcon } from "lucide-react";
+import useAuthUser from "../hooks/useAuthUser";
 
 const Layout = ({ children, showSidebar = false }) => {
+  const navigate = useNavigate();
+  const { authUser } = useAuthUser();
   return (
     <div className="min-h-screen flex bg-base-100" data-theme="night">
       {/* Sidebar */}
@@ -35,14 +38,14 @@ const Layout = ({ children, showSidebar = false }) => {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/profile")}>
             <div className="relative">
                <div className="w-12 h-12 rounded-full overflow-hidden">
-                 <img src="/profile.jpg" alt="user" className="w-full h-full object-cover" />
+                 <img src={authUser?.profilePicture || "/profile.jpg"} alt="user" className="w-full h-full object-cover" />
                </div>
             </div>
             <div>
-              <div className="font-semibold">Hans San Miguel</div>
+              <div className="font-semibold">{authUser?.name || "User"}</div>
               <div className="text-xs text-success">Online</div>
             </div>
           </div>
@@ -69,7 +72,13 @@ const Layout = ({ children, showSidebar = false }) => {
             <div className="w-12 h-12 rounded-full overflow-hidden">
                  <img src="/profile.jpg" alt="user" className="w-full h-full object-cover" />
                </div>
-            <button className="btn btn-ghost btn-sm">
+            <button 
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                localStorage.removeItem("token");
+                navigate("/login");
+              }}
+            >
               <LogOut />
             </button>
           </div>

@@ -8,6 +8,7 @@ import CallPage from "./pages/CallPage.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import CalendarPage from "./pages/CalendarPage.jsx";
+import ProfileDashboardPage from "./pages/ProfileDashboardPage.jsx";
 
 import { Toaster } from "react-hot-toast";
 import PageLoader from "./components/PageLoader.jsx";
@@ -52,6 +53,18 @@ const App = () => {
           element={
             isAuthenticated ? (!isOnboarded ? <OnboardingPage /> : <Navigate to="/homepage" />) : <Navigate to="/login" />
           }
+        />
+        <Route 
+          path="/profile" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <ProfileDashboardPage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
         />
       </Routes>
 
