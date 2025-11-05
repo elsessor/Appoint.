@@ -5,3 +5,25 @@
 .btn-purple {
   @apply bg-purple-700 hover:bg-purple-800 text-white;
 }
+
+/* Small pop-in animation for cards */
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card-appear {
+  animation: popIn 360ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+/* Reliable pop/scale on hover that forces GPU and avoids only-shadow effect */
+.card-pop {
+  display: inline-block;
+  will-change: transform;
+  transform-origin: center center;
+  transition: transform 260ms cubic-bezier(.2,.9,.2,1), box-shadow 260ms cubic-bezier(.2,.9,.2,1);
+}
+.card-pop:hover {
+  transform: translateY(-8px) scale(1.06);
+  box-shadow: 0 12px 30px rgba(2,6,23,0.6), 0 6px 12px rgba(2,6,23,0.3);
+}

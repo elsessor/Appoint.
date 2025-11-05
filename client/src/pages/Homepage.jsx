@@ -116,16 +116,16 @@ const HomePage = () => {
               <span className="text-primary">Good morning,</span>{" "}
               <span className="text-white">Hans!</span>
             </h1>
-            <p className="text-sm opacity-60 mt-3">Friends</p>
+            <h2 className="text-2xl lg:text-3xl font-bold text-white mt-6">Friends</h2>
 
-            <div className="mt-4 flex items-center gap-6">
-              <div className="flex items-center gap-4">
+            <div className="mt-6 flex items-center gap-8">
+              <div className="flex items-center gap-6">
                 {mainFriends.map((f) => (
-                  <div key={f._id || f.fullName} className="flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-base-300">
+                  <div key={f._id || f.fullName} className="flex flex-col items-center group">
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary transition-all duration-300 transform hover:scale-105">
                       <img src={f.profilePic || "/profile.jpg"} alt={f.fullName} className="w-full h-full object-cover" />
                     </div>
-                    <div className="mt-2 text-sm text-gray-200">{f.fullName}</div>
+                    <div className="mt-3 text-base font-medium text-white group-hover:text-primary transition-colors">{f.fullName}</div>
                   </div>
                 ))}
               </div>
@@ -133,7 +133,7 @@ const HomePage = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link to="/notifications" className="btn btn-outline btn-sm rounded-md">
+            <Link to="/notifications" className="btn btn-outline btn-sm rounded-lg border-primary/20 hover:border-primary hover:bg-primary/10 transition-all duration-300">
               Friend Requests
             </Link>
           </div>
@@ -175,7 +175,7 @@ const HomePage = () => {
                     >
                       Send Friend Request
                     </button>
-                    <button className="btn btn-purple rounded-full px-6 py-2">Book a Lesson</button>
+                    <button className="btn bg-[#091A4D] text-white hover:bg-[#1B2A59] border-0 rounded-full px-6 py-2 transition-all duration-300">Book a Lesson</button>
                   </div>
                 </div>
               </div>

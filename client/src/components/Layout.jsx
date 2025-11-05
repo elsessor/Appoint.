@@ -1,18 +1,19 @@
 import { Link } from "react-router";
-import { Home, Users, Bell, LogOut, Calendar as CalendarIcon } from "lucide-react";
+import { Home, Users, Bell, LogOut, ShipWheelIcon, Calendar as CalendarIcon } from "lucide-react";
 
 const Layout = ({ children, showSidebar = false }) => {
   return (
-    <div className="min-h-screen flex bg-base-100" data-theme="night">
+    // Make the overall layout non-scrollable; allow the main content area to scroll instead
+    <div className="min-h-screen flex bg-base-100 overflow-hidden" data-theme="night">
       {/* Sidebar */}
       {showSidebar && (
         <aside className="w-64 bg-base-200 text-white flex flex-col justify-between p-6 hidden lg:flex">
           <div>
-            <Link to="/homepage" className="flex items-center gap-3 mb-8">
-              <span className="text-3xl font-extrabold text-primary">Appoint.</span>
-            </Link>
-
-            <nav className="space-y-3">
+          <Link to="/homepage" className="flex items-center gap-3 mb-8">
+            <ShipWheelIcon className="size-7 text-primary" />
+            <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Appoint.</span>  
+          </Link>
+          <nav className="space-y-3">
               <Link to="/homepage" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
                 <Home className="size-5 text-primary" />
                 <span className="font-medium">Home</span>
@@ -49,10 +50,10 @@ const Layout = ({ children, showSidebar = false }) => {
         </aside>
       )}
 
-      {/* Main content area */}
-      <div className="flex-1">
+  {/* Main content area - scrollable container */}
+  <div className="flex-1 overflow-auto h-screen">
         {/* Top bar */}
-        <header className="flex items-center justify-between px-6 py-4 bg-transparent">
+  <header className="flex items-center justify-between px-6 py-4 bg-base-200 sticky top-0 z-10">
           <div className="flex-1 flex items-center justify-center">
             <div className="w-full max-w-2xl">
               <input

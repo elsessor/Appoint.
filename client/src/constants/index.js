@@ -194,4 +194,7 @@ export const LANGUAGE_TO_FLAG = {
   italian: "it",
   turkish: "tr",
   dutch: "nl",
+  bisaya: "ph",
+  filipino: "ph",
+  tagalog: "ph",
 };
