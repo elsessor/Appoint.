@@ -291,10 +291,6 @@ const TimeSlotPicker = ({
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Clock className="w-6 h-6 text-blue-400" />
-            <h1 className="text-xl font-semibold text-gray-200">
-              BOOKABLE APPOINTMENT SCHEDULE
-            </h1>
           </div>
         </div>
 
