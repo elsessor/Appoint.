@@ -5,7 +5,7 @@ const ProfileDashboardPage = () => {
   const { authUser } = useAuthUser();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: 'Hans San Miguel',
+    name: '',
     location: 'Camarines Sur, Philippines',
     phone: '09479067912',
     twitter: '@loremipsum',
@@ -15,33 +15,79 @@ const ProfileDashboardPage = () => {
       'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.\n\nDuis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
   });
   const [draft, setDraft] = useState(profile);
+  const draftRef = useRef(draft);
 
   useEffect(() => {
     if (authUser) {
+      const authName = authUser?.fullName || authUser?.full_name || authUser?.name || authUser?.displayName || authUser?.full_name_text || '';
+      const authPic = authUser?.profilePic || authUser?.profile_pic || authUser?.profilePicture || authUser?.profilePicUrl || authUser?.profilePicURL || authUser?.avatar || authUser?.picture || '';
+  const authBio = authUser?.bio || authUser?.about || authUser?.description || authUser?.bioText || '';
+  const authLoc = authUser?.location || authUser?.place || authUser?.city || authUser?.address || '';
       const key = `profile_${authUser._id}`;
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          setProfile(prev => ({ ...prev, ...parsed }));
-          setDraft(prev => ({ ...prev, ...parsed }));
+          parsed.name = authName || parsed.name;
+          parsed.profilePicture = authPic || parsed.profilePicture;
+          // Do not overwrite a previously saved "about" with the auth provider bio.
+          // Only use provider bio if there is no about in saved data.
+          if ((!parsed.about || parsed.about === '') && authBio) parsed.about = authBio;
+          // Do not overwrite a previously saved location with the auth provider value.
+          // Only use provider location if there is no location in saved data.
+          if ((!parsed.location || parsed.location === '') && authLoc) parsed.location = authLoc;
+      setProfile(prev => ({ ...prev, ...parsed }));
+      setDraft(prev => ({ ...prev, ...parsed }));
+
+          try {
+            localStorage.setItem(key, JSON.stringify(parsed));
+          } catch (e) {
+          }
         } catch (err) {
-          setProfile(prev => ({ ...prev, name: authUser.name || prev.name, profilePicture: authUser.profilePicture || prev.profilePicture }));
+          setProfile(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
+          setDraft(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
         }
       } else {
-        setProfile(prev => ({ ...prev, name: authUser.name || prev.name, profilePicture: authUser.profilePicture || prev.profilePicture }));
+      const seeded = { name: authName || '', profilePicture: authPic || '', about: authBio || profile.about, location: authLoc || profile.location };
+  setProfile(prev => ({ ...prev, ...seeded }));
+  setDraft(prev => ({ ...prev, ...seeded }));
+        try {
+          localStorage.setItem(key, JSON.stringify(seeded));
+        } catch (e) {}
       }
     }
   }, [authUser]);
 
-  const [recentActivities, setRecentActivities] = useState([
-    { id: 1, description: "Scheduled meeting with Larry", time: "1 hour ago" },
-    { id: 2, description: "Connected with 3 new friends", time: "3 hrs ago" },
-    { id: 3, description: "Completed appointment", time: "18 hrs ago" },
-    { id: 4, description: "Scheduled meeting with Carl", time: "1 day ago" }
-  ]);
+  // recentActivities removed per UI simplification (not used in this view)
 
+  // user's skills (shown on the profile). This may be fetched from backend or stored locally.
   const [skills, setSkills] = useState(["Time Management", "Coordination", "Skills Management"]);
+
+  // If profile object contains skills (from localStorage seed), keep skills state in sync
+  useEffect(() => {
+    if (Array.isArray(profile.skills)) setSkills(profile.skills);
+  }, [profile]);
+
+  // Suggestions dropdown for adding skills/interests when editing.
+  const suggestedSkills = [
+    "Time Management",
+    "Communication",
+    "Leadership",
+    "Coordination",
+    "Problem Solving",
+    "Organization",
+    "Customer Service",
+    "Programming",
+    "Design",
+    "Marketing",
+    "Sales",
+    "Project Management",
+    "Public Speaking",
+    "Data Analysis",
+    "Skills Management"
+  ];
+  const [selectedSuggested, setSelectedSuggested] = useState(suggestedSkills[0]);
+  const [newSkillInput, setNewSkillInput] = useState("");
 
   useEffect(() => {
     if (!authUser) return;
@@ -56,29 +102,23 @@ const ProfileDashboardPage = () => {
         return res.json();
       })
       .then((data) => {
-        if (cancelled) return;
-        if (Array.isArray(data.skills)) setSkills(data.skills);
-        if (Array.isArray(data.recentActivities)) setRecentActivities(data.recentActivities);
-      })
-      .catch(() => {
-        Promise.all([
-          fetch(`/api/users/${authUser._id}/skills`, { headers }).then((r) => r.ok ? r.json() : null).catch(() => null),
-          fetch(`/api/users/${authUser._id}/activities`, { headers }).then((r) => r.ok ? r.json() : null).catch(() => null),
-        ])
-          .then(([skillsRes, activitiesRes]) => {
-            if (cancelled) return;
-            if (skillsRes && Array.isArray(skillsRes.skills)) setSkills(skillsRes.skills);
-            else if (skillsRes && Array.isArray(skillsRes)) setSkills(skillsRes);
-
-            if (activitiesRes && Array.isArray(activitiesRes.recentActivities)) setRecentActivities(activitiesRes.recentActivities);
-            else if (activitiesRes && Array.isArray(activitiesRes)) setRecentActivities(activitiesRes);
-          })
-          .catch((err) => {
-            console.warn('Could not load skills or activities:', err);
+          if (cancelled) return;
+          if (Array.isArray(data.skills)) setSkills(data.skills);
+        })
+        .catch(() => {
+          fetch(`/api/users/${authUser._id}/skills`, { headers })
+            .then((r) => r.ok ? r.json() : null)
+            .then((skillsRes) => {
+              if (cancelled) return;
+              if (skillsRes && Array.isArray(skillsRes.skills)) setSkills(skillsRes.skills);
+              else if (skillsRes && Array.isArray(skillsRes)) setSkills(skillsRes);
+            })
+            .catch((err) => {
+                  console.warn('Could not load skills:', err);
+                });
           });
-      });
 
-    return () => { cancelled = true; };
+        return () => { cancelled = true; };
   }, [authUser]);
 
   const [stats, setStats] = useState({ friends: 107, appointments: 107, rating: 4.8 });
@@ -122,18 +162,38 @@ const ProfileDashboardPage = () => {
   };
 
   const saveEditing = () => {
-    setProfile(draft);
+    // Use a ref to ensure we persist the latest draft even if state hasn't flushed yet
+    const toSave = draftRef.current || draft;
+    setProfile(toSave);
     setIsEditing(false);
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
-      localStorage.setItem(key, JSON.stringify(draft));
+      localStorage.setItem(key, JSON.stringify(toSave));
+      // update visible skills list from the saved draft
+      if (Array.isArray(toSave.skills)) setSkills(toSave.skills);
     } catch (err) {
       console.error('Failed to save profile to localStorage', err);
     }
   };
 
   const onFieldChange = (field) => (e) => {
-    setDraft({ ...draft, [field]: e.target.value });
+    const value = e?.target?.value;
+    const nextDraft = { ...draft, [field]: value };
+    setDraft(nextDraft);
+    // keep draftRef in sync immediately so Save reads the freshest value
+    draftRef.current = nextDraft;
+    // reflect immediately in visible profile and persist so edits survive refresh
+    setProfile(prev => ({ ...prev, [field]: value }));
+    try {
+      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : {};
+      // use the updated draft as authoritative for this change
+      const merged = { ...parsed, ...nextDraft };
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch (err) {
+      console.error('Failed to persist profile field change', err);
+    }
   };
 
   const fileInputRef = useRef(null);
@@ -144,9 +204,10 @@ const ProfileDashboardPage = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result;
-      setProfile(prev => ({ ...prev, profilePicture: dataUrl }));
-      setDraft(prev => ({ ...prev, profilePicture: dataUrl }));
-      // persist immediately
+  setProfile(prev => ({ ...prev, profilePicture: dataUrl }));
+  const next = { ...draftRef.current, profilePicture: dataUrl };
+  setDraft(next);
+  draftRef.current = next;
       try {
         const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
         const saved = localStorage.getItem(key);
@@ -158,9 +219,55 @@ const ProfileDashboardPage = () => {
       }
     };
     reader.readAsDataURL(file);
-    // clear input so same file can be re-selected later if desired
     e.target.value = '';
   };
+
+  const addSkillToDraft = (skill) => {
+    if (!skill) return;
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : (Array.isArray(profile.skills) ? profile.skills.slice() : []);
+    if (current.includes(skill)) return;
+    const updated = [...current, skill];
+  const next = { ...draftRef.current, skills: updated };
+  setDraft(next);
+  draftRef.current = next;
+    // reflect immediately in visible list and persist
+    setSkills(updated);
+    setProfile(prev => ({ ...prev, skills: updated }));
+    try {
+      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : {};
+      // use latest draft (via ref) when persisting to avoid stale profile merges
+      const merged = { ...parsed, ...(draftRef.current || profile), skills: updated };
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch (err) {
+      console.error('Failed to persist skills to localStorage', err);
+    }
+  };
+
+  const removeSkillFromDraft = (idx) => {
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : [];
+    current.splice(idx, 1);
+  const next = { ...draftRef.current, skills: current };
+  setDraft(next);
+  draftRef.current = next;
+    // reflect immediately in visible list and persist
+    setSkills(current);
+    setProfile(prev => ({ ...prev, skills: current }));
+    try {
+      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : {};
+      // use latest draft (via ref) when persisting to avoid stale profile merges
+      const merged = { ...parsed, ...(draftRef.current || profile), skills: current };
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch (err) {
+      console.error('Failed to persist skills to localStorage', err);
+    }
+  };
+
+  // keep the ref synced with state in case other code updates draft via setDraft
+  useEffect(() => { draftRef.current = draft; }, [draft]);
 
   return (
     <div className="p-6">
@@ -169,7 +276,7 @@ const ProfileDashboardPage = () => {
           <div className="relative">
             <img
               src={authUser?.profilePicture || profile.profilePicture || "/profile.jpg"}
-              alt={profile.name}
+              alt={authUser?.name || profile.name}
               className="w-24 h-24 rounded-full object-cover"
             />
             <div className="mt-2 text-center">
@@ -185,7 +292,7 @@ const ProfileDashboardPage = () => {
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-4 mb-4">
-              <h1 className="text-3xl font-bold">{profile.name}</h1>
+              <h1 className="text-3xl font-bold">{authUser?.name || profile.name}</h1>
               {authUser?.isVerified && (
                 <div className="flex items-center space-x-2 text-success bg-success/10 px-3 py-1 rounded-full">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -235,7 +342,7 @@ const ProfileDashboardPage = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
                 <div className="space-y-3">
@@ -287,20 +394,64 @@ const ProfileDashboardPage = () => {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold mb-4">Statistics</h3>
-                <div className="grid grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary">{stats.friends}</div>
-                    <div className="text-sm opacity-75">Friends</div>
-                  </div>
-                  <div className="text-center">
-                      <div className="text-3xl font-bold text-primary">{stats.appointments}</div>
-                    <div className="text-sm opacity-75">Appointments</div>
-                  </div>
-                  <div className="text-center">
-                      <div className="text-3xl font-bold text-primary">{stats.rating}</div>
-                    <div className="text-sm opacity-75">Rating/s</div>
-                  </div>
+                <h3 className="text-lg font-semibold mb-4">Skills & Interests</h3>
+                <div className="p-4 bg-base-100 rounded-lg">
+                  {isEditing ? (
+                    <div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <select
+                          value={selectedSuggested}
+                          onChange={(e) => setSelectedSuggested(e.target.value)}
+                          className="select select-bordered"
+                        >
+                          {suggestedSkills.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => addSkillToDraft(selectedSuggested)}
+                          className="btn btn-sm btn-primary"
+                        >
+                          Add
+                        </button>
+
+                        <input
+                          placeholder="Add custom skill"
+                          value={newSkillInput}
+                          onChange={(e) => setNewSkillInput(e.target.value)}
+                          className="input input-bordered w-full max-w-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { addSkillToDraft(newSkillInput.trim()); setNewSkillInput(''); }}
+                          className="btn btn-sm"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+                        {(draft.skills || skills || []).map((skill, index) => (
+                          <span key={index} className="inline-flex items-center gap-2 px-4 py-2 bg-base-300 text-primary rounded-full text-base font-medium">
+                            <span>{skill}</span>
+                            <button type="button" onClick={() => removeSkillFromDraft(index)} className="text-xs text-error ml-2">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {(skills || []).map((skill, index) => (
+                        <span
+                          key={index}
+                          className="px-5 py-3 bg-base-300 text-primary rounded-full text-base font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -308,55 +459,22 @@ const ProfileDashboardPage = () => {
         </div>
       </div>
 
-      <div className="flex gap-8 mt-6">
-        <div className="flex-1">
-          <div className="bg-base-200 rounded-xl p-6">
-            <h3 className="text-2xl font-bold mb-6">About</h3>
-            <div className="space-y-4 mb-8">
-              {isEditing ? (
-                <textarea
-                  value={draft.about}
-                  onChange={onFieldChange('about')}
-                  rows={6}
-                  className="w-full bg-base-300 rounded p-3 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              ) : (
-                profile.about.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx} className="leading-relaxed">{paragraph}</p>
-                ))
-              )}
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold mb-4">Skills & Interests</h3>
-              <div className="flex flex-wrap gap-3">
-                {skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="px-4 py-2 bg-base-300 text-primary rounded-full text-sm font-medium"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1">
-          <div className="bg-base-200 rounded-xl p-6">
-            <h3 className="text-2xl font-bold mb-6">Recent Activity</h3>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="py-4 border-b border-base-300 last:border-b-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-base">{activity.description}</p>
-                    <span className="text-sm opacity-75">{activity.time}</span>
-                  </div>
-                </div>
-              ))}
-              <button className="text-primary hover:text-primary-focus text-sm font-medium mt-4 transition-colors">
-                See more...
-              </button>
-            </div>
+      <div className="mt-6">
+        <div className="bg-base-200 rounded-xl p-6">
+          <h3 className="text-2xl font-bold mb-6">About</h3>
+          <div className="space-y-4 mb-8">
+            {isEditing ? (
+              <textarea
+                value={draft.about}
+                onChange={onFieldChange('about')}
+                rows={6}
+                className="w-full bg-base-300 rounded p-3 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            ) : (
+              profile.about.split('\n\n').map((paragraph, idx) => (
+                <p key={idx} className="leading-relaxed">{paragraph}</p>
+              ))
+            )}
           </div>
         </div>
       </div>
