@@ -1,12 +1,15 @@
 import { Navigate, Route, Routes } from "react-router";
 
 import HomePage from "./pages/Homepage.jsx";
+import LandingPage from "./pages/LandingPage.jsx";
 import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import CalendarPage from "./pages/CalendarPage.jsx";
+import FriendsPage from "./pages/FriendsPage.jsx"; 
 
 import { Toaster } from "react-hot-toast";
 
@@ -34,17 +37,20 @@ const App = () => {
               <Layout showSidebar={true}>
                 <HomePage />
               </Layout>
+            ) : !isAuthenticated ? (
+              <LandingPage />
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              <Navigate to="/onboarding" />
             )
           }
         />
+        <Route path="/landing" element={<LandingPage />} />
         <Route
           path="/friends"
           element={
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar={true}>
-                <HomePage />
+                <FriendsPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
