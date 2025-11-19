@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import useAuthUser from "../hooks/useAuthUser";
 
-const ProfileDashboardPage = () => {
+const ProfilePage = () => {
   const { authUser } = useAuthUser();
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
@@ -482,4 +482,4 @@ const ProfileDashboardPage = () => {
   );
 };
 
-export default ProfileDashboardPage;
+export default ProfilePage;
