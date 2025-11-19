@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import Calendar from "../components/appointments/Calendar";
-import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment } from "../lib/api";
+import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments } from "../lib/api";
 import PageLoader from "../components/PageLoader";
 import { toast } from "react-hot-toast";
 
@@ -39,12 +39,8 @@ const CalendarPage = () => {
   // Get appointments
   const { data: appointments = [], isLoading: loadingAppointments } = useQuery({
     queryKey: ["appointments"],
-    queryFn: async () => {
-      // Replace with your actual API call
-      // const response = await fetchAppointments();
-      // return response.data;
-      return [];
-    }
+    queryFn: getAppointments,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Mutations

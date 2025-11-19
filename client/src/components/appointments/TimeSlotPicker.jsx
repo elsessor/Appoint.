@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Clock, Plus, X, Copy, Trash2 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { format } from 'date-fns';
+import { useThemeStore } from '../../store/useThemeStore';
 import {
   generateTimeSlots,
   formatPhTime,
@@ -23,6 +24,7 @@ const TimeSlotPicker = ({
   userId,
   calendarOwnerId,
 }) => {
+  const { theme } = useThemeStore();
   const [duration, setDuration] = useState(defaultSlotDuration);
   const [repeatMode, setRepeatMode] = useState('weekly');
   const [timezone, setTimezone] = useState('GMT+08:00');
@@ -279,7 +281,7 @@ const TimeSlotPicker = ({
       console.error('Failed to save schedule:', error);
       // Show error message
       const messageElement = document.createElement('div');
-      messageElement.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg';
+      messageElement.className = 'fixed bottom-4 right-4 bg-error text-error-content px-6 py-3 rounded-lg shadow-lg';
       messageElement.textContent = 'Failed to save schedule. Please try again.';
       document.body.appendChild(messageElement);
       setTimeout(() => messageElement.remove(), 3000);
@@ -287,8 +289,8 @@ const TimeSlotPicker = ({
   };
 
   return (
-    <div className="bg-gray-900 rounded-lg shadow-2xl max-w-4xl mx-auto">
-      <div className="p-6 border-b border-gray-700">
+    <div className="bg-base-100 rounded-lg shadow-2xl max-w-4xl mx-auto" data-theme={theme}>
+      <div className="p-6 border-b border-base-300">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
           </div>
@@ -297,15 +299,15 @@ const TimeSlotPicker = ({
         <div className="space-y-6">
             {/* Duration Picker */}
             <div className="flex items-start gap-4">
-              <Clock className="w-5 h-5 text-gray-400 mt-1" />
+              <Clock className="w-5 h-5 text-base-content/60 mt-1" />
               <div className="flex-1">
-                <h3 className="text-gray-200 font-medium mb-1">Appointment duration</h3>
-                <p className="text-sm text-gray-400 mb-3">How long should each appointment last?</p>
+                <h3 className="text-base-content font-medium mb-1">Appointment duration</h3>
+                <p className="text-sm text-base-content/60 mb-3">How long should each appointment last?</p>
                 <div className="relative">
                   <select
                     value={duration}
                     onChange={(e) => setDuration(Number(e.target.value))}
-                    className="w-48 bg-gray-700/50 text-gray-200 px-4 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none cursor-pointer appearance-none hover:bg-gray-700 transition-colors"
+                    className="w-48 bg-base-200 text-base-content px-4 py-2 rounded-lg border border-base-300 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer appearance-none hover:bg-base-300 transition-colors"
                   >
                     {durations.map(d => (
                       <option key={d} value={d}>
@@ -314,7 +316,7 @@ const TimeSlotPicker = ({
                     ))}
                   </select>
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
@@ -324,32 +326,32 @@ const TimeSlotPicker = ({
 
             {/* Schedule Editor */}
             <div className="flex items-start gap-4">
-              <Clock className="w-5 h-5 text-gray-400 mt-1" />
+              <Clock className="w-5 h-5 text-base-content/60 mt-1" />
               <div className="flex-1">
-                <h3 className="text-gray-200 font-medium mb-1">Daily availability</h3>
-                <p className="text-sm text-gray-400 mb-3">Set your available hours for appointments</p>
+                <h3 className="text-base-content font-medium mb-1">Daily availability</h3>
+                <p className="text-sm text-base-content/60 mb-3">Set your available hours for appointments</p>
 
-                <div className="space-y-3 rounded-lg border border-gray-700 p-4 bg-gray-800/50">
+                <div className="space-y-3 rounded-lg border border-base-300 p-4 bg-base-200/50">
                   {days.map((day, dayIndex) => {
                     const daySchedule = weekSchedule[dayIndex];
                     const isCurrentDay = dayIndex === new Date(selectedDate).getDay();
 
                     return (
                       <div key={dayIndex} 
-                           className={`flex items-center gap-2 py-3 hover:bg-gray-800/50 rounded-lg px-4 transition-colors
-                                    ${isCurrentDay ? 'bg-gray-800/50 ring-1 ring-blue-500' : ''}`}>
-                        <div className="w-10 text-gray-300 text-sm font-medium">{day}</div>
+                           className={`flex items-center gap-2 py-3 hover:bg-base-300/50 rounded-lg px-4 transition-colors
+                                    ${isCurrentDay ? 'bg-base-200/50 ring-1 ring-primary' : ''}`}>
+                        <div className="w-10 text-base-content text-sm font-medium">{day}</div>
                         
                         {!daySchedule.available ? (
                           <div className="flex-1 flex items-center justify-between">
-                            <span className="text-gray-500 text-sm">Unavailable</span>
+                            <span className="text-base-content/60 text-sm">Unavailable</span>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => toggleDayAvailability(dayIndex)}
-                                className="p-1.5 hover:bg-gray-700 rounded-full transition-colors"
+                                className="p-1.5 hover:bg-base-300 rounded-full transition-colors"
                                 title="Set available hours"
                               >
-                                <Plus className="w-5 h-5 text-gray-400" />
+                                <Plus className="w-5 h-5 text-base-content/60" />
                               </button>
                             </div>
                           </div>
@@ -369,16 +371,16 @@ const TimeSlotPicker = ({
                                           : `start-${dayIndex}-${slotIndex}`
                                       );
                                     }}
-                                    className="bg-gray-700/50 text-gray-200 px-3 py-1.5 rounded-lg border border-gray-600 hover:border-blue-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm w-32 text-left flex items-center justify-between hover:bg-gray-700 transition-colors"
+                                    className="bg-base-200 text-base-content px-3 py-1.5 rounded-lg border border-base-300 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm w-32 text-left flex items-center justify-between hover:bg-base-300 transition-colors"
                                   >
                                     {formatTimeForDisplay(slot.start)}
-                                    <svg className="w-3 h-3 text-gray-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3 h-3 text-base-content/60 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                   </button>
                                   
                                   {showEndTimeDropdown === `start-${dayIndex}-${slotIndex}` && (
-                                    <div className="absolute z-50 mt-1 bg-gray-700 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto w-32">
+                                    <div className="absolute z-50 mt-1 bg-base-100 border border-base-300 rounded shadow-lg max-h-48 overflow-y-auto w-32">
                                       {timeOptions.map((time) => (
                                         <button
                                           key={time.value}
@@ -389,7 +391,7 @@ const TimeSlotPicker = ({
                                             setShowEndTimeDropdown(null);
                                           }}
                                           type="button"
-                                          className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors"
+                                          className="w-full text-left px-3 py-2 text-sm text-base-content hover:bg-base-200 transition-colors"
                                         >
                                           {time.display}
                                         </button>
@@ -398,7 +400,7 @@ const TimeSlotPicker = ({
                                   )}
                                 </div>
                                 
-                                <span className="text-gray-500">-</span>
+                                <span className="text-base-content/60">-</span>
                                 
                                 <div className="relative time-dropdown-container">
                                   <button
@@ -412,16 +414,16 @@ const TimeSlotPicker = ({
                                           : `end-${dayIndex}-${slotIndex}`
                                       );
                                     }}
-                                    className="bg-gray-700/50 text-gray-200 px-3 py-1.5 rounded-lg border border-gray-600 hover:border-blue-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm w-32 text-left flex items-center justify-between hover:bg-gray-700 transition-colors"
+                                    className="bg-base-200 text-base-content px-3 py-1.5 rounded-lg border border-base-300 hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm w-32 text-left flex items-center justify-between hover:bg-base-300 transition-colors"
                                   >
                                     {formatTimeForDisplay(slot.end)}
-                                    <svg className="w-3 h-3 text-gray-400 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3 h-3 text-base-content/60 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                     </svg>
                                   </button>
                                   
                                   {showEndTimeDropdown === `end-${dayIndex}-${slotIndex}` && (
-                                    <div className="absolute z-50 mt-1 bg-gray-700 border border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto w-32">
+                                    <div className="absolute z-50 mt-1 bg-base-100 border border-base-300 rounded shadow-lg max-h-48 overflow-y-auto w-32">
                                       {timeOptions.map((time) => (
                                         <button
                                           key={time.value}
@@ -432,7 +434,7 @@ const TimeSlotPicker = ({
                                             setShowEndTimeDropdown(null);
                                           }}
                                           type="button"
-                                          className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-600 transition-colors"
+                                          className="w-full text-left px-3 py-2 text-sm text-base-content hover:bg-base-200 transition-colors"
                                           disabled={toMinutes(time.value) <= toMinutes(slot.start)}
                                         >
                                           {time.display}
@@ -446,27 +448,27 @@ const TimeSlotPicker = ({
                                   {daySchedule.slots.length > 1 && (
                                     <button
                                       onClick={() => removeTimeSlot(dayIndex, slotIndex)}
-                                      className="p-1.5 hover:bg-red-500/20 rounded-full transition-colors"
+                                      className="p-1.5 hover:bg-error/20 rounded-full transition-colors"
                                       title="Remove time slot"
                                     >
-                                      <X className="w-4 h-4 text-red-400" />
+                                      <X className="w-4 h-4 text-error" />
                                     </button>
                                   )}
                                   
                                   <button
                                     onClick={() => duplicateTimeSlot(dayIndex, slotIndex)}
-                                    className="p-1.5 hover:bg-gray-700 rounded-full transition-colors"
+                                    className="p-1.5 hover:bg-base-300 rounded-full transition-colors"
                                     title="Duplicate time slot"
                                   >
-                                    <Copy className="w-4 h-4 text-gray-400" />
+                                    <Copy className="w-4 h-4 text-base-content/60" />
                                   </button>
                                   
                                   <button
                                     onClick={() => addTimeSlot(dayIndex)}
-                                    className="p-1.5 hover:bg-gray-700 rounded-full transition-colors"
+                                    className="p-1.5 hover:bg-base-300 rounded-full transition-colors"
                                     title="Add another time slot"
                                   >
-                                    <Plus className="w-4 h-4 text-gray-400" />
+                                    <Plus className="w-4 h-4 text-base-content/60" />
                                   </button>
                                 </div>
                               </div>
@@ -477,8 +479,8 @@ const TimeSlotPicker = ({
                               onClick={() => toggleDayAvailability(dayIndex)}
                               className={`mt-2 px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
                                 daySchedule.available
-                                  ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
-                                  : 'bg-red-500/20 text-red-300 hover:bg-red-500/30'
+                                  ? 'bg-base-200 text-base-content hover:bg-base-300'
+                                  : 'bg-error/20 text-error/80 hover:bg-error/30'
                               }`}
                             >
                               Unavailable
@@ -495,13 +497,13 @@ const TimeSlotPicker = ({
         </div>
 
       {/* Footer Actions */}
-      <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-700">
-        <div className="text-sm text-gray-400">
+      <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-base-300">
+        <div className="text-sm text-base-content/60">
           Step 1 of 2: Select Time Slot
         </div>
         <button
           onClick={onTimeSelect}
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded transition-colors inline-flex items-center gap-2"
+          className="px-6 py-2 btn btn-primary text-white font-medium rounded transition-colors inline-flex items-center gap-2"
         >
           Next: Booking Details
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -536,3 +538,5 @@ TimeSlotPicker.propTypes = {
 };
 
 export default TimeSlotPicker;
+
+

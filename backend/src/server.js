@@ -5,6 +5,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
+import appointmentRoutes from "./routes/appointments.route.js";
 
 import { connectDB } from "./lib/db.js";
 
@@ -22,6 +23,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { format, parseISO, addMinutes } from 'date-fns';
 import TimeSlotPicker from './TimeSlotPicker';
 import BookingDetailsForm from './BookingDetailsForm';
+import { saveCustomAvailability } from '../../lib/api';
 
 const AppointmentModal = ({
   isOpen,
@@ -33,6 +34,7 @@ const AppointmentModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState(1); // 1 for TimeSlotPicker, 2 for BookingDetailsForm
+  const [bookingDetails, setBookingDetails] = useState(null);
 
   // Check if current user is the calendar owner
   const isOwner = currentUser?._id === calendarOwner?._id;
@@ -135,40 +137,27 @@ const AppointmentModal = ({
 
   const handleSaveCustomAvailability = async (customData) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/availability', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      //   },
-      //   body: JSON.stringify({
-      //     date: customData.date,
-      //     slots: customData.slots,
-      //     userId: customData.userId,
-      //   }),
-      // });
-      
-      // if (!response.ok) {
-      //   throw new Error('Failed to save custom availability');
-      // }
-      
-      // const data = await response.json();
+      // Call backend API to save custom availability
+      const response = await saveCustomAvailability({
+        date: customData.date,
+        slots: customData.slots,
+        userId: customData.userId,
+        calendarOwnerId: customData.calendarOwnerId,
+      });
       
       // Update local state with saved data
       setAvailableSlots(customData.slots);
       
-      console.log('Custom availability saved:', customData);
-      return Promise.resolve();
+      console.log('Custom availability saved:', response);
+      return Promise.resolve(response);
     } catch (err) {
       console.error('Error saving custom availability:', err);
       throw err;
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
+  const handleSubmit = (bookingData) => {
+    // This is called from BookingDetailsForm (step 2)
     if (!formData.title.trim()) {
       setError('Please enter a title for the appointment');
       return;
@@ -211,6 +200,7 @@ const AppointmentModal = ({
 
     const appointment = {
       ...formData,
+      ...bookingData, // Include booking details (name, email, phone, meetingType, notes)
       startTime: startDate.toISOString(),
       endTime: endDate.toISOString(),
       userId: currentUser?._id,
@@ -220,6 +210,9 @@ const AppointmentModal = ({
 
     onSubmit(appointment);
     onClose();
+    // Reset state
+    setStep(1);
+    setBookingDetails(null);
   };
 
   if (!isOpen) return null;

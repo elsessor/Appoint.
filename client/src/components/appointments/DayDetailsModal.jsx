@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { format, parseISO, isToday, isBefore } from 'date-fns';
 import { Clock, User, MessageSquare, Calendar, X } from 'lucide-react';
 
 const DayDetailsModal = ({
