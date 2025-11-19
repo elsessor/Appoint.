@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -9,6 +10,7 @@ import { LANGUAGES } from "../constants";
 const OnboardingPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
@@ -23,7 +25,9 @@ const OnboardingPage = () => {
     mutationFn: completeOnboarding,
     onSuccess: () => {
       toast.success("Profile onboarded successfully");
+      // Refresh auth user data and navigate to homepage
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      navigate("/", { replace: true, state: { fromOnboarding: true } });
     },
 
     onError: (error) => {
