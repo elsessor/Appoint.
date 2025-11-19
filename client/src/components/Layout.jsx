@@ -69,9 +69,24 @@ const Layout = ({ children, showSidebar = false }) => {
             <button className="btn btn-ghost btn-circle">
               <Bell />
             </button>
-            <div className="w-12 h-12 rounded-full overflow-hidden">
-                 <img src="/profile.jpg" alt="user" className="w-full h-full object-cover" />
-               </div>
+            <div
+              className="w-12 h-12 rounded-full overflow-hidden cursor-pointer"
+              onClick={() => {
+                try {
+                  const src = authUser?.profilePicture || authUser?.profilePic || authUser?.avatar || "/profile.jpg";
+                  const key = authUser ? `profile_${authUser._id}` : "profile_guest";
+                  const saved = localStorage.getItem(key);
+                  const parsed = saved ? JSON.parse(saved) : {};
+                  const merged = { ...parsed, profilePicture: src };
+                  localStorage.setItem(key, JSON.stringify(merged));
+                } catch (err) {
+                  console.error("Failed to copy avatar to profile storage", err);
+                }
+                navigate("/profile");
+              }}
+            >
+              <img src={authUser?.profilePicture || "/profile.jpg"} alt="user" className="w-full h-full object-cover" />
+            </div>
             <button 
               className="btn btn-ghost btn-sm"
               onClick={() => {
