@@ -1,4 +1,4 @@
-export const capitalize = (value) => {
+export const capitialize = (value) => {
   if (value === null || value === undefined) return "";
   const s = String(value);
   if (s.length === 0) return s;

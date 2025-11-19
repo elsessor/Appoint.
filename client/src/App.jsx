@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import HomePage from "./pages/Homepage.jsx";
 import SignUpPage from "./pages/SignUpPage.jsx";
@@ -15,7 +15,6 @@ import PageLoader from "./components/PageLoader.jsx";
 import Layout from "./components/Layout.jsx";
 import { getAuthUser } from "./lib/api.js";
 import useAuthUser from "./hooks/useAuthUser.js";
-import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
 
 const App = () => {

@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO } from 'date-fns';
 import DayDetailsModal from './DayDetailsModal';
 import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';

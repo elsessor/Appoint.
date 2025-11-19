@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { format, parseISO, isBefore, addMinutes } from 'date-fns';
 import TimeSlotPicker from './TimeSlotPicker';
 
 const AppointmentModal = ({
