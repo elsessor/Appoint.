@@ -1,40 +1,87 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { format, parseISO } from 'date-fns';
-import { ArrowLeft, CheckCircle2, Calendar as CalendarIcon, Clock, Video, Mail, Phone } from 'lucide-react';
+import { format, parseISO, addHours } from 'date-fns';
+import { ArrowLeft, CheckCircle2, Calendar as CalendarIcon, Clock, Video, Mail, Phone, Loader2 } from 'lucide-react';
 import { useThemeStore } from '../store/useThemeStore';
 import { createAppointment, getMyFriends } from '../lib/api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageLoader from '../components/PageLoader';
+import { toast } from 'react-hot-toast';
 
-const AppointmentBookingPage = ({
-  currentUser,
-}) => {
-  const { data: friends = [], isLoading: loadingFriends } = useQuery({
-    queryKey: ['friends'],
-    queryFn: getMyFriends,
-  });
-    if (loadingFriends) return <PageLoader />;
+const AppointmentBookingPage = ({ currentUser }) => {
+  const queryClient = useQueryClient();
   const { theme } = useThemeStore();
   const [step, setStep] = useState(1);
   const [selectedProfessional, setSelectedProfessional] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState('');
+  
+  // Fetch friends list
+  const { data: friends = [], isLoading: loadingFriends } = useQuery({
+    queryKey: ['friends'],
+    queryFn: getMyFriends,
+    onError: (error) => {
+      toast.error('Failed to load professionals. Please try again.');
+      console.error('Error fetching friends:', error);
+    }
+  });
+
+  // Handle booking mutation
+  const { mutate: bookAppointment, isLoading: isBooking } = useMutation({
+    mutationFn: createAppointment,
+    onSuccess: () => {
+      toast.success('Appointment booked successfully!');
+      queryClient.invalidateQueries(['appointments']);
+      handleClose();
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to book appointment');
+      console.error('Booking error:', error);
+    }
+  });
+
   const [bookingDetails, setBookingDetails] = useState({
     firstName: currentUser?.fullName?.split(' ')[0] || '',
     lastName: currentUser?.fullName?.split(' ')[1] || '',
     email: currentUser?.email || '',
-    phoneNumber: '',
+    phoneNumber: currentUser?.phoneNumber || '',
     meetingType: 'Video Call',
     subject: '',
     notes: '',
   });
 
-  const timeSlots = [
-    '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-    '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM',
-    '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM',
-  ];
+  // Generate time slots from 9 AM to 5 PM with 30-minute intervals
+  const generateTimeSlots = () => {
+    const slots = [];
+    const startHour = 9; // 9 AM
+    const endHour = 17; // 5 PM
+    
+    for (let hour = startHour; hour < endHour; hour++) {
+      // Skip lunch time
+      if (hour === 12) continue;
+      
+      // Add full hour slot
+      const time12h = hour > 12 ? hour - 12 : hour;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      
+      slots.push({
+        time: `${time12h}:00 ${ampm}`,
+        value: `${hour}:00`
+      });
+      
+      // Add half hour slot
+      if (hour < endHour - 1) {
+        slots.push({
+          time: `${time12h}:30 ${ampm}`,
+          value: `${hour}:30`
+        });
+      }
+    }
+    
+    return slots;
+  };
+  
+  const timeSlots = generateTimeSlots();
 
   const handleReset = () => {
     setStep(1);
@@ -49,42 +96,44 @@ const AppointmentBookingPage = ({
     // Optionally, navigate to another page here
   };
 
-  const handleBooking = async () => {
+  const handleBooking = () => {
+    if (!selectedProfessional || !selectedTime) {
+      toast.error('Please select a professional and time slot');
+      return;
+    }
+
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    const startTime = new Date(selectedDate);
+    startTime.setHours(hours, minutes, 0, 0);
+    
+    const endTime = new Date(startTime);
+    endTime.setHours(endTime.getHours() + 1);
+
     const appointment = {
       friendId: selectedProfessional._id,
-      startTime: new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        parseInt(selectedTime.split(':')[0]),
-        parseInt(selectedTime.split(':')[1])
-      ),
-      endTime: new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-        parseInt(selectedTime.split(':')[0]) + 1,
-        parseInt(selectedTime.split(':')[1])
-      ),
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
       meetingType: bookingDetails.meetingType,
-      title: bookingDetails.subject,
+      title: bookingDetails.subject || `Appointment with ${selectedProfessional.fullName}`,
       description: bookingDetails.notes,
-      bookedBy: bookingDetails,
+      bookedBy: {
+        ...bookingDetails,
+        userId: currentUser._id
+      },
     };
-    try {
-      await createAppointment(appointment);
-      handleClose();
-    } catch (error) {
-      console.error('Error creating appointment:', error);
-      // Optionally show a toast or error message here
-    }
+
+    bookAppointment(appointment);
   };
 
 
 
+  if (loadingFriends) {
+    return <PageLoader />;
+  }
+
   return (
     <div className="bg-base-100 min-h-screen" data-theme={theme}>
-      <div className="max-w-2xl mx-auto py-10">
+      <div className="max-w-2xl mx-auto py-10 px-4">
         {/* Header */}
         <div className="bg-base-100 border-b border-base-300">
           <div className="flex items-center justify-between p-6">
@@ -370,9 +419,17 @@ const AppointmentBookingPage = ({
                 </button>
                 <button
                   onClick={handleBooking}
-                  className="flex-1 btn btn-primary"
+                  className="btn btn-primary w-full mt-6"
+                  disabled={!selectedTime || isBooking}
                 >
-                  Confirm & Save
+                  {isBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Booking...
+                    </>
+                  ) : (
+                    'Book Appointment'
+                  )}
                 </button>
               </div>
             </div>
