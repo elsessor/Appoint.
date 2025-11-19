@@ -75,18 +75,13 @@ export const login = async (loginData) => {
 };
 
 export const getAuthUser = async () => {
-  // Dev helper: set localStorage['DEV_FORCE_LOGOUT'] = '1' to force unauthenticated state
   try {
-    if (import.meta.env.DEV && typeof window !== "undefined" && window.localStorage?.getItem("DEV_FORCE_LOGOUT") === "1") {
-      if (process.env.NODE_ENV !== "production") console.debug("api.getAuthUser: DEV_FORCE_LOGOUT active — returning null (unauthenticated)");
-      return null;
-    }
-  } catch (e) {
-    // ignore localStorage access errors
+    const res = await axiosInstance.get("/auth/me");
+    return res.data;
+  } catch (error) {
+    console.log("Error in getAuthUser:", error);
+    return null;
   }
-
-  const res = await axiosInstance.get("/auth/me");
-  return res.data;
 };
 
 export const completeOnboarding = async (userData) => {
@@ -94,10 +89,11 @@ export const completeOnboarding = async (userData) => {
   return response.data;
 };
 
-export const getFriendRequests = handleNetwork(async () => {
-  const response = await axiosInstance.get("/user/friend-requests");
+
+export async function getFriendRequests() {
+  const response = await axiosInstance.get("/users/friend-requests");
   return response.data;
-}, FRIEND_REQUESTS_FALLBACK);
+}
 
 export const createAppointment = async (appointmentData) => {
   const response = await axiosInstance.post('/appointments', appointmentData);
@@ -119,37 +115,38 @@ export const getAppointments = async () => {
   return response.data;
 };
 
-export const acceptFriendRequest = handleNetwork(async (requestId) => {
-  const response = await axiosInstance.post(`/user/accept-friend-request/${requestId}/accept`);
+export async function acceptFriendRequest(requestId) {
+  const response = await axiosInstance.put(`/users/friend-request/${requestId}/accept`);
   return response.data;
-}, { success: true });
+}
 
-export const getUserFriends = handleNetwork(async () => {
+export async function getUserFriends() {
   const response = await axiosInstance.get("/users/friends");
   return response.data;
-}, FRIENDS_FALLBACK);
+}
 
-export const getRecommendedUsers = handleNetwork(async () => {
+export async function getRecommendedUsers() {
   const response = await axiosInstance.get("/users");
   return response.data;
-}, RECOMMENDED_FALLBACK);
+}
 
-export const getOutgoingFriendReqs = handleNetwork(async () => {
+export async function getOutgoingFriendReqs() {
   const response = await axiosInstance.get("/users/outgoing-friend-requests");
   return response.data;
-}, []);
+}
 
-export const sendFriendRequest = handleNetwork(async (userId) => {
-  const response = await axiosInstance.post(`/users/friend-requests/${userId}`);
+export async function sendFriendRequest(userId) {
+  const response = await axiosInstance.post(`/users/friend-request/${userId}`);
   return response.data;
-}, { success: true });
+}
 
-export const getStreamToken = async () => {
+export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;
-};
+}
 
 export const logout = async () => {
   const response = await axiosInstance.post("/auth/logout");
   return response.data;
 };
+
