@@ -30,11 +30,7 @@ const ProfilePage = () => {
           const parsed = JSON.parse(saved);
           parsed.name = authName || parsed.name;
           parsed.profilePicture = authPic || parsed.profilePicture;
-          // Do not overwrite a previously saved "about" with the auth provider bio.
-          // Only use provider bio if there is no about in saved data.
           if ((!parsed.about || parsed.about === '') && authBio) parsed.about = authBio;
-          // Do not overwrite a previously saved location with the auth provider value.
-          // Only use provider location if there is no location in saved data.
           if ((!parsed.location || parsed.location === '') && authLoc) parsed.location = authLoc;
       setProfile(prev => ({ ...prev, ...parsed }));
       setDraft(prev => ({ ...prev, ...parsed }));
@@ -57,18 +53,12 @@ const ProfilePage = () => {
       }
     }
   }, [authUser]);
-
-  // recentActivities removed per UI simplification (not used in this view)
-
-  // user's skills (shown on the profile). This may be fetched from backend or stored locally.
   const [skills, setSkills] = useState(["Time Management", "Coordination", "Skills Management"]);
 
-  // If profile object contains skills (from localStorage seed), keep skills state in sync
   useEffect(() => {
     if (Array.isArray(profile.skills)) setSkills(profile.skills);
   }, [profile]);
 
-  // Suggestions dropdown for adding skills/interests when editing.
   const suggestedSkills = [
     "Time Management",
     "Communication",
@@ -162,14 +152,12 @@ const ProfilePage = () => {
   };
 
   const saveEditing = () => {
-    // Use a ref to ensure we persist the latest draft even if state hasn't flushed yet
     const toSave = draftRef.current || draft;
     setProfile(toSave);
     setIsEditing(false);
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       localStorage.setItem(key, JSON.stringify(toSave));
-      // update visible skills list from the saved draft
       if (Array.isArray(toSave.skills)) setSkills(toSave.skills);
     } catch (err) {
       console.error('Failed to save profile to localStorage', err);
@@ -180,15 +168,12 @@ const ProfilePage = () => {
     const value = e?.target?.value;
     const nextDraft = { ...draft, [field]: value };
     setDraft(nextDraft);
-    // keep draftRef in sync immediately so Save reads the freshest value
     draftRef.current = nextDraft;
-    // reflect immediately in visible profile and persist so edits survive refresh
     setProfile(prev => ({ ...prev, [field]: value }));
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : {};
-      // use the updated draft as authoritative for this change
       const merged = { ...parsed, ...nextDraft };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
@@ -230,14 +215,12 @@ const ProfilePage = () => {
   const next = { ...draftRef.current, skills: updated };
   setDraft(next);
   draftRef.current = next;
-    // reflect immediately in visible list and persist
     setSkills(updated);
     setProfile(prev => ({ ...prev, skills: updated }));
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : {};
-      // use latest draft (via ref) when persisting to avoid stale profile merges
       const merged = { ...parsed, ...(draftRef.current || profile), skills: updated };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
@@ -251,22 +234,19 @@ const ProfilePage = () => {
   const next = { ...draftRef.current, skills: current };
   setDraft(next);
   draftRef.current = next;
-    // reflect immediately in visible list and persist
     setSkills(current);
     setProfile(prev => ({ ...prev, skills: current }));
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : {};
-      // use latest draft (via ref) when persisting to avoid stale profile merges
       const merged = { ...parsed, ...(draftRef.current || profile), skills: current };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
       console.error('Failed to persist skills to localStorage', err);
     }
   };
-
-  // keep the ref synced with state in case other code updates draft via setDraft
+ 
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   return (
