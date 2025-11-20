@@ -52,11 +52,11 @@ const Sidebar = () => {
 
       <div className="p-4 border-t border-base-300 mt-auto">
         <div className="flex items-center gap-3">
-          <div className="avatar">
-            <div className="w-10 rounded-full">
+          <Link to="/profile" className="avatar">
+            <div className="w-10 rounded-full cursor-pointer">
               <img src={authUser?.profilePic || '/default-profile.png'} alt="User Avatar" />
             </div>
-          </div>
+          </Link>
           <div className="flex-1">
             <p className="font-semibold text-sm">{authUser?.fullName}</p>
             <p className="text-xs text-success flex items-center gap-1">

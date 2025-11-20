@@ -115,16 +115,6 @@ export const getAppointments = async () => {
   return response.data;
 };
 
-export const saveCustomAvailability = async (availabilityData) => {
-  const response = await axiosInstance.post('/appointments/availability', availabilityData);
-  return response.data;
-};
-
-export const getUserAvailability = async (userId) => {
-  const response = await axiosInstance.get(`/appointments/availability/${userId}`);
-  return response.data;
-};
-
 export async function acceptFriendRequest(requestId) {
   const response = await axiosInstance.put(`/users/friend-request/${requestId}/accept`);
   return response.data;

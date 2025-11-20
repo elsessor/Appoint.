@@ -3,7 +3,7 @@ import User from "../models/User.js";
 
 export async function createAppointment(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
     const {
       friendId,
       startTime,
@@ -52,7 +52,7 @@ export async function createAppointment(req, res) {
 
 export async function getAppointments(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
 
     const appointments = await Appointment.find({
       $or: [{ userId }, { friendId: userId }],
@@ -71,7 +71,7 @@ export async function getAppointments(req, res) {
 export async function getAppointmentById(req, res) {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
 
     const appointment = await Appointment.findById(id)
       .populate("userId", "fullName profilePic email")
@@ -82,9 +82,14 @@ export async function getAppointmentById(req, res) {
     }
 
     // Check if user has access to this appointment
+    // Handle both populated and non-populated cases
+    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
+    const appointmentFriendId = (appointment.friendId._id || appointment.friendId).toString();
+    const currentUserId = req.user._id.toString();
+    
     if (
-      appointment.userId.toString() !== userId &&
-      appointment.friendId.toString() !== userId
+      appointmentUserId !== currentUserId &&
+      appointmentFriendId !== currentUserId
     ) {
       return res.status(403).json({ message: "Not authorized to view this appointment" });
     }
@@ -99,7 +104,7 @@ export async function getAppointmentById(req, res) {
 export async function updateAppointment(req, res) {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
     const { startTime, endTime, title, description, meetingType, status, bookedBy } =
       req.body;
 
@@ -110,7 +115,8 @@ export async function updateAppointment(req, res) {
     }
 
     // Check if user has authorization to update
-    if (appointment.userId.toString() !== userId) {
+    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
+    if (appointmentUserId !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
@@ -135,7 +141,7 @@ export async function updateAppointment(req, res) {
 export async function deleteAppointment(req, res) {
   try {
     const { id } = req.params;
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
 
     const appointment = await Appointment.findById(id);
 
@@ -144,7 +150,8 @@ export async function deleteAppointment(req, res) {
     }
 
     // Check if user has authorization to delete
-    if (appointment.userId.toString() !== userId) {
+    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
+    if (appointmentUserId !== req.user._id.toString()) {
       return res.status(403).json({ message: "Not authorized to delete this appointment" });
     }
 
@@ -159,7 +166,7 @@ export async function deleteAppointment(req, res) {
 
 export async function saveCustomAvailability(req, res) {
   try {
-    const userId = req.user.id;
+    const userId = req.user._id.toString();
     const { days, start, end, slotDuration, buffer, maxPerDay } = req.body;
 
     if (!days || !start || !end) {

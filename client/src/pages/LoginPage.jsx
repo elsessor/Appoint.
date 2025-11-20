@@ -1,5 +1,4 @@
- import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { ShipWheelIcon } from "lucide-react";
 import { Link } from "react-router";
 import useLogin from "../hooks/useLogin";
@@ -33,7 +32,7 @@ const LoginPage = () => {
 
           {error && (
             <div className="alert alert-error mb-4">
-              <span>{error.response.data.message}</span>
+              <span>{error.response?.data?.message || error.message || "An error occurred"}</span>
             </div>
           )}
 
@@ -101,7 +100,6 @@ const LoginPage = () => {
           </div>
         </div>
 
-
         <div className="hidden lg:flex w-full lg:w-1/2 bg-primary/10 items-center justify-center">
           <div className="max-w-md p-8">
             <div className="relative aspect-square max-w-sm mx-auto">
@@ -110,7 +108,7 @@ const LoginPage = () => {
             <div className="text-center space-y-3 mt-6">
               <h2 className="text-xl font-semibold">Schedule meetings with ease and efficiency</h2>
               <p className="opacity-70">
-                    Streamline your calendar, manage appointments, and stay organized with our intuitive platform
+                Streamline your calendar, manage appointments, and stay organized with our intuitive platform
               </p>
             </div>
           </div>
@@ -119,4 +117,5 @@ const LoginPage = () => {
     </div>
   );
 };
+
 export default LoginPage;

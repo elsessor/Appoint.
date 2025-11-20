@@ -143,7 +143,7 @@ const AppointmentBookingPage = () => {
 
   return (
     <div className="bg-base-100 min-h-screen" data-theme={theme}>
-      <div className="max-w-2xl mx-auto py-10 px-4">
+      <div className="max-w-5xl py-10 px-6 lg:px-8">
         {/* Header */}
         <div className="bg-base-100 border-b border-base-300">
           <div className="flex items-center justify-between p-6">

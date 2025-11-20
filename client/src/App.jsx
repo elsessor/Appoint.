@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 
 import HomePage from "./pages/Homepage.jsx";
+import LandingPage from "./pages/LandingPage.jsx";
 import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
@@ -9,6 +10,8 @@ import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import FriendsPage from "./pages/FriendsPage.jsx"; 
 
 import { Toaster } from "react-hot-toast";
 
@@ -36,17 +39,20 @@ const App = () => {
               <Layout showSidebar={true}>
                 <HomePage />
               </Layout>
+            ) : !isAuthenticated ? (
+              <LandingPage />
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              <Navigate to="/onboarding" />
             )
           }
         />
+        <Route path="/landing" element={<LandingPage />} />
         <Route
           path="/friends"
           element={
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar={true}>
-                <HomePage />
+                <FriendsPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
@@ -106,7 +112,7 @@ const App = () => {
           element={
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar={true}>
-                <AppointmentBookingPage currentUser={authUser} />
+                <AppointmentBookingPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
@@ -153,6 +159,19 @@ const App = () => {
               <Navigate to="/login" />
             )
           }
+        />
+
+        <Route 
+          path="/profile" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <ProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
         />
       </Routes>
 

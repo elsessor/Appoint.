@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
 import Calendar from "../components/appointments/Calendar";
 import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments } from "../lib/api";
 import PageLoader from "../components/PageLoader";
