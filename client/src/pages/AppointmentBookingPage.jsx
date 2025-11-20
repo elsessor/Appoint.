@@ -7,14 +7,16 @@ import { createAppointment, getMyFriends } from '../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
+import useAuthUser from '../hooks/useAuthUser';
 
-const AppointmentBookingPage = ({ currentUser }) => {
+const AppointmentBookingPage = () => {
   const queryClient = useQueryClient();
   const { theme } = useThemeStore();
   const [step, setStep] = useState(1);
   const [selectedProfessional, setSelectedProfessional] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState('');
+  const { isLoading: loadingUser, authUser: currentUser } = useAuthUser();
   
   // Fetch friends list
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
@@ -101,6 +103,10 @@ const AppointmentBookingPage = ({ currentUser }) => {
       toast.error('Please select a professional and time slot');
       return;
     }
+    if (!currentUser || !currentUser._id) {
+      toast.error('Could not find current user. Please log in again.');
+      return;
+    }
 
     const [hours, minutes] = selectedTime.split(':').map(Number);
     const startTime = new Date(selectedDate);
@@ -127,8 +133,12 @@ const AppointmentBookingPage = ({ currentUser }) => {
 
 
 
-  if (loadingFriends) {
+  if (loadingFriends || loadingUser) {
     return <PageLoader />;
+  }
+
+  if (!currentUser || !currentUser._id) {
+    return <div className="text-error text-center py-10">You must be logged in to book an appointment.</div>;
   }
 
   return (
@@ -184,33 +194,41 @@ const AppointmentBookingPage = ({ currentUser }) => {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-base-content mb-4">Select a Professional</h3>
               <div className="space-y-3">
-                {friends.map((friend) => (
-                  <div
-                    key={friend._id}
-                    onClick={() => setSelectedProfessional(friend)}
-                    className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedProfessional?._id === friend._id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-base-300 hover:border-primary/40'
-                    }`}
-                  >
-                    <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
-                      <img
-                        src={friend.profilePic || '/default-profile.png'}
-                        alt={friend.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-base-content">{friend.fullName}</h4>
-                      <p className="text-sm text-base-content/60 truncate">{friend.learningLanguage} Learner</p>
-                      <p className="text-sm text-success mt-1">Available Today</p>
-                    </div>
-                    {selectedProfessional?._id === friend._id && (
-                      <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
+                {(!Array.isArray(friends) || friends.length === 0) ? (
+                  <div className="text-warning text-center py-4">No professionals found. Try adding friends who are learners!</div>
+                ) : (
+                  friends.map((friend, idx) => {
+                    const keyVal = typeof friend._id === 'string' || typeof friend._id === 'number' ? friend._id : idx;
+                    if (process.env.NODE_ENV !== 'production') {
+                      if (!friend._id || (typeof keyVal !== 'string' && typeof keyVal !== 'number')) {
+                        console.warn("Friend is missing unique _id (or it's not string/number):", friend);
+                      }
+                    }
+                    return (
+                      <div
+                        key={keyVal}
+                        onClick={() => setSelectedProfessional(friend)}
+                        className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedProfessional?._id === friend._id ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/40'}`}
+                      >
+                        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                          <img
+                            src={friend.profilePic || '/default-profile.png'}
+                            alt={friend.fullName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-base-content">{friend.fullName || 'Unknown Name'}</h4>
+                          <p className="text-sm text-base-content/60 truncate">{friend.learningLanguage || 'Unknown'} Learner</p>
+                          <p className="text-sm text-success mt-1">Available Today</p>
+                        </div>
+                        {selectedProfessional?._id === friend._id && (
+                          <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <button
                 onClick={() => setStep(2)}
@@ -246,19 +264,38 @@ const AppointmentBookingPage = ({ currentUser }) => {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-base-content">Select Time Slot</h3>
                 <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`py-2 px-3 rounded-lg font-medium transition text-sm ${
-                        selectedTime === time
-                          ? 'btn btn-primary btn-sm'
-                          : 'btn btn-outline btn-sm'
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
+                  {(!Array.isArray(timeSlots) || timeSlots.length === 0) ? (
+                    <div className="text-warning text-center col-span-3 py-4">No time slots available.</div>
+                  ) : (
+                    timeSlots.map((slot, idx) => {
+                      let timeVal = '';
+                      let displayVal = '';
+                      if (typeof slot === 'string') {
+                        timeVal = slot;
+                        displayVal = slot;
+                      } else if (typeof slot === 'object') {
+                        timeVal = slot.value || slot.time || idx;
+                        displayVal = slot.time || slot.value || JSON.stringify(slot);
+                        if (!slot.value && !slot.time && process.env.NODE_ENV !== 'production') {
+                          console.warn("Time slot object missing .time/.value:", slot);
+                        }
+                      } else {
+                        displayVal = timeVal = idx;
+                        if (process.env.NODE_ENV !== 'production') {
+                          console.warn('Unexpected slot type:', slot);
+                        }
+                      }
+                      return (
+                        <button
+                          key={timeVal}
+                          onClick={() => setSelectedTime(timeVal)}
+                          className={`py-2 px-3 rounded-lg font-medium transition text-sm ${selectedTime === timeVal ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}`}
+                        >
+                          {displayVal}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>

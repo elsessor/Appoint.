@@ -132,33 +132,41 @@ const AppointmentBookingModal = ({
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-base-content mb-4">Select a Professional</h3>
               <div className="space-y-3">
-                {friends.map((friend) => (
-                  <div
-                    key={friend._id}
-                    onClick={() => setSelectedProfessional(friend)}
-                    className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      selectedProfessional?._id === friend._id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-base-300 hover:border-primary/40'
-                    }`}
-                  >
-                    <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
-                      <img
-                        src={friend.profilePic || '/default-profile.png'}
-                        alt={friend.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-base-content">{friend.fullName}</h4>
-                      <p className="text-sm text-base-content/60 truncate">{friend.learningLanguage} Learner</p>
-                      <p className="text-sm text-success mt-1">Available Today</p>
-                    </div>
-                    {selectedProfessional?._id === friend._id && (
-                      <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
-                    )}
-                  </div>
-                ))}
+                {(!Array.isArray(friends) || friends.length === 0) ? (
+                  <div className="text-warning text-center py-4">No professionals found. Try adding friends who are learners!</div>
+                ) : (
+                  friends.map((friend, idx) => {
+                    const keyVal = typeof friend._id === 'string' || typeof friend._id === 'number' ? friend._id : idx;
+                    if (process.env.NODE_ENV !== 'production') {
+                      if (!friend._id || (typeof keyVal !== 'string' && typeof keyVal !== 'number')) {
+                        console.warn("Friend is missing unique _id (or it's not string/number):", friend);
+                      }
+                    }
+                    return (
+                      <div
+                        key={keyVal}
+                        onClick={() => setSelectedProfessional(friend)}
+                        className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedProfessional?._id === friend._id ? 'border-primary bg-primary/10' : 'border-base-300 hover:border-primary/40'}`}
+                      >
+                        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                          <img
+                            src={friend.profilePic || '/default-profile.png'}
+                            alt={friend.fullName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-base-content">{friend.fullName || 'Unknown Name'}</h4>
+                          <p className="text-sm text-base-content/60 truncate">{friend.learningLanguage || 'Unknown'} Learner</p>
+                          <p className="text-sm text-success mt-1">Available Today</p>
+                        </div>
+                        {selectedProfessional?._id === friend._id && (
+                          <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <button
                 onClick={() => setStep(2)}
@@ -194,19 +202,27 @@ const AppointmentBookingModal = ({
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-base-content">Select Time Slot</h3>
                 <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                  {timeSlots.map((time) => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`py-2 px-3 rounded-lg font-medium transition text-sm ${
-                        selectedTime === time
-                          ? 'btn btn-primary btn-sm'
-                          : 'btn btn-outline btn-sm'
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
+                  {(!Array.isArray(timeSlots) || timeSlots.length === 0) ? (
+                    <div className="text-warning text-center col-span-3 py-4">No time slots available.</div>
+                  ) : (
+                    timeSlots.map((time, idx) => {
+                      const timeVal = typeof time === 'string' ? time : (time.time || time.value || idx);
+                      if (typeof time === 'object' && process.env.NODE_ENV !== 'production') {
+                        if (!time.time && !time.value) {
+                          console.warn("Time slot is object but missing .time/.value:", time);
+                        }
+                      }
+                      return (
+                        <button
+                          key={timeVal}
+                          onClick={() => setSelectedTime(typeof time === 'string' ? time : (time.time || ''))}
+                          className={`py-2 px-3 rounded-lg font-medium transition text-sm ${selectedTime === (typeof time === 'string' ? time : (time.time || '')) ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm'}`}
+                        >
+                          {typeof time === 'string' ? time : (time.time || JSON.stringify(time))}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
