@@ -1,5 +1,6 @@
 import Appointment from "../models/Appointment.js";
 import User from "../models/User.js";
+import { createNotification } from "./notifications.controller.js";
 
 export async function createAppointment(req, res) {
   try {
@@ -42,6 +43,28 @@ export async function createAppointment(req, res) {
 
     await appointment.save();
     await appointment.populate(["userId", "friendId"]);
+
+    // Create notification for the friend
+    const user = await User.findById(userId);
+    const formattedDate = new Date(startTime).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const formattedTime = new Date(startTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    await createNotification({
+      recipientId: friendId,
+      senderId: userId,
+      type: "appointment",
+      title: "New Appointment Request",
+      message: `${user.fullName} has booked an appointment with you on ${formattedDate} at ${formattedTime}`,
+      appointmentId: appointment._id,
+    });
 
     res.status(201).json(appointment);
   } catch (error) {
@@ -149,9 +172,11 @@ export async function deleteAppointment(req, res) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    // Check if user has authorization to delete
-    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
-    if (appointmentUserId !== req.user._id.toString()) {
+    // Check if user has authorization to delete (either userId or friendId can delete)
+    const appointmentUserId = appointment.userId.toString();
+    const appointmentFriendId = appointment.friendId.toString();
+    
+    if (appointmentUserId !== userId && appointmentFriendId !== userId) {
       return res.status(403).json({ message: "Not authorized to delete this appointment" });
     }
 

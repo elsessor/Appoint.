@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, CalendarPlus, Calendar } from "lucide-react";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -48,13 +48,33 @@ const Sidebar = () => {
           <BellIcon className="size-5 text-base-content opacity-70" />
           <span>Notifications</span>
         </Link>
+
+        <Link
+          to="/appointments"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/appointments" ? "btn-active" : ""
+          }`}
+        >
+          <Calendar className="size-5 text-base-content opacity-70" />
+          <span>Appointments</span>
+        </Link>
+
+        <Link
+          to="/booking"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/booking" || currentPath === "/book-appointment" ? "btn-active" : ""
+          }`}
+        >
+          <CalendarPlus className="size-5 text-base-content opacity-70" />
+          <span>Book Appointment</span>
+        </Link>
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto">
         <div className="flex items-center gap-3">
           <Link to="/profile" className="avatar">
             <div className="w-10 rounded-full cursor-pointer">
-              <img src={authUser?.profilePic || '/default-profile.png'} alt="User Avatar" />
+              <img src={authUser?.profilePic} alt="User Avatar" />
             </div>
           </Link>
           <div className="flex-1">

@@ -1,14 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
+import { acceptFriendRequest, getFriendRequests, getNotifications, markNotificationAsRead } from "../lib/api";
+import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
+import { format } from "date-fns";
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
 
-  const { data: friendRequests, isLoading } = useQuery({
+  const { data: friendRequests, isLoading: isLoadingFriendRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
+  });
+
+  const { data: notifications = [], isLoading: isLoadingNotifications } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: getNotifications,
   });
 
   const { mutate: acceptRequestMutation, isPending } = useMutation({
@@ -19,20 +25,74 @@ const NotificationsPage = () => {
     },
   });
 
+  const { mutate: markAsReadMutation } = useMutation({
+    mutationFn: markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
+  const appointmentNotifications = notifications.filter(n => n.type === "appointment" && !n.isRead);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto max-w-4xl space-y-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
 
-        {isLoading ? (
+        {(isLoadingFriendRequests || isLoadingNotifications) ? (
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg"></span>
           </div>
         ) : (
           <>
+            {appointmentNotifications.length > 0 && (
+              <section className="space-y-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                  Appointment Notifications
+                  <span className="badge badge-primary ml-2">{appointmentNotifications.length}</span>
+                </h2>
+
+                <div className="space-y-3">
+                  {appointmentNotifications.map((notification) => (
+                    <div
+                      key={notification._id}
+                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
+                      onClick={() => {
+                        if (!notification.isRead) {
+                          markAsReadMutation(notification._id);
+                        }
+                      }}
+                    >
+                      <div className="card-body p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="avatar mt-1 size-10 rounded-full">
+                            <img
+                              src={notification.senderId?.profilePic || '/default-profile.png'}
+                              alt={notification.senderId?.fullName || 'User'}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold">{notification.title}</h3>
+                            <p className="text-sm my-1">{notification.message}</p>
+                            <p className="text-xs flex items-center opacity-70">
+                              <ClockIcon className="h-3 w-3 mr-1" />
+                              {format(new Date(notification.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                            </p>
+                          </div>
+                          {!notification.isRead && (
+                            <div className="badge badge-primary">New</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -121,7 +181,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && (
+            {incomingRequests.length === 0 && acceptedRequests.length === 0 && appointmentNotifications.length === 0 && (
               <NoNotificationsFound />
             )}
           </>

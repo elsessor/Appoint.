@@ -206,9 +206,12 @@ const AppointmentDetails = ({
                 <div className="flex flex-col items-center text-center mb-6">
                   <div className="w-20 h-20 rounded-full overflow-hidden mb-3">
                     <img
-                      src={professional.profilePic || '/default-profile.png'}
+                      src={(professional.profilePic && professional.profilePic.trim()) ? professional.profilePic : '/default-profile.png'}
                       alt={professional.fullName}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = '/default-profile.png';
+                      }}
                     />
                   </div>
                   <h4 className="text-base-content font-semibold mb-1">{professional.fullName}</h4>

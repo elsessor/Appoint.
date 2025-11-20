@@ -5,6 +5,7 @@ import { Calendar, Clock, Video, Phone, MapPin, Trash2, Edit } from 'lucide-reac
 import { getAppointments, deleteAppointment } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { toast } from 'react-hot-toast';
 import { useThemeStore } from '../store/useThemeStore';
 
@@ -12,6 +13,8 @@ const AppointmentsPage = () => {
   const { theme } = useThemeStore();
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all'); // all, scheduled, pending, completed, cancelled
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState(null);
 
   // Fetch appointments
   const { data: appointments = [], isLoading, refetch } = useQuery({
@@ -26,16 +29,22 @@ const AppointmentsPage = () => {
     : appointments.filter(apt => apt.status === filterStatus);
 
   // Handle delete appointment
-  const handleDeleteAppointment = async (appointmentId) => {
-    if (window.confirm('Are you sure you want to cancel this appointment?')) {
-      try {
-        await deleteAppointment(appointmentId);
-        toast.success('Appointment cancelled successfully');
-        refetch();
-        setSelectedAppointment(null);
-      } catch (error) {
-        toast.error(error.message || 'Failed to cancel appointment');
-      }
+  const handleDeleteClick = (appointmentId) => {
+    setAppointmentToDelete(appointmentId);
+    setShowConfirmDialog(true);
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
+    
+    try {
+      await deleteAppointment(appointmentToDelete);
+      toast.success('Appointment cancelled successfully');
+      refetch();
+      setSelectedAppointment(null);
+      setAppointmentToDelete(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to cancel appointment');
     }
   };
 
@@ -87,7 +96,7 @@ const AppointmentsPage = () => {
         <AppointmentDetailsView
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
-          onDelete={() => handleDeleteAppointment(selectedAppointment._id)}
+          onDelete={() => handleDeleteClick(selectedAppointment._id)}
           onEdit={() => {
             // Handle edit
             console.log('Edit appointment:', selectedAppointment._id);
@@ -159,11 +168,13 @@ const AppointmentsPage = () => {
                         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={
-                              (appointment.userId?.profilePic || appointment.friendId?.profilePic) ||
-                              '/default-profile.png'
+                              (appointment.userId?.profilePic || appointment.friendId?.profilePic) || '/default-profile.png'
                             }
                             alt="Professional"
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = '/default-profile.png';
+                            }}
                           />
                         </div>
 
@@ -218,7 +229,7 @@ const AppointmentsPage = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteAppointment(appointment._id);
+                          handleDeleteClick(appointment._id);
                         }}
                         className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium btn btn-ghost btn-error btn-sm"
                       >
@@ -233,6 +244,21 @@ const AppointmentsPage = () => {
           </div>
         </>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => {
+          setShowConfirmDialog(false);
+          setAppointmentToDelete(null);
+        }}
+        onConfirm={handleDeleteAppointment}
+        title="Cancel Appointment"
+        message="Are you sure you want to cancel this appointment? This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="Keep Appointment"
+        variant="danger"
+      />
     </div>
   );
 };
