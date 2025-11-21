@@ -95,6 +95,11 @@ export async function getFriendRequests() {
   return response.data;
 }
 
+export async function markNotificationsRead() {
+  const response = await axiosInstance.put("/users/notifications/read");
+  return response.data;
+}
+
 export const createAppointment = async (appointmentData) => {
   const response = await axiosInstance.post('/appointments', appointmentData);
   return response.data;

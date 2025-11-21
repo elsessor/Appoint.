@@ -1,5 +1,6 @@
+import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
+import { acceptFriendRequest, getFriendRequests, markNotificationsRead } from "../lib/api";
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 
@@ -21,6 +22,26 @@ const NotificationsPage = () => {
 
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
+
+  const { mutate: markAsRead } = useMutation({
+    mutationFn: markNotificationsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+    },
+  });
+
+  const hasUnread = useMemo(() => {
+    return (
+      incomingRequests.some((req) => !req.recipientSeen) ||
+      acceptedRequests.some((req) => !req.senderSeen)
+    );
+  }, [incomingRequests, acceptedRequests]);
+
+  useEffect(() => {
+    if (!isLoading && (incomingRequests.length > 0 || acceptedRequests.length > 0) && hasUnread) {
+      markAsRead();
+    }
+  }, [acceptedRequests.length, hasUnread, incomingRequests.length, isLoading, markAsRead]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">

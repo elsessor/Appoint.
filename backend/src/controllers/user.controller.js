@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import { emitNotificationUpdate } from "../lib/socket.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -67,7 +68,11 @@ export async function sendFriendRequest(req, res) {
     const friendRequest = await FriendRequest.create({
       sender: myId,
       recipient: recipientId,
+      recipientSeen: false,
+      senderSeen: true,
     });
+
+    emitNotificationUpdate(recipientId);
 
     res.status(201).json(friendRequest);
   } catch (error) {
@@ -91,6 +96,8 @@ export async function acceptFriendRequest(req, res) {
     }
 
     friendRequest.status = "accepted";
+    friendRequest.senderSeen = false;
+    friendRequest.recipientSeen = true;
     await friendRequest.save();
 
     await User.findByIdAndUpdate(friendRequest.sender, {
@@ -100,6 +107,9 @@ export async function acceptFriendRequest(req, res) {
     await User.findByIdAndUpdate(friendRequest.recipient, {
       $addToSet: { friends: friendRequest.sender },
     });
+
+    emitNotificationUpdate(friendRequest.sender);
+    emitNotificationUpdate(friendRequest.recipient);
 
     res.status(200).json({ message: "Friend request accepted" });
   } catch (error) {
@@ -137,6 +147,27 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function markNotificationsRead(req, res) {
+  try {
+    const userId = req.user.id;
+
+    await FriendRequest.updateMany(
+      { recipient: userId, status: "pending", recipientSeen: false },
+      { recipientSeen: true }
+    );
+
+    await FriendRequest.updateMany(
+      { sender: userId, status: "accepted", senderSeen: false },
+      { senderSeen: true }
+    );
+
+    res.status(200).json({ message: "Notifications marked as read" });
+  } catch (error) {
+    console.log("Error in markNotificationsRead controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
