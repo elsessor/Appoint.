@@ -74,7 +74,13 @@ const Sidebar = () => {
         <div className="flex items-center gap-3">
           <Link to="/profile" className="avatar">
             <div className="w-10 rounded-full cursor-pointer">
-              <img src={authUser?.profilePic} alt="User Avatar" />
+              {authUser?.profilePic ? (
+                <img src={authUser.profilePic} alt="User Avatar" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
+                  {(authUser?.fullName || 'U')[0].toUpperCase()}
+                </div>
+              )}
             </div>
           </Link>
           <div className="flex-1">
