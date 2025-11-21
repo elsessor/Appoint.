@@ -150,3 +150,24 @@ export const logout = async () => {
   return response.data;
 };
 
+export async function getMySettings() {
+  const response = await axiosInstance.get("/users/me/settings");
+  return response.data;
+}
+
+export async function updateMySettings(settings) {
+  // settings: { notifications?, privacy?, videoAudio? }
+  const response = await axiosInstance.put("/users/me/settings", settings);
+  return response.data;
+}
+
+export async function changePassword(payload) {
+  const response = await axiosInstance.put("/users/me/password", payload);
+  return response.data;
+}
+
+export async function deleteMyAccount(payload) {
+  const response = await axiosInstance.delete("/users/me", { data: payload });
+  return response.data;
+}
+

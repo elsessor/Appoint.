@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import mongoose from "mongoose";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -137,6 +138,105 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getMySettings(req, res) {
+  try {
+    const user = await User.findById(req.user.id).select("settings");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.settings || {});
+  } catch (error) {
+    console.error("Error in getMySettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateMySettings(req, res) {
+  try {
+    const { notifications, privacy, videoAudio } = req.body;
+
+    const updates = {};
+    if (notifications) updates["settings.notifications"] = notifications;
+    if (privacy) updates["settings.privacy"] = privacy;
+    if (videoAudio) updates["settings.videoAudio"] = videoAudio;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No settings provided to update" });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true }).select(
+      "settings"
+    );
+
+    res.status(200).json(user.settings);
+  } catch (error) {
+    console.error("Error in updateMySettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function changePassword(req, res) {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new passwords are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long" });
+    }
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isCurrentPasswordValid = await user.matchPassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error in changePassword controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function deleteMyAccount(req, res) {
+  try {
+    const userId = req.user.id;
+    const { confirmation } = req.body || {};
+
+    if (confirmation !== "DELETE") {
+      return res.status(400).json({ message: "Invalid confirmation phrase" });
+    }
+
+    await FriendRequest.deleteMany({
+      $or: [{ sender: userId }, { recipient: userId }],
+    });
+
+    await User.updateMany(
+      { friends: userId },
+      { $pull: { friends: userId } }
+    );
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.clearCookie("jwt");
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteMyAccount controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
