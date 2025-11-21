@@ -52,7 +52,7 @@ const Sidebar = () => {
         <Link
          to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
         <FileText className="size-5 text-base-content opacity-70" />
-        <span className="font-medium">Meeting Minutes</span>
+        <span className="font-medium">Meeting Log</span>
         </Link>
         <Link
           to="/chats"
