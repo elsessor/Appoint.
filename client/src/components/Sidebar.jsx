@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, FileText, MessageCircle } from "lucide-react"; // ✅ Add FileText and MessageCircle
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -47,6 +47,21 @@ const Sidebar = () => {
         >
           <BellIcon className="size-5 text-base-content opacity-70" />
           <span>Notifications</span>
+        </Link>
+
+        <Link
+         to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
+        <FileText className="size-5 text-base-content opacity-70" />
+        <span className="font-medium">Meeting Minutes</span>
+        </Link>
+        <Link
+          to="/chats"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/chats" ? "btn-active" : ""
+          }`}
+        >
+          <MessageCircle className="size-5 text-base-content opacity-70" />
+          <span>Chats</span>
         </Link>
       </nav>
 

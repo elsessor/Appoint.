@@ -10,6 +10,7 @@ import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx"; 
+import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
 
 import { Toaster } from "react-hot-toast";
 
@@ -132,6 +133,19 @@ const App = () => {
             )
           } 
         />
+                <Route
+          path="/meeting-minutes"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar>
+                <MeetingMinutesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        
       </Routes>
 
       <Toaster />
