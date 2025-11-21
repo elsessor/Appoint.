@@ -9,15 +9,12 @@ const SettingPage = () => {
   const { authUser } = useAuthUser();
   const { logoutMutation } = useLogout();
 
-  // Account
   const [displayName, setDisplayName] = useState(authUser?.fullName || "");
   const [email, setEmail] = useState(authUser?.email || "");
 
-  // Preferences
   const [language, setLanguage] = useState(localStorage.getItem("pref_language") || "English");
   const [timezone, setTimezone] = useState(localStorage.getItem("pref_timezone") || "(UTC+8) Manila");
 
-  // Notifications (detailed)
   const [appointmentReminders, setAppointmentReminders] = useState(Boolean(localStorage.getItem("notify_appointment") === "true"));
   const [newMessages, setNewMessages] = useState(Boolean(localStorage.getItem("notify_messages") === "true"));
   const [appointmentRequests, setAppointmentRequests] = useState(Boolean(localStorage.getItem("notify_requests") === "true"));
@@ -25,7 +22,6 @@ const SettingPage = () => {
   const [smsNotifications, setSmsNotifications] = useState(Boolean(localStorage.getItem("notify_sms") === "true"));
   const [reminderTiming, setReminderTiming] = useState(localStorage.getItem("notify_reminder_timing") || "15 minutes before");
 
-  // Privacy
   const [profileVisible, setProfileVisible] = useState(Boolean(localStorage.getItem("privacy_profile_visible") !== "false"));
   const [onlineStatus, setOnlineStatus] = useState(Boolean(localStorage.getItem("privacy_online_status") === "true"));
   const [readReceipts, setReadReceipts] = useState(Boolean(localStorage.getItem("privacy_read_receipts") === "true"));
@@ -37,7 +33,6 @@ const SettingPage = () => {
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Video & Audio
   const [camera, setCamera] = useState(localStorage.getItem("va_camera") || "Default Camera");
   const [microphone, setMicrophone] = useState(localStorage.getItem("va_microphone") || "Default Microphone");
   const [speaker, setSpeaker] = useState(localStorage.getItem("va_speaker") || "Default Speaker");
@@ -46,7 +41,6 @@ const SettingPage = () => {
   const [autoStartVideo, setAutoStartVideo] = useState(Boolean(localStorage.getItem("va_autostart") === "true"));
   const [mirrorVideo, setMirrorVideo] = useState(Boolean(localStorage.getItem("va_mirror") === "true"));
 
-  // Tabs
   const [activeTab, setActiveTab] = useState("Notifications");
 
   useEffect(() => {
@@ -54,7 +48,6 @@ const SettingPage = () => {
     setEmail(authUser?.email || "");
   }, [authUser]);
 
-  // load settings from backend on mount
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -119,7 +112,6 @@ const SettingPage = () => {
             reminderTiming,
           },
         });
-        // Optionally update local state from server response
         toast.success("Notification settings saved");
       } catch (err) {
         console.error(err);
@@ -229,7 +221,6 @@ const SettingPage = () => {
           </div>
         </div>
 
-        {/* Category tabs: Privacy | Notifications | Video & Audio */}
         <div className="flex items-center gap-2 mb-6">
           <button
             onClick={() => setActiveTab("Notifications")}
@@ -256,9 +247,6 @@ const SettingPage = () => {
           </button>
         </div>
 
-        {/* Account and Preferences removed per request */}
-
-        {/* Tab content — render based on activeTab */}
         {activeTab === "Notifications" && (
           <section className="mb-6">
             <h2 className="font-semibold mb-3">Notification Preferences</h2>
