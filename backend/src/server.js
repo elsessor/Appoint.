@@ -2,6 +2,8 @@ import express from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { createServer } from "http";
+
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -9,14 +11,18 @@ import appointmentRoutes from "./routes/appointments.route.js";
 import notificationRoutes from "./routes/notifications.route.js";
 
 import { connectDB } from "./lib/db.js";
+import { initSocket } from "./lib/socket.js";
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5001;
+const CLIENT_ORIGIN = process.env.CLIENT_URL || "http://localhost:5173";
 
-app.use(cors({
-    origin: "http://localhost:5173",
+app.use(
+  cors({
+    origin: CLIENT_ORIGIN,
     credentials: true,
-}));
+  })
+);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -27,7 +33,10 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    connectDB();
+const server = createServer(app);
+initSocket(server, CLIENT_ORIGIN);
+
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  connectDB();
 });
