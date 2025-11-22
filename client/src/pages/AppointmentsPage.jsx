@@ -305,17 +305,17 @@ const AppointmentsPage = () => {
                 })}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredAppointments.map((appointment) => (
                   <div
                     key={appointment._id}
-                    className="bg-base-100 border border-base-300 rounded-lg p-6 hover:shadow-md transition"
+                    className="bg-base-100 border border-base-300 rounded-lg p-4 hover:shadow-md transition flex flex-col h-full"
                   >
                     {/* Top section: Avatar, Name, Status */}
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div className="flex items-start gap-4 flex-1">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
                         {/* Avatar */}
-                        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
+                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={
                               (() => {
@@ -336,8 +336,8 @@ const AppointmentsPage = () => {
                         </div>
 
                         {/* Name and Specialty */}
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-base-content text-lg">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base-content text-sm line-clamp-2">
                             {(() => {
                               const currentUserId = currentUser?._id || currentUser?.id;
                               const appointmentUserId = appointment.userId?._id || appointment.userId;
@@ -347,7 +347,7 @@ const AppointmentsPage = () => {
                               return otherUser?.fullName || 'Unknown';
                             })()}
                           </h3>
-                          <p className="text-base-content/60 text-sm">
+                          <p className="text-xs text-base-content/60 line-clamp-1">
                             {appointment.title || 'Appointment'}
                           </p>
                         </div>
@@ -355,35 +355,35 @@ const AppointmentsPage = () => {
 
                       {/* Status Badge */}
                       <div
-                        className={`badge badge-lg ${getStatusBadgeColor(appointment.status)}`}
+                        className={`badge badge-sm ${getStatusBadgeColor(appointment.status)}`}
                       >
                         {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
                       </div>
                     </div>
 
-                    {/* Details: Date, Time, Location, Description */}
-                    <div className="grid grid-cols-2 gap-4 mb-6 text-sm text-base-content/70">
+                    {/* Details: Date, Time, Location */}
+                    <div className="flex flex-col gap-2 mb-3 text-xs text-base-content/70">
                       <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {formatAppointmentDateTime(appointment)}
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatAppointmentDateTime(appointment)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {getMeetingTypeIcon(appointment.meetingType)}
-                        {appointment.meetingType || 'Video Call'}
+                        <span>{appointment.meetingType || 'Video Call'}</span>
                       </div>
+                      {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{appointment.location}</span>
+                        </div>
+                      )}
                     </div>
 
-                    {appointment.description && (
-                      <div className="mb-4 pb-4 border-t border-base-300 pt-4">
-                        <p className="text-sm text-base-content/70">{appointment.description}</p>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2">
+                    {/* Action Buttons - at bottom */}
+                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-base-300">
                       <button
                         onClick={() => setSelectedAppointment(appointment)}
-                        className="px-4 py-2 btn btn-outline btn-sm"
+                        className="w-full btn btn-outline btn-xs"
                       >
                         View Details
                       </button>
@@ -392,7 +392,7 @@ const AppointmentsPage = () => {
                           e.stopPropagation();
                           toast.info('Edit feature coming soon');
                         }}
-                        className="px-4 py-2 btn btn-outline btn-sm"
+                        className="w-full btn btn-outline btn-xs"
                       >
                         Reschedule
                       </button>
@@ -401,7 +401,7 @@ const AppointmentsPage = () => {
                           e.stopPropagation();
                           handleDeleteClick(appointment._id);
                         }}
-                        className="px-4 py-2 btn btn-outline btn-error btn-sm"
+                        className="w-full btn btn-outline btn-error btn-xs"
                       >
                         Cancel
                       </button>

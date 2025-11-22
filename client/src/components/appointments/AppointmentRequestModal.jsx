@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO } from 'date-fns';
-import { X, Clock, User, Calendar, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { X, Clock, User, Calendar, CheckCircle, XCircle, MessageSquare, MapPin } from 'lucide-react';
 
 const AppointmentRequestModal = ({
   isOpen,
@@ -163,6 +163,17 @@ const AppointmentRequestModal = ({
                     </div>
                   )}
 
+                  {/* Location */}
+                  {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-base-content/60">Location</p>
+                        <p className="text-base-content font-medium">{appointment.location}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Description */}
                   {appointment.description && (
                     <div>
@@ -185,6 +196,9 @@ const AppointmentRequestModal = ({
                     <p><span className="text-primary font-medium">Duration:</span> {appointment.duration} minutes</p>
                   )}
                   <p><span className="text-primary font-medium">Type:</span> {appointment.meetingType || 'Not specified'}</p>
+                  {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                    <p><span className="text-primary font-medium">Location:</span> {appointment.location}</p>
+                  )}
                   {requester && (
                     <p><span className="text-primary font-medium">With:</span> {requester.fullName || requester.name}</p>
                   )}

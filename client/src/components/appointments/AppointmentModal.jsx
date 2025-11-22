@@ -39,6 +39,7 @@ const AppointmentModal = ({
     friendId: '',
     meetingType: 'Video Call',
     duration: 30,
+    location: '',
   });
 
   const [showCancellation, setShowCancellation] = useState(false);
@@ -64,6 +65,7 @@ const AppointmentModal = ({
         friendId: appointment.friendId || appointment.participant?._id || '',
         meetingType: appointment.meetingType || 'Video Call',
         duration: appointment.duration || 30,
+        location: appointment.location || '',
       });
     } else if (initialDate) {
       const dateStr = format(initialDate, 'yyyy-MM-dd');
@@ -158,6 +160,12 @@ const AppointmentModal = ({
       return;
     }
 
+    // Validate location for in-person appointments
+    if (formData.meetingType === 'In Person' && !formData.location.trim()) {
+      alert('Please enter a location for in-person appointments');
+      return;
+    }
+
     // Validate that the appointment is not in the past
     const startDateTime = parseISO(formData.startTime);
     const now = new Date();
@@ -175,6 +183,7 @@ const AppointmentModal = ({
       friendId: '',
       meetingType: 'Video Call',
       duration: 30,
+      location: '',
     });
   };
 
@@ -367,6 +376,23 @@ const AppointmentModal = ({
                 </select>
               </div>
 
+              {/* Location - Only show for In Person meetings */}
+              {formData.meetingType === 'In Person' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Meeting Location <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="e.g., Coffee Shop, Library, Park"
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              )}
+
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -391,6 +417,9 @@ const AppointmentModal = ({
                     <p><span className="text-blue-300 font-medium">Date & Time:</span> {format(parseISO(formData.startTime), 'MMM d, yyyy - h:mm a')}</p>
                     <p><span className="text-blue-300 font-medium">Duration:</span> {formData.duration} minutes</p>
                     <p><span className="text-blue-300 font-medium">Type:</span> {formData.meetingType}</p>
+                    {formData.meetingType === 'In Person' && formData.location && (
+                      <p><span className="text-blue-300 font-medium">Location:</span> {formData.location}</p>
+                    )}
                     {formData.friendId && (
                       <p><span className="text-blue-300 font-medium">With:</span> {friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
                     )}
