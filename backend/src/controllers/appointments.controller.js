@@ -87,7 +87,7 @@ export async function createAppointment(req, res) {
     }
 
     // Check if friend is away
-    if (friendAvailability.availabilityStatus === 'away') {
+    if (friend.availabilityStatus === 'away') {
       return res.status(400).json({
         message: "This user is currently away and not accepting bookings",
       });

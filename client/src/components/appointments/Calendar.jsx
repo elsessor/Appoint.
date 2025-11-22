@@ -4,6 +4,7 @@ import { format, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMo
 import DayDetailsModal from './DayDetailsModal';
 import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
+import { AlertCircle } from 'lucide-react';
 
 const Calendar = ({
   appointments = [],
@@ -22,6 +23,8 @@ const Calendar = ({
   holidays = {},
   visibleFriends = [],
   isMultiCalendarMode = false,
+  isViewingFriendAway = false,
+  viewingFriendId = null,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -165,6 +168,9 @@ const Calendar = ({
 
   // Handle creating a new appointment
   const handleCreateAppointment = (date, time) => {
+    if (isViewingFriendAway) {
+      return; // Don't allow booking when friend is away
+    }
     setSelectedDate(date);
     setSelectedTime(time);
     setSelectedAppointment(null);
@@ -219,6 +225,16 @@ const Calendar = ({
 
   return (
     <div className="bg-base-100 rounded-lg shadow-2xl overflow-hidden border border-base-300">
+      {/* Away Status Banner */}
+      {isViewingFriendAway && viewingFriendId && (
+        <div className="bg-error/20 border-b-2 border-error px-6 py-3 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-error flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-error">Cannot book appointment</p>
+            <p className="text-xs text-error/80">This user is currently away and not accepting bookings</p>
+          </div>
+        </div>
+      )}
       {/* Calendar Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-base-300 bg-base-200">
         <div>
@@ -340,7 +356,9 @@ const Calendar = ({
           return (
             <div 
               key={i}
-              className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 hover:bg-base-200 cursor-pointer ${
+              className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 ${
+                isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : 'hover:bg-base-200 cursor-pointer'
+              } ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
               } ${isSelected ? 'ring-2 ring-primary z-10' : ''}`}
               onClick={() => handleDateClick(day)}

@@ -4,12 +4,12 @@ import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ThemeSelector from '../components/ThemeSelector';
-import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments } from '../lib/api';
+import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 import { useThemeStore } from '../store/useThemeStore';
-import { Search, X } from 'lucide-react';
+import { Search, X, AlertCircle } from 'lucide-react';
 
 const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
@@ -59,6 +59,14 @@ const AppointmentBookingPage = () => {
     queryFn: getAppointments,
     enabled: !!(currentUser?._id || currentUser?.id),
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Get viewing friend's availability status
+  const { data: friendAvailability } = useQuery({
+    queryKey: ['friendAvailability', viewingFriendId],
+    queryFn: () => getUserAvailability(viewingFriendId),
+    enabled: !!viewingFriendId,
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
 
   // Create appointment mutation
@@ -412,9 +420,15 @@ const AppointmentBookingPage = () => {
 
         {/* Selected Friend Info */}
         {viewingFriendId && selectedFriend && (
-          <div className="mb-6 bg-primary/10 border border-primary/30 rounded-lg p-4">
+          <div className={`mb-6 border-2 rounded-lg p-4 ${
+            friendAvailability?.availabilityStatus === 'away'
+              ? 'bg-error/10 border-error/30'
+              : friendAvailability?.availabilityStatus === 'limited'
+              ? 'bg-warning/10 border-warning/30'
+              : 'bg-primary/10 border-primary/30'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1">
                 {selectedFriend.profilePic ? (
                   <img
                     src={selectedFriend.profilePic}
@@ -426,13 +440,24 @@ const AppointmentBookingPage = () => {
                     {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
                   </div>
                 )}
-                <div>
+                <div className="flex-1">
                   <p className="font-semibold text-base-content">
                     Viewing {selectedFriend.fullName || selectedFriend.name}'s Calendar
                   </p>
-                  <p className="text-sm text-base-content/60">
-                    You can see their appointments and schedule new ones
-                  </p>
+                  {friendAvailability?.availabilityStatus === 'away' ? (
+                    <p className="text-sm text-error font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-4 h-4" />
+                      This user is currently away and not accepting bookings
+                    </p>
+                  ) : friendAvailability?.availabilityStatus === 'limited' ? (
+                    <p className="text-sm text-warning font-medium">
+                      This user has limited availability
+                    </p>
+                  ) : (
+                    <p className="text-sm text-base-content/60">
+                      You can see their appointments and schedule new ones
+                    </p>
+                  )}
                 </div>
               </div>
               <button
@@ -440,7 +465,7 @@ const AppointmentBookingPage = () => {
                   setViewingFriendId(null);
                   setSearchQuery('');
                 }}
-                className="btn btn-outline btn-sm"
+                className="btn btn-outline btn-sm flex-shrink-0"
               >
                 Back to My Calendar
               </button>
@@ -460,6 +485,8 @@ const AppointmentBookingPage = () => {
             availability={availability}
             visibleFriends={visibleFriends}
             isMultiCalendarMode={isMultiCalendarMode}
+            isViewingFriendAway={friendAvailability?.availabilityStatus === 'away'}
+            viewingFriendId={viewingFriendId}
           />
         </div>
 
