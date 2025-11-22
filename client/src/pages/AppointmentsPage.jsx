@@ -205,9 +205,6 @@ const AppointmentsPage = () => {
                   <h1 className="text-2xl font-bold text-base-content">My Appointments</h1>
                   <p className="text-base-content/60 mt-1">View and manage all your scheduled appointments</p>
                 </div>
-                <div>
-                  <ThemeSelector />
-                </div>
               </div>
 
               {/* Filter Tabs */}
@@ -308,17 +305,17 @@ const AppointmentsPage = () => {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {filteredAppointments.map((appointment) => (
-                  <div 
+                  <div
                     key={appointment._id}
-                    onClick={() => setSelectedAppointment(appointment)}
-                    className="cursor-pointer hover:shadow-lg transition rounded-lg p-4 bg-base-100 border border-base-300 hover:border-primary"
+                    className="bg-base-100 border border-base-300 rounded-lg p-6 hover:shadow-md transition"
                   >
-                    <div className="flex flex-col h-full">
-                      <div className="mb-3">
-                        {/* Professional Avatar */}
-                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 mb-3">
+                    {/* Top section: Avatar, Name, Status */}
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="flex items-start gap-4 flex-1">
+                        {/* Avatar */}
+                        <div className="w-16 h-16 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={
                               (() => {
@@ -338,73 +335,76 @@ const AppointmentsPage = () => {
                           />
                         </div>
 
-                        <h3 className="font-semibold text-base-content text-sm line-clamp-2">
-                          {(() => {
-                            // Show the OTHER user (not current user)
-                            const currentUserId = currentUser?._id || currentUser?.id;
-                            const appointmentUserId = appointment.userId?._id || appointment.userId;
-                            const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
-                            
-                            // If current user is the userId (creator), show friendId; otherwise show userId
-                            const otherUser = appointmentUserId === currentUserId 
-                              ? appointment.friendId 
-                              : appointment.userId;
-                            
-                            return otherUser?.fullName || 'Unknown';
-                          })()}
-                        </h3>
-                        <p className="text-xs text-base-content/60 mb-2 line-clamp-1">
-                          {appointment.title || 'Appointment'}
-                        </p>
-
-                        <div className="flex flex-col gap-2 text-xs text-base-content/70 mb-3">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatAppointmentDateTime(appointment)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {getMeetingTypeIcon(appointment.meetingType)}
-                            {appointment.meetingType || 'Video Call'}
-                          </div>
+                        {/* Name and Specialty */}
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-base-content text-lg">
+                            {(() => {
+                              const currentUserId = currentUser?._id || currentUser?.id;
+                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                              const otherUser = appointmentUserId === currentUserId 
+                                ? appointment.friendId 
+                                : appointment.userId;
+                              return otherUser?.fullName || 'Unknown';
+                            })()}
+                          </h3>
+                          <p className="text-base-content/60 text-sm">
+                            {appointment.title || 'Appointment'}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="mb-3">
-                        <div
-                          className={`badge badge-sm ${getStatusBadgeColor(appointment.status)}`}
-                        >
-                          {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
-                        </div>
+                      {/* Status Badge */}
+                      <div
+                        className={`badge badge-lg ${getStatusBadgeColor(appointment.status)}`}
+                      >
+                        {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
                       </div>
+                    </div>
 
-                      {appointment.description && (
-                        <div className="text-xs text-base-content/70 mb-3 line-clamp-2">
-                          {appointment.description}
-                        </div>
-                      )}
-
-                      <div className="flex gap-2 mt-auto pt-3 border-t border-base-300">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.info('Edit feature coming soon');
-                          }}
-                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium btn btn-ghost btn-xs"
-                        >
-                          <Edit className="w-3 h-3" />
-                          Reschedule
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(appointment._id);
-                          }}
-                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs font-medium btn btn-ghost btn-error btn-xs"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Cancel
-                        </button>
+                    {/* Details: Date, Time, Location, Description */}
+                    <div className="grid grid-cols-2 gap-4 mb-6 text-sm text-base-content/70">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        {formatAppointmentDateTime(appointment)}
                       </div>
+                      <div className="flex items-center gap-2">
+                        {getMeetingTypeIcon(appointment.meetingType)}
+                        {appointment.meetingType || 'Video Call'}
+                      </div>
+                    </div>
+
+                    {appointment.description && (
+                      <div className="mb-4 pb-4 border-t border-base-300 pt-4">
+                        <p className="text-sm text-base-content/70">{appointment.description}</p>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setSelectedAppointment(appointment)}
+                        className="px-4 py-2 btn btn-outline btn-sm"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.info('Edit feature coming soon');
+                        }}
+                        className="px-4 py-2 btn btn-outline btn-sm"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(appointment._id);
+                        }}
+                        className="px-4 py-2 btn btn-outline btn-error btn-sm"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 ))}

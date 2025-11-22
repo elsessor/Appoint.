@@ -43,26 +43,26 @@ const AppointmentRequestModal = ({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-75 transition-opacity"
+        className="absolute inset-0 bg-black/50 transition-opacity"
         onClick={onClose}
       ></div>
 
       {/* Sliding Modal */}
       <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-gray-800 shadow-xl overflow-y-auto">
+        <div className="w-screen max-w-2xl bg-base-100 shadow-xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-blue-700 to-blue-600 border-b border-blue-600 px-6 py-6 flex items-center justify-between">
+          <div className="sticky top-0 bg-base-200 border-b border-base-300 px-6 py-6 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-base-content">
                 {showDeclineForm ? 'Decline Request' : 'Appointment Request'}
               </h2>
-              <p className="text-sm text-blue-100 mt-1">
+              <p className="text-sm text-base-content/60 mt-1">
                 {appointment._id?.slice(-6) || 'N/A'}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-blue-100 hover:text-white transition"
+              className="text-base-content/60 hover:text-base-content transition"
             >
               <X className="w-6 h-6" />
             </button>
@@ -72,19 +72,19 @@ const AppointmentRequestModal = ({
           {!showDeclineForm ? (
             <div className="p-6 space-y-6">
               {/* Status Alert */}
-              <div className="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-4">
-                <p className="text-yellow-200 text-sm font-medium">
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
+                <p className="text-warning text-sm font-medium">
                   ⏰ Awaiting Your Response
                 </p>
-                <p className="text-yellow-100 text-sm mt-1">
+                <p className="text-warning/80 text-sm mt-1">
                   Please accept or decline this appointment request. The requester will be notified of your decision.
                 </p>
               </div>
 
               {/* Requester Information */}
               {requester && (
-                <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                  <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
+                <div className="bg-base-200 rounded-lg p-4 border border-base-300">
+                  <h3 className="text-lg font-semibold text-base-content mb-4 flex items-center gap-2">
                     <User className="w-5 h-5" />
                     Requested By
                   </h3>
@@ -96,19 +96,19 @@ const AppointmentRequestModal = ({
                         className="w-16 h-16 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                         <span className="text-xl font-bold text-white">
                           {(requester.fullName || 'U')[0].toUpperCase()}
                         </span>
                       </div>
                     )}
                     <div>
-                      <h4 className="font-semibold text-gray-100">
+                      <h4 className="font-semibold text-base-content">
                         {requester.fullName || requester.name}
                       </h4>
-                      <p className="text-sm text-gray-400">{requester.email}</p>
+                      <p className="text-sm text-base-content/60">{requester.email}</p>
                       {requester.learningLanguage && (
-                        <p className="text-sm text-gray-400 mt-1">
+                        <p className="text-sm text-base-content/60 mt-1">
                           Learning: {requester.learningLanguage}
                         </p>
                       )}
@@ -118,21 +118,21 @@ const AppointmentRequestModal = ({
               )}
 
               {/* Appointment Details */}
-              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4">Appointment Details</h3>
+              <div className="bg-base-200 rounded-lg p-4 border border-base-300">
+                <h3 className="text-lg font-semibold text-base-content mb-4">Appointment Details</h3>
                 <div className="space-y-4">
                   {/* Title */}
                   <div>
-                    <p className="text-sm text-gray-400">Title</p>
-                    <p className="text-gray-100 font-medium">{appointment.title || 'Untitled'}</p>
+                    <p className="text-sm text-base-content/60">Title</p>
+                    <p className="text-base-content font-medium">{appointment.title || 'Untitled'}</p>
                   </div>
 
                   {/* Date & Time */}
                   <div className="flex items-start gap-2">
-                    <Calendar className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
+                    <Calendar className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-400">Date</p>
-                      <p className="text-gray-100 font-medium">
+                      <p className="text-sm text-base-content/60">Date</p>
+                      <p className="text-base-content font-medium">
                         {format(startTime, 'EEEE, MMMM d, yyyy')}
                       </p>
                     </div>
@@ -140,15 +140,15 @@ const AppointmentRequestModal = ({
 
                   {/* Start Time */}
                   <div className="flex items-start gap-2">
-                    <Clock className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
+                    <Clock className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-gray-400">Time</p>
-                      <p className="text-gray-100 font-medium">
+                      <p className="text-sm text-base-content/60">Time</p>
+                      <p className="text-base-content font-medium">
                         {format(startTime, 'h:mm a')}
                         {endTime && ` - ${format(endTime, 'h:mm a')}`}
                       </p>
                       {appointment.duration && (
-                        <p className="text-sm text-gray-400 mt-1">
+                        <p className="text-sm text-base-content/60 mt-1">
                           Duration: {appointment.duration} minutes
                         </p>
                       )}
@@ -158,16 +158,16 @@ const AppointmentRequestModal = ({
                   {/* Meeting Type */}
                   {appointment.meetingType && (
                     <div>
-                      <p className="text-sm text-gray-400">Meeting Type</p>
-                      <p className="text-gray-100 font-medium">{appointment.meetingType}</p>
+                      <p className="text-sm text-base-content/60">Meeting Type</p>
+                      <p className="text-base-content font-medium">{appointment.meetingType}</p>
                     </div>
                   )}
 
                   {/* Description */}
                   {appointment.description && (
                     <div>
-                      <p className="text-sm text-gray-400">Notes</p>
-                      <p className="text-gray-100 mt-1 whitespace-pre-wrap">
+                      <p className="text-sm text-base-content/60">Notes</p>
+                      <p className="text-base-content mt-1 whitespace-pre-wrap">
                         {appointment.description}
                       </p>
                     </div>
@@ -176,34 +176,34 @@ const AppointmentRequestModal = ({
               </div>
 
               {/* Booking Information Summary */}
-              <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-blue-200 mb-2">Summary</h4>
-                <div className="space-y-1 text-sm text-blue-100">
-                  <p><span className="text-blue-300 font-medium">Title:</span> {appointment.title || 'Not set'}</p>
-                  <p><span className="text-blue-300 font-medium">Date & Time:</span> {format(startTime, 'MMM d, yyyy - h:mm a')}</p>
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-primary mb-2">Summary</h4>
+                <div className="space-y-1 text-sm text-base-content/80">
+                  <p><span className="text-primary font-medium">Title:</span> {appointment.title || 'Not set'}</p>
+                  <p><span className="text-primary font-medium">Date & Time:</span> {format(startTime, 'MMM d, yyyy - h:mm a')}</p>
                   {appointment.duration && (
-                    <p><span className="text-blue-300 font-medium">Duration:</span> {appointment.duration} minutes</p>
+                    <p><span className="text-primary font-medium">Duration:</span> {appointment.duration} minutes</p>
                   )}
-                  <p><span className="text-blue-300 font-medium">Type:</span> {appointment.meetingType || 'Not specified'}</p>
+                  <p><span className="text-primary font-medium">Type:</span> {appointment.meetingType || 'Not specified'}</p>
                   {requester && (
-                    <p><span className="text-blue-300 font-medium">With:</span> {requester.fullName || requester.name}</p>
+                    <p><span className="text-primary font-medium">With:</span> {requester.fullName || requester.name}</p>
                   )}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+              <div className="flex gap-3 pt-4 border-t border-base-300">
                 <button
                   onClick={onClose}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 disabled:opacity-50 text-gray-200 rounded-lg font-medium transition"
+                  className="flex-1 px-6 py-3 btn btn-outline btn-sm"
                 >
                   Later
                 </button>
                 <button
                   onClick={() => setShowDeclineForm(true)}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 btn btn-error btn-sm flex items-center justify-center gap-2"
                 >
                   <XCircle className="w-4 h-4" />
                   Decline
@@ -211,7 +211,7 @@ const AppointmentRequestModal = ({
                 <button
                   onClick={() => onAccept?.(appointment._id)}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-green-700 disabled:opacity-50 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 btn btn-success btn-sm flex items-center justify-center gap-2"
                 >
                   <CheckCircle className="w-4 h-4" />
                   Accept
@@ -221,28 +221,28 @@ const AppointmentRequestModal = ({
           ) : (
             <div className="p-6 space-y-6">
               {/* Decline Form Header */}
-              <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-4">
-                <p className="text-red-200 text-sm">
+              <div className="bg-error/10 border border-error/30 rounded-lg p-4">
+                <p className="text-error/80 text-sm">
                   Please provide a reason for declining this appointment. The requester will see your message.
                 </p>
               </div>
 
               {/* Message Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Your Message <span className="text-red-400">*</span>
+                <label className="block text-sm font-medium text-base-content mb-2">
+                  Your Message <span className="text-error">*</span>
                 </label>
                 <textarea
                   value={declineMessage}
                   onChange={(e) => setDeclineMessage(e.target.value)}
                   placeholder="Explain why you're declining this appointment..."
                   rows="6"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                  className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-error/50 resize-none textarea textarea-bordered"
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+              <div className="flex gap-3 pt-4 border-t border-base-300">
                 <button
                   type="button"
                   onClick={() => {
@@ -250,7 +250,7 @@ const AppointmentRequestModal = ({
                     setDeclineMessage('');
                   }}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 disabled:opacity-50 text-gray-200 rounded-lg font-medium transition"
+                  className="flex-1 px-6 py-3 btn btn-outline btn-sm"
                 >
                   Back
                 </button>
@@ -258,7 +258,7 @@ const AppointmentRequestModal = ({
                   type="button"
                   onClick={handleDecline}
                   disabled={isLoading || !declineMessage.trim()}
-                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-red-700 disabled:opacity-50 text-white rounded-lg font-medium transition"
+                  className="flex-1 px-6 py-3 btn btn-error btn-sm"
                 >
                   {isLoading ? 'Declining...' : 'Confirm Decline'}
                 </button>
