@@ -56,6 +56,20 @@ const appointmentSchema = new mongoose.Schema(
       slotDuration: Number,
       buffer: Number,
       maxPerDay: Number,
+      breakTimes: [
+        {
+          start: String,
+          end: String,
+        },
+      ],
+      minLeadTime: Number,
+      cancelNotice: Number,
+    },
+    appointmentDuration: {
+      type: Number,
+      required: true,
+      min: 15,
+      max: 480, // max 8 hours
     },
   },
   { timestamps: true }

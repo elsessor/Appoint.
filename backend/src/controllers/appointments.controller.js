@@ -1,6 +1,11 @@
 import Appointment from "../models/Appointment.js";
 import User from "../models/User.js";
 import { createNotification } from "./notifications.controller.js";
+import {
+  isWithinBreakTime,
+  checkLeadTime,
+  validateAppointmentDuration,
+} from "../utils/availabilityUtils.js";
 
 export async function createAppointment(req, res) {
   try {
@@ -14,6 +19,7 @@ export async function createAppointment(req, res) {
       meetingType,
       bookedBy,
       availability,
+      appointmentDuration,
     } = req.body;
 
     if (!friendId || !startTime || !endTime) {
@@ -28,17 +34,77 @@ export async function createAppointment(req, res) {
       return res.status(404).json({ message: "Friend not found" });
     }
 
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    // Calculate appointment duration
+    const durationMs = end.getTime() - start.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+
+    // Get friend's availability settings
+    const friendAvailability = friend.availability || {};
+
+    // Validate duration
+    if (durationMinutes < 15) {
+      return res
+        .status(400)
+        .json({ message: "Appointment duration must be at least 15 minutes" });
+    }
+
+    const durationValidation = validateAppointmentDuration(durationMinutes, {
+      min: friendAvailability.appointmentDuration?.min || 15,
+      max: friendAvailability.appointmentDuration?.max || 120,
+    });
+
+    if (!durationValidation.isValid) {
+      return res.status(400).json({ message: durationValidation.error });
+    }
+
+    // Check lead time requirement
+    const minLeadTime = friendAvailability.minLeadTime || 0;
+    if (!checkLeadTime(startTime, minLeadTime)) {
+      const hours = minLeadTime;
+      return res.status(400).json({
+        message: `Bookings require at least ${hours} hour${hours > 1 ? 's' : ''} advance notice`,
+      });
+    }
+
+    // Check if appointment is within break times
+    const breakTimes = friendAvailability.breakTimes || [];
+    const startTimeStr = `${start.getHours().toString().padStart(2, '0')}:${start
+      .getMinutes()
+      .toString()
+      .padStart(2, '0')}`;
+    const endTimeStr = `${end.getHours().toString().padStart(2, '0')}:${end
+      .getMinutes()
+      .toString()
+      .padStart(2, '0')}`;
+
+    if (isWithinBreakTime(startTimeStr, endTimeStr, breakTimes)) {
+      return res.status(400).json({
+        message: "This time slot overlaps with a break time",
+      });
+    }
+
+    // Check if friend is away
+    if (friendAvailability.availabilityStatus === 'away') {
+      return res.status(400).json({
+        message: "This user is currently away and not accepting bookings",
+      });
+    }
+
     const appointment = new Appointment({
       userId,
       friendId,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
+      startTime: start,
+      endTime: end,
       title: title || "Appointment",
       description: description || "",
       meetingType: meetingType || "Video Call",
       status: "pending",
       bookedBy: bookedBy || {},
       availability: availability || {},
+      appointmentDuration: appointmentDuration || durationMinutes,
     });
 
     await appointment.save();
@@ -196,7 +262,19 @@ export async function deleteAppointment(req, res) {
 export async function saveCustomAvailability(req, res) {
   try {
     const userId = req.user._id.toString();
-    const { days, start, end, slotDuration, buffer, maxPerDay } = req.body;
+    const {
+      days,
+      start,
+      end,
+      slotDuration,
+      buffer,
+      maxPerDay,
+      breakTimes,
+      minLeadTime,
+      cancelNotice,
+      appointmentDuration,
+      availabilityStatus,
+    } = req.body;
 
     if (!days || !start || !end) {
       return res
@@ -204,38 +282,38 @@ export async function saveCustomAvailability(req, res) {
         .json({ message: "Missing required fields: days, start, end" });
     }
 
-    // Create or update availability record
-    let appointment = await Appointment.findOne({ userId, title: "Availability" });
-
-    if (!appointment) {
-      appointment = new Appointment({
-        userId,
-        title: "Availability",
-        availability: {
-          days,
-          start,
-          end,
-          slotDuration: slotDuration || 30,
-          buffer: buffer || 15,
-          maxPerDay: maxPerDay || 5,
-        },
-      });
-    } else {
-      appointment.availability = {
-        days,
-        start,
-        end,
-        slotDuration: slotDuration || 30,
-        buffer: buffer || 15,
-        maxPerDay: maxPerDay || 5,
-      };
+    // Update user availability settings
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    await appointment.save();
+    user.availability = {
+      days,
+      start,
+      end,
+      slotDuration: slotDuration || 30,
+      buffer: buffer || 15,
+      maxPerDay: maxPerDay || 5,
+      breakTimes: breakTimes || [],
+      minLeadTime: minLeadTime || 0,
+      cancelNotice: cancelNotice || 0,
+      appointmentDuration: appointmentDuration || {
+        min: 15,
+        max: 120,
+      },
+    };
+
+    if (availabilityStatus && ['available', 'limited', 'away'].includes(availabilityStatus)) {
+      user.availabilityStatus = availabilityStatus;
+    }
+
+    await user.save();
 
     res.status(200).json({
       message: "Availability saved successfully",
-      availability: appointment.availability,
+      availability: user.availability,
+      availabilityStatus: user.availabilityStatus,
     });
   } catch (error) {
     console.error("Error in saveCustomAvailability controller", error.message);
@@ -247,23 +325,33 @@ export async function getUserAvailability(req, res) {
   try {
     const { userId } = req.params;
 
-    const availabilityRecord = await Appointment.findOne({
-      userId,
-      title: "Availability",
-    });
+    const user = await User.findById(userId);
 
-    if (!availabilityRecord) {
+    if (!user || !user.availability) {
       return res.status(200).json({
-        days: [1, 2, 3, 4, 5],
-        start: "09:00",
-        end: "17:00",
-        slotDuration: 30,
-        buffer: 15,
-        maxPerDay: 5,
+        availability: {
+          days: [1, 2, 3, 4, 5],
+          start: "09:00",
+          end: "17:00",
+          slotDuration: 30,
+          buffer: 15,
+          maxPerDay: 5,
+          breakTimes: [],
+          minLeadTime: 0,
+          cancelNotice: 0,
+          appointmentDuration: {
+            min: 15,
+            max: 120,
+          },
+        },
+        availabilityStatus: "available",
       });
     }
 
-    res.status(200).json(availabilityRecord.availability);
+    res.status(200).json({
+      availability: user.availability,
+      availabilityStatus: user.availabilityStatus,
+    });
   } catch (error) {
     console.error("Error in getUserAvailability controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });

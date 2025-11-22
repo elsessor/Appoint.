@@ -47,6 +47,43 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    availabilityStatus: {
+      type: String,
+      enum: ["available", "limited", "away"],
+      default: "available",
+    },
+    availability: {
+      days: [Number],
+      start: String,
+      end: String,
+      slotDuration: Number,
+      buffer: Number,
+      maxPerDay: Number,
+      breakTimes: [
+        {
+          start: String,
+          end: String,
+        },
+      ],
+      minLeadTime: {
+        type: Number,
+        default: 0, // hours before booking
+      },
+      cancelNotice: {
+        type: Number,
+        default: 0, // hours before appointment to cancel
+      },
+      appointmentDuration: {
+        min: {
+          type: Number,
+          default: 15, // minutes
+        },
+        max: {
+          type: Number,
+          default: 120, // minutes
+        },
+      },
+    },
   },
   { timestamps: true }
 );

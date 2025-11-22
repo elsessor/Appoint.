@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import DayDetailsModal from './DayDetailsModal';
 import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
@@ -20,8 +20,8 @@ const Calendar = ({
     buffer: 15,
   },
   holidays = {},
-  viewingFriendId = null,
-  onViewingFriendChange,
+  visibleFriends = [],
+  isMultiCalendarMode = false,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -29,8 +29,52 @@ const Calendar = ({
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [phHolidays, setPhHolidays] = useState([]);
-  const [showFriendModal, setShowFriendModal] = useState(false);
-  const [friendSearch, setFriendSearch] = useState('');
+  const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
+
+  // Color palette for multi-calendar display
+  const colorPalette = [
+    { name: 'blue', apptBg: 'bg-blue-100', apptText: 'text-blue-700', apptBorder: 'border-blue-300', badge: 'bg-blue-500' },
+    { name: 'purple', apptBg: 'bg-purple-100', apptText: 'text-purple-700', apptBorder: 'border-purple-300', badge: 'bg-purple-500' },
+    { name: 'emerald', apptBg: 'bg-emerald-100', apptText: 'text-emerald-700', apptBorder: 'border-emerald-300', badge: 'bg-emerald-500' },
+    { name: 'rose', apptBg: 'bg-rose-100', apptText: 'text-rose-700', apptBorder: 'border-rose-300', badge: 'bg-rose-500' },
+    { name: 'amber', apptBg: 'bg-amber-100', apptText: 'text-amber-700', apptBorder: 'border-amber-300', badge: 'bg-amber-500' },
+    { name: 'cyan', apptBg: 'bg-cyan-100', apptText: 'text-cyan-700', apptBorder: 'border-cyan-300', badge: 'bg-cyan-500' },
+    { name: 'pink', apptBg: 'bg-pink-100', apptText: 'text-pink-700', apptBorder: 'border-pink-300', badge: 'bg-pink-500' },
+    { name: 'indigo', apptBg: 'bg-indigo-100', apptText: 'text-indigo-700', apptBorder: 'border-indigo-300', badge: 'bg-indigo-500' },
+  ];
+
+  // Get color for a specific friend
+  const getColorForFriend = (friendId) => {
+    const friendIndex = friends.findIndex(f => f._id === friendId);
+    return friendIndex >= 0 ? colorPalette[(friendIndex + 1) % colorPalette.length] : colorPalette[0];
+  };
+
+  // Get owner name for appointment
+  const getAppointmentOwner = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    const currentUserId = currentUser?._id || currentUser?.id;
+
+    if (userId === currentUserId) return currentUser?.name || currentUser?.fullName || 'You';
+    if (friendId === currentUserId) return currentUser?.name || currentUser?.fullName || 'You';
+
+    const friend = friends.find(f => f._id === userId || f._id === friendId);
+    return friend?.name || friend?.fullName || 'Friend';
+  };
+
+  // Get owner ID for appointment
+  const getAppointmentOwnerId = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    return userId || friendId;
+  };
+
+  // Check if friend is visible
+  const isFriendVisible = (friendId) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    if (friendId === currentUserId) return true; // Always show current user
+    return isMultiCalendarMode ? visibleFriends.includes(friendId) : true;
+  };
 
   // Load Philippine holidays for the current year
   useEffect(() => {
@@ -38,33 +82,40 @@ const Calendar = ({
     setPhHolidays(getPhilippineHolidays(year));
   }, [currentMonth]);
 
-  // Close modal when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showFriendModal && !event.target.closest('.friend-modal-container')) {
-        setShowFriendModal(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showFriendModal]);
-
   // Navigation functions
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const nextWeek = () => setCurrentMonth(addWeeks(currentMonth, 1));
+  const prevWeek = () => setCurrentMonth(subWeeks(currentMonth, 1));
   const resetToToday = () => setCurrentMonth(new Date());
 
-  // Get days for the current month view
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const startDate = new Date(monthStart);
-  startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
-  
-  const endDate = new Date(monthEnd);
-  endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); // End on Saturday
+  // Get days for the current view
+  let daysInView = [];
+  let displayStart = new Date();
+  let displayEnd = new Date();
 
-  const daysInMonth = eachDayOfInterval({ start: startDate, end: endDate });
+  if (viewMode === 'month') {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const startDate = new Date(monthStart);
+    startDate.setDate(startDate.getDate() - startDate.getDay()); // Start from Sunday
+    
+    const endDate = new Date(monthEnd);
+    endDate.setDate(endDate.getDate() + (6 - endDate.getDay())); // End on Saturday
+    
+    daysInView = eachDayOfInterval({ start: startDate, end: endDate });
+    displayStart = startDate;
+    displayEnd = endDate;
+  } else {
+    // Week view
+    const weekStart = startOfWeek(currentMonth);
+    const weekEnd = endOfWeek(currentMonth);
+    daysInView = eachDayOfInterval({ start: weekStart, end: weekEnd });
+    displayStart = weekStart;
+    displayEnd = weekEnd;
+  }
+
+  const daysInMonth = daysInView;
 
   // Group appointments by date for easy lookup
   const appointmentsByDate = useMemo(() => {
@@ -163,14 +214,8 @@ const Calendar = ({
 
   // Get the currently viewed user (either current user or selected friend)
   const viewedUser = useMemo(() => {
-    if (viewingFriendId && friends.length > 0) {
-      return friends.find(f => f._id === viewingFriendId) || currentUser;
-    }
     return currentUser;
-  }, [viewingFriendId, friends, currentUser]);
-
-  // Check if viewing own calendar
-  const isViewingOwnCalendar = !viewingFriendId || viewingFriendId === currentUser?._id;
+  }, [currentUser]);
 
   return (
     <div className="bg-base-100 rounded-lg shadow-2xl overflow-hidden border border-base-300">
@@ -179,13 +224,11 @@ const Calendar = ({
         <div>
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-base-content">
-              {format(currentMonth, 'MMMM yyyy')}
+              {viewMode === 'month' 
+                ? format(currentMonth, 'MMMM yyyy')
+                : `${format(displayStart, 'MMM d')} - ${format(displayEnd, 'MMM d, yyyy')}`
+              }
             </h2>
-            {!isViewingOwnCalendar && (
-              <span className="px-2 py-1 text-xs font-medium bg-primary/20 text-primary rounded-md">
-                Viewing: {viewedUser?.name || viewedUser?.email}
-              </span>
-            )}
           </div>
           <p className="text-sm text-base-content/60">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
@@ -193,108 +236,63 @@ const Calendar = ({
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowFriendModal(true)}
-            className="btn btn-outline btn-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-            View Calendar
-          </button>
-          <button
             onClick={resetToToday}
             className="btn btn-outline btn-sm"
           >
             Today
           </button>
+          <div className="divider divider-horizontal h-8 my-0"></div>
           <div className="flex rounded-md shadow-sm">
             <button
-              onClick={prevMonth}
+              onClick={() => setViewMode('month')}
+              className={`btn btn-sm rounded-r-none ${
+                viewMode === 'month' 
+                  ? 'btn-primary' 
+                  : 'btn-outline'
+              }`}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setViewMode('week')}
+              className={`btn btn-sm rounded-l-none ${
+                viewMode === 'week' 
+                  ? 'btn-primary' 
+                  : 'btn-outline'
+              }`}
+            >
+              Week
+            </button>
+          </div>
+          <div className="flex rounded-md shadow-sm">
+            <button
+              onClick={viewMode === 'month' ? prevMonth : prevWeek}
               className="btn btn-outline btn-sm rounded-r-none"
             >
-              <span className="sr-only">Previous month</span>
+              <span className="sr-only">Previous</span>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </button>
             <button
-              onClick={nextMonth}
+              onClick={viewMode === 'month' ? nextMonth : nextWeek}
               className="btn btn-outline btn-sm rounded-l-none"
             >
-              <span className="sr-only">Next month</span>
+              <span className="sr-only">Next</span>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
-          {isViewingOwnCalendar && (
-            <button
-              onClick={() => handleCreateAppointment(new Date())}
-              className="btn btn-primary btn-sm"
-            >
-              New Appointment +
-            </button>
-          )}
+          <button
+            onClick={() => handleCreateAppointment(new Date())}
+            className="btn btn-primary btn-sm"
+          >
+            New Appointment +
+          </button>
         </div>
       </div>
       {/* Friend Search Modal */}
-      {showFriendModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 friend-modal-container">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <h2 className="text-lg font-bold mb-4">Search & Choose Friend</h2>
-            <input
-              type="text"
-              className="input input-bordered w-full mb-4"
-              placeholder="Search friends by name or email..."
-              value={friendSearch}
-              onChange={e => setFriendSearch(e.target.value)}
-            />
-            <div className="max-h-80 overflow-y-auto">
-              {friends
-                .filter(f =>
-                  !friendSearch ||
-                  (f.fullName && f.fullName.toLowerCase().includes(friendSearch.toLowerCase())) ||
-                  (f.email && f.email.toLowerCase().includes(friendSearch.toLowerCase()))
-                )
-                .map(friend => (
-                  <button
-                    key={friend._id}
-                    onClick={() => {
-                      onViewingFriendChange && onViewingFriendChange(friend._id);
-                      setShowFriendModal(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 rounded mb-1"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
-                        {friend.profilePic ? (
-                          <img src={friend.profilePic} alt={friend.fullName} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
-                            {(friend.fullName || friend.name || 'F')[0].toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium">{friend.fullName || friend.name || 'Friend'}</div>
-                        <div className="text-xs text-gray-400">{friend.email}</div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              {friends.length === 0 && (
-                <div className="px-4 py-3 text-sm text-gray-400 text-center">
-                  No friends added yet
-                </div>
-              )}
-            </div>
-            <button className="btn btn-outline mt-4 w-full" onClick={() => setShowFriendModal(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Legend */}
       <div className="px-6 py-3 bg-base-200 border-b border-base-300">
         <div className="flex items-center justify-center gap-6 text-xs">
@@ -342,7 +340,7 @@ const Calendar = ({
           return (
             <div 
               key={i}
-              className={`relative min-h-24 p-1 bg-base-100 hover:bg-base-200 cursor-pointer ${
+              className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 hover:bg-base-200 cursor-pointer ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
               } ${isSelected ? 'ring-2 ring-primary z-10' : ''}`}
               onClick={() => handleDateClick(day)}
@@ -374,24 +372,37 @@ const Calendar = ({
                   {hasAppts && (
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
+                        .filter(appt => isFriendVisible(getAppointmentOwnerId(appt)))
                         .slice(0, 2)
-                        .map((appt) => (
-                          <div 
-                            key={appt._id || appt.id}
-                            className="px-1 py-0.5 text-xs truncate rounded bg-primary/30 text-primary-content hover:bg-primary/50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedAppointment(appt);
-                              setSelectedDate(day);
-                            }}
-                          >
-                            {appt.title}
-                          </div>
-                      ))}
+                        .map((appt) => {
+                          const ownerId = getAppointmentOwnerId(appt);
+                          const ownerColor = isMultiCalendarMode ? getColorForFriend(ownerId) : null;
+                          const apptBgClass = ownerColor ? ownerColor.apptBg : 'bg-primary/30';
+                          const apptTextClass = ownerColor ? ownerColor.apptText : 'text-primary-content';
+                          const apptBorderClass = ownerColor ? ownerColor.apptBorder : 'border-primary/50';
+                          
+                          return (
+                            <div 
+                              key={appt._id || appt.id}
+                              className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAppointment(appt);
+                                setSelectedDate(day);
+                              }}
+                              title={isMultiCalendarMode ? `${appt.title} (${getAppointmentOwner(appt)})` : appt.title}
+                            >
+                              {isMultiCalendarMode && (
+                                <span className="font-semibold">{getAppointmentOwner(appt)[0]}</span>
+                              )}
+                              {' '}{appt.title}
+                            </div>
+                          );
+                        })}
                       
-                      {getAppointmentsForDate(day).length > 2 && (
+                      {getAppointmentsForDate(day).filter(appt => isFriendVisible(getAppointmentOwnerId(appt))).length > 2 && (
                         <div className="text-xs text-gray-400 text-center">
-                          +{getAppointmentsForDate(day).length - 2} more
+                          +{getAppointmentsForDate(day).filter(appt => isFriendVisible(getAppointmentOwnerId(appt))).length - 2} more
                         </div>
                       )}
                     </div>
@@ -452,19 +463,26 @@ Calendar.propTypes = {
         name: PropTypes.string,
         email: PropTypes.string,
       }),
+      userId: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
+      friendId: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
     })
   ),
   friends: PropTypes.arrayOf(
     PropTypes.shape({
       _id: PropTypes.string.isRequired,
       name: PropTypes.string,
+      fullName: PropTypes.string,
       email: PropTypes.string.isRequired,
+      profilePic: PropTypes.string,
     })
   ),
   currentUser: PropTypes.shape({
-    _id: PropTypes.string.isRequired,
+    _id: PropTypes.string,
+    id: PropTypes.string,
     name: PropTypes.string,
+    fullName: PropTypes.string,
     email: PropTypes.string.isRequired,
+    profilePic: PropTypes.string,
   }),
   onAppointmentCreate: PropTypes.func,
   onAppointmentUpdate: PropTypes.func,
@@ -477,8 +495,8 @@ Calendar.propTypes = {
     buffer: PropTypes.number,
   }),
   holidays: PropTypes.object,
-  viewingFriendId: PropTypes.string,
-  onViewingFriendChange: PropTypes.func,
+  visibleFriends: PropTypes.arrayOf(PropTypes.string),
+  isMultiCalendarMode: PropTypes.bool,
 };
 
 Calendar.defaultProps = {

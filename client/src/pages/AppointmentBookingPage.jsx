@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Calendar from '../components/appointments/Calendar';
+import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ThemeSelector from '../components/ThemeSelector';
 import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments } from '../lib/api';
@@ -18,6 +19,9 @@ const AppointmentBookingPage = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [visibleFriends, setVisibleFriends] = useState([]);
+  const [isMultiCalendarMode, setIsMultiCalendarMode] = useState(true);
+  const [selectedMiniCalDate, setSelectedMiniCalDate] = useState(null);
 
   // Scheduling availability
   const availability = {
@@ -158,6 +162,54 @@ const AppointmentBookingPage = () => {
     });
   }, [declineAppointmentMutation]);
 
+  // Toggle friend visibility in multi-calendar view
+  const handleToggleFriendVisibility = useCallback((friendId) => {
+    setVisibleFriends(prev => 
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
+  }, []);
+
+  // Get appointment owner details
+  const getAppointmentOwner = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    const currentUserId = currentUser?._id || currentUser?.id;
+
+    if (userId === currentUserId || friendId === currentUserId) {
+      return {
+        name: currentUser?.name || currentUser?.fullName || 'You',
+        id: currentUserId,
+        isCurrentUser: true,
+      };
+    }
+
+    const friend = friends.find(f => f._id === userId || f._id === friendId);
+    return {
+      name: friend?.name || friend?.fullName || 'Friend',
+      id: friend?._id,
+      isCurrentUser: false,
+    };
+  };
+
+  // Get color for owner
+  const getColorForOwner = (ownerId) => {
+    const colorPalette = [
+      { badge: 'bg-blue-500', text: 'text-blue-700' },
+      { badge: 'bg-purple-500', text: 'text-purple-700' },
+      { badge: 'bg-emerald-500', text: 'text-emerald-700' },
+      { badge: 'bg-rose-500', text: 'text-rose-700' },
+      { badge: 'bg-amber-500', text: 'text-amber-700' },
+      { badge: 'bg-cyan-500', text: 'text-cyan-700' },
+      { badge: 'bg-pink-500', text: 'text-pink-700' },
+      { badge: 'bg-indigo-500', text: 'text-indigo-700' },
+    ];
+    
+    const friendIndex = friends.findIndex(f => f._id === ownerId);
+    return friendIndex >= 0 ? colorPalette[(friendIndex + 1) % colorPalette.length] : colorPalette[0];
+  };
+
   // Helper function to detect if this is a pending request FROM another user
   const isPendingRequestFromOther = useCallback((appointment) => {
     // Current user is receiving a request if they are the friendId and status is pending
@@ -250,9 +302,26 @@ const AppointmentBookingPage = () => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+      <div className="flex gap-6">
+        {/* Calendar Sidebar */}
+        {isMultiCalendarMode && (
+          <div className="hidden lg:block flex-shrink-0">
+            <div className="rounded-lg shadow-lg overflow-hidden" style={{ width: '300px', maxHeight: 'calc(100vh - 200px)' }}>
+              <CalendarSidebar
+                friends={friends}
+                currentUser={currentUser}
+                visibleFriends={visibleFriends}
+                onToggleFriendVisibility={handleToggleFriendVisibility}
+                selectedDate={selectedMiniCalDate}
+                onDateSelect={setSelectedMiniCalDate}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-base-content">Book Appointment</h1>
             <p className="text-base-content/60 mt-1">View your schedule and book appointments with friends</p>
@@ -389,8 +458,8 @@ const AppointmentBookingPage = () => {
             onAppointmentUpdate={handleUpdateAppointment}
             onAppointmentDelete={handleDeleteAppointment}
             availability={availability}
-            viewingFriendId={viewingFriendId}
-            onViewingFriendChange={setViewingFriendId}
+            visibleFriends={visibleFriends}
+            isMultiCalendarMode={isMultiCalendarMode}
           />
         </div>
 
@@ -421,6 +490,8 @@ const AppointmentBookingPage = () => {
                 };
 
                 const isPending = isPendingRequestFromOther(appointment);
+                const owner = getAppointmentOwner(appointment);
+                const ownerColor = isMultiCalendarMode ? getColorForOwner(owner.id) : null;
 
                 return (
                   <div 
@@ -438,12 +509,26 @@ const AppointmentBookingPage = () => {
                     }}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-base-content">{appointment.title || 'Untitled'}</h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium badge ${
-                        statusColors[appointment.status] || statusColors.scheduled
-                      }`}>
-                        {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Scheduled'}
-                      </span>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-base-content">{appointment.title || 'Untitled'}</h3>
+                        {isMultiCalendarMode && !owner.isCurrentUser && (
+                          <p className="text-xs text-base-content/60 mt-1">
+                            With: {owner.name}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isMultiCalendarMode && (
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${ownerColor?.badge}`}>
+                            {owner.name[0].toUpperCase()}
+                          </span>
+                        )}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium badge ${
+                          statusColors[appointment.status] || statusColors.scheduled
+                        }`}>
+                          {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Scheduled'}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-sm text-base-content/70 mb-2">
                       {format(startTime, 'h:mm a')}
@@ -469,6 +554,7 @@ const AppointmentBookingPage = () => {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {/* Appointment Request Modal */}

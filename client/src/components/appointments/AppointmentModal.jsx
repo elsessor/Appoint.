@@ -376,7 +376,6 @@ const AppointmentModal = ({
                   <option>Video Call</option>
                   <option>Phone Call</option>
                   <option>In Person</option>
-                  <option>Chat</option>
                 </select>
               </div>
 
