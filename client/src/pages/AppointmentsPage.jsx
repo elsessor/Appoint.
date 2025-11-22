@@ -15,7 +15,7 @@ const AppointmentsPage = () => {
   const { theme } = useThemeStore();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, scheduled, pending, completed, cancelled
+  const [filterStatus, setFilterStatus] = useState('all'); // all, incoming, scheduled, confirmed, completed, cancelled, declined
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -102,6 +102,8 @@ const AppointmentsPage = () => {
   // Filter appointments based on status
   const filteredAppointments = filterStatus === 'all' 
     ? userAppointments
+    : filterStatus === 'incoming'
+    ? incomingRequests
     : userAppointments.filter(apt => apt.status === filterStatus);
 
   // Handle delete appointment
@@ -179,88 +181,10 @@ const AppointmentsPage = () => {
 
   return (
     <div className="min-h-screen bg-base-100" data-theme={theme}>
-      {/* Incoming Requests Section - Prominent Position */}
-      {incomingRequests.length > 0 && !selectedAppointment && (
-        <div data-incoming-requests className="bg-gradient-to-r from-warning/20 to-info/20 border-b-2 border-warning sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-6 py-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="text-3xl">📬</div>
-                <div>
-                  <h2 className="text-lg font-bold text-base-content">
-                    Incoming Appointment Requests
-                  </h2>
-                  <p className="text-sm text-base-content/70">
-                    {incomingRequests.length} {incomingRequests.length === 1 ? 'request' : 'requests'} waiting for your response
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* Requests Cards */}
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {incomingRequests.map((request) => {
-                const requester = request.userId;
-                return (
-                  <div
-                    key={request._id}
-                    className="bg-base-100 border-2 border-warning rounded-lg p-4 hover:shadow-lg transition cursor-pointer group"
-                    onClick={() => {
-                      setSelectedRequest(request);
-                      setShowRequestModal(true);
-                    }}
-                  >
-                    <div className="flex items-start gap-3 mb-3">
-                      {/* Requester Avatar */}
-                      <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                        {requester?.profilePic ? (
-                          <img
-                            src={requester.profilePic}
-                            alt={requester.fullName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
-                            {(requester?.fullName || 'U')[0].toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base-content truncate">
-                          {requester?.fullName || 'Someone'}
-                        </h3>
-                        <p className="text-xs text-base-content/60 truncate">
-                          {request.title || 'Appointment'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-xs text-base-content/70 mb-3">
-                      <Calendar className="w-3 h-3" />
-                      <span>{formatAppointmentDateTime(request)}</span>
-                    </div>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRequest(request);
-                        setShowRequestModal(true);
-                      }}
-                      className="btn btn-warning btn-sm w-full group-hover:btn-warning-focus"
-                    >
-                      Review Request
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {selectedAppointment ? (
         <AppointmentDetailsView
           appointment={selectedAppointment}
+          currentUser={currentUser}
           onClose={() => setSelectedAppointment(null)}
           onDelete={() => handleDeleteClick(selectedAppointment._id)}
           onEdit={() => {
@@ -288,38 +212,28 @@ const AppointmentsPage = () => {
 
               {/* Filter Tabs */}
               <div className="flex gap-2 flex-wrap items-center">
-                {incomingRequests.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const incomingSection = document.querySelector('[data-incoming-requests]');
-                      if (incomingSection) {
-                        incomingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    }}
-                    className="btn btn-warning btn-sm gap-1"
-                  >
-                    <span>📬</span>
-                    <span>Incoming ({incomingRequests.length})</span>
-                  </button>
-                )}
                 {[
-                  { value: 'all', label: 'All', count: userAppointments.length },
-                  { value: 'scheduled', label: 'Scheduled', count: userAppointments.filter(a => a.status === 'scheduled').length },
-                  { value: 'confirmed', label: 'Confirmed', count: userAppointments.filter(a => a.status === 'confirmed').length },
-                  { value: 'completed', label: 'Completed', count: userAppointments.filter(a => a.status === 'completed').length },
-                  { value: 'cancelled', label: 'Cancelled', count: userAppointments.filter(a => a.status === 'cancelled').length },
-                  { value: 'declined', label: 'Declined', count: userAppointments.filter(a => a.status === 'declined').length },
+                  { value: 'all', label: 'All', count: userAppointments.length, icon: null },
+                  { value: 'incoming', label: 'Incoming', count: incomingRequests.length, icon: '📬' },
+                  { value: 'scheduled', label: 'Scheduled', count: userAppointments.filter(a => a.status === 'scheduled').length, icon: null },
+                  { value: 'confirmed', label: 'Confirmed', count: userAppointments.filter(a => a.status === 'confirmed').length, icon: null },
+                  { value: 'completed', label: 'Completed', count: userAppointments.filter(a => a.status === 'completed').length, icon: null },
+                  { value: 'cancelled', label: 'Cancelled', count: userAppointments.filter(a => a.status === 'cancelled').length, icon: null },
+                  { value: 'declined', label: 'Declined', count: userAppointments.filter(a => a.status === 'declined').length, icon: null },
                 ].map((tab) => (
                   <button
                     key={tab.value}
                     onClick={() => setFilterStatus(tab.value)}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                    className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
                       filterStatus === tab.value
-                        ? 'btn btn-primary btn-sm'
+                        ? tab.value === 'incoming'
+                          ? 'btn btn-warning btn-sm'
+                          : 'btn btn-primary btn-sm'
                         : 'btn btn-outline btn-sm'
                     }`}
                   >
-                    {tab.label} ({tab.count})
+                    {tab.icon && <span>{tab.icon}</span>}
+                    <span>{tab.label} ({tab.count})</span>
                   </button>
                 ))}
               </div>
@@ -328,34 +242,91 @@ const AppointmentsPage = () => {
 
           {/* My Appointments List */}
           <div className="max-w-7xl mx-auto px-6 py-8">
-            <h2 className="text-xl font-semibold text-base-content mb-6">My Appointments</h2>
-            {filteredAppointments.length === 0 ? (
+            {filterStatus === 'incoming' && incomingRequests.length === 0 ? (
               <div className="text-center py-12">
                 <Calendar className="w-16 h-16 text-base-content/30 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-base-content mb-2">No appointments found</h3>
+                <h3 className="text-lg font-semibold text-base-content mb-2">No incoming requests</h3>
                 <p className="text-base-content/60">
-                  {filterStatus === 'all'
-                    ? 'You don\'t have any appointments yet. Start by booking one!'
-                    : `You don't have any ${filterStatus} appointments.`}
+                  You don't have any pending appointment requests.
                 </p>
+              </div>
+            ) : filterStatus === 'incoming' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {incomingRequests.map((appointment) => {
+                  const requester = appointment.userId;
+                  return (
+                    <div
+                      key={appointment._id}
+                      className="bg-base-100 border-2 border-warning rounded-lg p-4 hover:shadow-lg transition cursor-pointer group"
+                      onClick={() => {
+                        setSelectedRequest(appointment);
+                        setShowRequestModal(true);
+                      }}
+                    >
+                      <div className="flex items-start gap-3 mb-3">
+                        {/* Requester Avatar */}
+                        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                          {requester?.profilePic ? (
+                            <img
+                              src={requester.profilePic}
+                              alt={requester.fullName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
+                              {(requester?.fullName || 'U')[0].toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-base-content truncate">
+                            {requester?.fullName || 'Someone'}
+                          </h3>
+                          <p className="text-xs text-base-content/60 truncate">
+                            {appointment.title || 'Appointment'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-base-content/70 mb-3">
+                        <Calendar className="w-3 h-3" />
+                        <span>{formatAppointmentDateTime(appointment)}</span>
+                      </div>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedRequest(appointment);
+                          setShowRequestModal(true);
+                        }}
+                        className="btn btn-warning btn-sm w-full group-hover:btn-warning-focus"
+                      >
+                        Review Request
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="space-y-4">
                 {filteredAppointments.map((appointment) => (
-                  <div
-                    key={appointment._id}
-                    onClick={() => setSelectedAppointment(appointment)}
-                    className="bg-base-100 border border-base-300 rounded-lg p-6 hover:shadow-lg transition cursor-pointer"
-                  >
+                  <div key={appointment._id}>
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-start gap-4 flex-1">
                         {/* Professional Avatar */}
                         <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={
-                              (appointment.userId?.profilePic || appointment.friendId?.profilePic) || '/default-profile.png'
+                              (() => {
+                                const currentUserId = currentUser?._id || currentUser?.id;
+                                const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                const otherUserProfilePic = appointmentUserId === currentUserId 
+                                  ? appointment.friendId?.profilePic 
+                                  : appointment.userId?.profilePic;
+                                return otherUserProfilePic || '/default-profile.png';
+                              })()
                             }
-                            alt="Professional"
+                            alt="User"
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.target.src = '/default-profile.png';
@@ -365,7 +336,19 @@ const AppointmentsPage = () => {
 
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-base-content">
-                            {appointment.userId?.fullName || appointment.friendId?.fullName || 'Unknown'}
+                            {(() => {
+                              // Show the OTHER user (not current user)
+                              const currentUserId = currentUser?._id || currentUser?.id;
+                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                              const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+                              
+                              // If current user is the userId (creator), show friendId; otherwise show userId
+                              const otherUser = appointmentUserId === currentUserId 
+                                ? appointment.friendId 
+                                : appointment.userId;
+                              
+                              return otherUser?.fullName || 'Unknown';
+                            })()}
                           </h3>
                           <p className="text-sm text-base-content/60 mb-2">
                             {appointment.title || 'Appointment'}

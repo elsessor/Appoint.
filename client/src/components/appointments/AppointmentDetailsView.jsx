@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -15,17 +16,20 @@ import {
   Mail,
   Phone,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { useThemeStore } from '../../store/useThemeStore';
 
 const AppointmentDetails = ({
   appointment,
+  currentUser,
   onClose,
   onEdit,
   onDelete,
   onSendMessage,
 }) => {
   const { theme } = useThemeStore();
+  const navigate = useNavigate();
   const [meetingNotes, setMeetingNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -44,7 +48,15 @@ const AppointmentDetails = ({
   const appointmentTime = format(appointmentDate, 'h:mm a');
   const appointmentDateStr = format(appointmentDate, 'MMMM dd, yyyy');
 
-  const professional = appointment.userId || appointment.friendId;
+  // Determine the "other user" - show the user that is NOT the current user
+  const currentUserId = currentUser?._id || currentUser?.id;
+  const appointmentUserId = appointment.userId?._id || appointment.userId;
+  const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+
+  // If current user is the userId (creator), show friendId; otherwise show userId
+  const professional = appointmentUserId === currentUserId 
+    ? appointment.friendId 
+    : appointment.userId;
 
   return (
     <div className="min-h-screen bg-base-100" data-theme={theme}>
@@ -66,7 +78,10 @@ const AppointmentDetails = ({
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => {
+                  onEdit();
+                  setIsEditing(!isEditing);
+                }}
                 className="flex items-center gap-2 px-4 py-2 btn btn-outline btn-sm"
               >
                 <Edit className="w-4 h-4" />
@@ -92,12 +107,31 @@ const AppointmentDetails = ({
             {/* Status Card */}
             <div className="bg-base-100 border border-base-300 rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
-                <span className="inline-flex items-center gap-2 px-3 py-1 badge badge-success gap-2">
+                <span className={`inline-flex items-center gap-2 px-3 py-1 badge gap-2 ${
+                  appointment.status === 'confirmed' 
+                    ? 'badge-success' 
+                    : appointment.status === 'declined'
+                    ? 'badge-error'
+                    : appointment.status === 'pending'
+                    ? 'badge-warning'
+                    : 'badge-info'
+                }`}>
                   <CheckCircle2 className="w-4 h-4" />
-                  {appointment.status === 'scheduled' ? 'Confirmed' : 'Pending'}
+                  {appointment.status === 'scheduled' ? 'Confirmed' : appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}
                 </span>
                 <span className="text-base-content/60 text-sm">Appointment ID: #{appointment._id?.slice(-6) || 'N/A'}</span>
               </div>
+
+              {/* Decline Reason */}
+              {appointment.status === 'declined' && appointment.declinedReason && (
+                <div className="mb-6 p-4 bg-error/10 border border-error/30 rounded-lg flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-error mb-1">Appointment Declined</p>
+                    <p className="text-sm text-error/80">{appointment.declinedReason}</p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center gap-3 p-4 bg-base-200 rounded-lg">
@@ -242,12 +276,15 @@ const AppointmentDetails = ({
                 <hr className="border-base-300 my-4" />
 
                 <div className="space-y-2">
-                  <button className="w-full flex items-center justify-center gap-2 px-4 py-2 btn btn-primary">
+                  <button 
+                    onClick={() => navigate(`/call/${appointment._id}`)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 btn btn-primary"
+                  >
                     <Video className="w-4 h-4" />
                     Join Video Call
                   </button>
                   <button
-                    onClick={onSendMessage}
+                    onClick={() => navigate(`/chat/${professional._id}`)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 btn btn-outline"
                   >
                     <MessageSquare className="w-4 h-4" />
@@ -288,6 +325,7 @@ const AppointmentDetails = ({
 
 AppointmentDetails.propTypes = {
   appointment: PropTypes.object,
+  currentUser: PropTypes.object,
   onClose: PropTypes.func,
   onEdit: PropTypes.func,
   onDelete: PropTypes.func,

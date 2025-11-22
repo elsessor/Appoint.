@@ -223,9 +223,6 @@ const AppointmentBookingPage = () => {
             <h1 className="text-3xl font-bold text-base-content">Book Appointment</h1>
             <p className="text-base-content/60 mt-1">View your schedule and book appointments with friends</p>
           </div>
-          <div>
-            <ThemeSelector />
-          </div>
         </div>
 
         {/* Calendar Component */}
