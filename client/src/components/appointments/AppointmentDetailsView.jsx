@@ -26,7 +26,6 @@ const AppointmentDetails = ({
   onClose,
   onEdit,
   onDelete,
-  onSendMessage,
 }) => {
   const { theme } = useThemeStore();
   const navigate = useNavigate();

@@ -110,18 +110,6 @@ const App = () => {
           }
         />
 
-        <Route
-          path="/book-appointment"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <AppointmentBookingPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
 
         <Route
           path="/booking"

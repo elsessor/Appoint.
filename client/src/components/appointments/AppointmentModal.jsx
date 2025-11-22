@@ -19,7 +19,6 @@ const AppointmentModal = ({
   initialDate,
   initialTime,
   friends = [],
-  currentUser,
   availability = {
     days: [1, 2, 3, 4, 5],
     start: '09:00',
@@ -28,8 +27,6 @@ const AppointmentModal = ({
   },
   appointment = null,
   onDelete = null,
-  onAccept = null,
-  onDecline = null,
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -49,32 +46,39 @@ const AppointmentModal = ({
   const [showDeclineForm, setShowDeclineForm] = useState(false);
 
   useEffect(() => {
-    if (appointment) {
-      const startTime = typeof appointment.startTime === 'string' 
-        ? appointment.startTime 
-        : appointment.startTime?.toISOString?.() || '';
-      const endTime = typeof appointment.endTime === 'string' 
-        ? appointment.endTime 
-        : appointment.endTime?.toISOString?.() || '';
-      
-      setFormData({
-        title: appointment.title || '',
-        description: appointment.description || appointment.message || '',
-        startTime,
-        endTime,
-        friendId: appointment.friendId || appointment.participant?._id || '',
-        meetingType: appointment.meetingType || 'Video Call',
-        duration: appointment.duration || 30,
-        location: appointment.location || '',
-      });
-    } else if (initialDate) {
-      const dateStr = format(initialDate, 'yyyy-MM-dd');
-      const timeStr = initialTime ? format(initialTime, 'HH:mm') : '09:00';
-      setFormData(prev => ({
-        ...prev,
-        startTime: `${dateStr}T${timeStr}`,
-        endTime: `${dateStr}T${timeStr}`,
-      }));
+    if (isOpen) {
+      if (appointment) {
+        const startTime = typeof appointment.startTime === 'string' 
+          ? appointment.startTime 
+          : appointment.startTime?.toISOString?.() || '';
+        const endTime = typeof appointment.endTime === 'string' 
+          ? appointment.endTime 
+          : appointment.endTime?.toISOString?.() || '';
+        
+        setFormData({
+          title: appointment.title || '',
+          description: appointment.description || appointment.message || '',
+          startTime,
+          endTime,
+          friendId: appointment.friendId || appointment.participant?._id || '',
+          meetingType: appointment.meetingType || 'Video Call',
+          duration: appointment.duration || 30,
+          location: appointment.location || '',
+        });
+      } else if (initialDate) {
+        const dateStr = format(initialDate, 'yyyy-MM-dd');
+        const timeStr = initialTime ? format(initialTime, 'HH:mm') : '09:00';
+        setFormData({
+          title: '',
+          description: '',
+          startTime: `${dateStr}T${timeStr}`,
+          endTime: `${dateStr}T${timeStr}`,
+          friendId: '',
+          meetingType: 'Video Call',
+          duration: 30,
+          location: '',
+        });
+      }
     }
   }, [appointment, initialDate, initialTime, isOpen]);
 

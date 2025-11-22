@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Calendar from '../components/appointments/Calendar';
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
@@ -8,6 +8,7 @@ import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 import { useThemeStore } from '../store/useThemeStore';
+import { Search, X } from 'lucide-react';
 
 const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
@@ -15,6 +16,8 @@ const AppointmentBookingPage = () => {
   const [viewingFriendId, setViewingFriendId] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Scheduling availability
   const availability = {
@@ -174,6 +177,37 @@ const AppointmentBookingPage = () => {
   // Get pending requests for current user (where they are the recipient)
   const pendingRequests = appointments.filter(appt => isPendingRequestFromOther(appt));
 
+  // Filter friends based on search query
+  const filteredFriends = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    
+    return friends.filter(friend => {
+      const fullName = (friend.fullName || friend.name || '').toLowerCase();
+      const email = (friend.email || '').toLowerCase();
+      const query = searchQuery.toLowerCase();
+      
+      return fullName.includes(query) || email.includes(query);
+    });
+  }, [searchQuery, friends]);
+
+  // Get the currently viewed friend's details
+  const selectedFriend = useMemo(() => {
+    return friends.find(f => f._id === viewingFriendId);
+  }, [viewingFriendId, friends]);
+
+  // Get appointments for the viewed friend
+  const friendAppointments = useMemo(() => {
+    if (!viewingFriendId) return appointments;
+    
+    // Filter appointments where the viewed friend is involved
+    return appointments.filter(apt => {
+      const friendId = apt.friendId?._id || apt.friendId;
+      const userId = apt.userId?._id || apt.userId;
+      
+      return friendId === viewingFriendId || userId === viewingFriendId;
+    });
+  }, [viewingFriendId, appointments]);
+
   if (loadingFriends || loadingUser || loadingAppointments) {
     return <PageLoader />;
   }
@@ -225,10 +259,130 @@ const AppointmentBookingPage = () => {
           </div>
         </div>
 
+        {/* Friend Search Bar */}
+        <div className="mb-8 relative">
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-base-content/50">
+              <Search className="w-5 h-5" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search friends to view their calendar..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchResults(e.target.value.trim().length > 0);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim().length > 0) {
+                  setShowSearchResults(true);
+                }
+              }}
+              className="w-full pl-12 pr-12 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setShowSearchResults(false);
+                  setViewingFriendId(null);
+                }}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-base-content/50 hover:text-base-content transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Results Dropdown */}
+          {showSearchResults && filteredFriends.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50">
+              <div className="max-h-64 overflow-y-auto">
+                {filteredFriends.map(friend => (
+                  <button
+                    key={friend._id}
+                    onClick={() => {
+                      setViewingFriendId(friend._id);
+                      setSearchQuery('');
+                      setShowSearchResults(false);
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-base-200 transition flex items-center gap-3 border-b border-base-300 last:border-b-0"
+                  >
+                    {friend.profilePic ? (
+                      <img
+                        src={friend.profilePic}
+                        alt={friend.fullName}
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                        {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-base-content truncate">
+                        {friend.fullName || friend.name}
+                      </p>
+                      <p className="text-xs text-base-content/60 truncate">
+                        {friend.email}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Results Message */}
+          {showSearchResults && filteredFriends.length === 0 && searchQuery.trim().length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg p-4 text-center text-base-content/60 z-50">
+              No friends found matching "{searchQuery}"
+            </div>
+          )}
+        </div>
+
+        {/* Selected Friend Info */}
+        {viewingFriendId && selectedFriend && (
+          <div className="mb-6 bg-primary/10 border border-primary/30 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {selectedFriend.profilePic ? (
+                  <img
+                    src={selectedFriend.profilePic}
+                    alt={selectedFriend.fullName}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                    {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-base-content">
+                    Viewing {selectedFriend.fullName || selectedFriend.name}'s Calendar
+                  </p>
+                  <p className="text-sm text-base-content/60">
+                    You can see their appointments and schedule new ones
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setViewingFriendId(null);
+                  setSearchQuery('');
+                }}
+                className="btn btn-outline btn-sm"
+              >
+                Back to My Calendar
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Calendar Component */}
         <div className="rounded-lg shadow-2xl overflow-hidden mb-8">
           <Calendar
-            appointments={appointments}
+            appointments={viewingFriendId ? friendAppointments : appointments}
             friends={friends}
             currentUser={currentUser}
             onAppointmentCreate={handleCreateAppointment}

@@ -7,7 +7,6 @@ const AppointmentRequestModal = ({
   isOpen,
   onClose,
   appointment,
-  currentUser,
   onAccept,
   onDecline,
   isLoading = false,
