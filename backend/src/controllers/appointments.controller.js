@@ -36,7 +36,7 @@ export async function createAppointment(req, res) {
       title: title || "Appointment",
       description: description || "",
       meetingType: meetingType || "Video Call",
-      status: "scheduled",
+      status: "pending",
       bookedBy: bookedBy || {},
       availability: availability || {},
     });
@@ -128,7 +128,7 @@ export async function updateAppointment(req, res) {
   try {
     const { id } = req.params;
     const userId = req.user._id.toString();
-    const { startTime, endTime, title, description, meetingType, status, bookedBy } =
+    const { startTime, endTime, title, description, meetingType, status, bookedBy, declinedReason } =
       req.body;
 
     const appointment = await Appointment.findById(id);
@@ -138,8 +138,11 @@ export async function updateAppointment(req, res) {
     }
 
     // Check if user has authorization to update
+    // Both userId (creator) and friendId (recipient) can update the appointment
     const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
-    if (appointmentUserId !== req.user._id.toString()) {
+    const appointmentFriendId = (appointment.friendId._id || appointment.friendId).toString();
+    
+    if (appointmentUserId !== userId && appointmentFriendId !== userId) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
@@ -149,6 +152,7 @@ export async function updateAppointment(req, res) {
     if (description) appointment.description = description;
     if (meetingType) appointment.meetingType = meetingType;
     if (status) appointment.status = status;
+    if (declinedReason) appointment.declinedReason = declinedReason;
     if (bookedBy) appointment.bookedBy = { ...appointment.bookedBy, ...bookedBy };
 
     await appointment.save();

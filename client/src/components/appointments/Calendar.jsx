@@ -173,28 +173,28 @@ const Calendar = ({
   const isViewingOwnCalendar = !viewingFriendId || viewingFriendId === currentUser?._id;
 
   return (
-    <div className="bg-gray-900 rounded-lg shadow-2xl overflow-hidden">
+    <div className="bg-base-100 rounded-lg shadow-2xl overflow-hidden border border-base-300">
       {/* Calendar Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-base-300 bg-base-200">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-100">
+            <h2 className="text-lg font-semibold text-base-content">
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
             {!isViewingOwnCalendar && (
-              <span className="px-2 py-1 text-xs font-medium bg-purple-900 text-purple-200 rounded-md">
+              <span className="px-2 py-1 text-xs font-medium bg-primary/20 text-primary rounded-md">
                 Viewing: {viewedUser?.name || viewedUser?.email}
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-base-content/60">
             {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowFriendModal(true)}
-            className="px-3 py-1.5 text-sm font-medium text-gray-200 bg-gray-800 border border-gray-600 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 flex items-center gap-2"
+            className="btn btn-outline btn-sm"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -203,14 +203,14 @@ const Calendar = ({
           </button>
           <button
             onClick={resetToToday}
-            className="px-3 py-1 text-sm font-medium text-gray-200 bg-gray-800 border border-gray-600 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="btn btn-outline btn-sm"
           >
             Today
           </button>
           <div className="flex rounded-md shadow-sm">
             <button
               onClick={prevMonth}
-              className="px-2 py-1 text-gray-300 bg-gray-800 border border-r-0 border-gray-600 rounded-l-md hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="btn btn-outline btn-sm rounded-r-none"
             >
               <span className="sr-only">Previous month</span>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -219,7 +219,7 @@ const Calendar = ({
             </button>
             <button
               onClick={nextMonth}
-              className="px-2 py-1 text-gray-300 bg-gray-800 border border-l-0 border-gray-600 rounded-r-md hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="btn btn-outline btn-sm rounded-l-none"
             >
               <span className="sr-only">Next month</span>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -230,7 +230,7 @@ const Calendar = ({
           {isViewingOwnCalendar && (
             <button
               onClick={() => handleCreateAppointment(new Date())}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="btn btn-primary btn-sm"
             >
               New Appointment +
             </button>
@@ -296,41 +296,41 @@ const Calendar = ({
       )}
 
       {/* Legend */}
-      <div className="px-6 py-3 bg-gray-850 border-b border-gray-700">
+      <div className="px-6 py-3 bg-base-200 border-b border-base-300">
         <div className="flex items-center justify-center gap-6 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-gray-300">Today</span>
+            <div className="w-3 h-3 rounded-full bg-info"></div>
+            <span className="text-base-content/70">Today</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-300">Available</span>
+            <div className="w-3 h-3 rounded-full bg-success"></div>
+            <span className="text-base-content/70">Available</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-blue-900"></div>
-            <span className="text-gray-300">Has Appointments</span>
+            <div className="w-3 h-3 rounded bg-primary/70"></div>
+            <span className="text-base-content/70">Has Appointments</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-red-900"></div>
-            <span className="text-gray-300">Holiday</span>
+            <div className="w-3 h-3 rounded bg-error"></div>
+            <span className="text-base-content/70">Holiday</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-gray-700 border border-gray-600"></div>
-            <span className="text-gray-300">Unavailable</span>
+            <div className="w-3 h-3 rounded bg-base-300 border border-base-400"></div>
+            <span className="text-base-content/70">Unavailable</span>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-px bg-gray-700 border-b border-gray-700">
+      <div className="grid grid-cols-7 gap-px bg-base-300 border-b border-base-300">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="bg-gray-800 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">
+          <div key={day} className="bg-base-200 py-2 text-center text-xs font-medium text-base-content/70 uppercase tracking-wider">
             {day}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-gray-700">
+      <div className="grid grid-cols-7 gap-px bg-base-300">
         {daysInMonth.map((day, i) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -342,9 +342,9 @@ const Calendar = ({
           return (
             <div 
               key={i}
-              className={`relative min-h-24 p-1 bg-gray-800 hover:bg-gray-700 cursor-pointer ${
-                !isCurrentMonth ? 'bg-gray-900 text-gray-600' : ''
-              } ${isSelected ? 'ring-2 ring-blue-400 z-10' : ''}`}
+              className={`relative min-h-24 p-1 bg-base-100 hover:bg-base-200 cursor-pointer ${
+                !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
+              } ${isSelected ? 'ring-2 ring-primary z-10' : ''}`}
               onClick={() => handleDateClick(day)}
             >
               <div className="flex flex-col h-full">
@@ -352,21 +352,21 @@ const Calendar = ({
                   <span 
                     className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-sm ${
                       isDayToday 
-                        ? 'bg-blue-500 text-white font-semibold' 
-                        : 'text-gray-200'
+                        ? 'bg-info text-info-content font-semibold' 
+                        : 'text-base-content'
                     }`}
                   >
                     {format(day, 'd')}
                   </span>
                   
                   {isDateAvailableNow && !hasAppts && !dayHoliday && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
                   )}
                 </div>
                 
                 <div className="flex-1 overflow-hidden">
                   {dayHoliday && (
-                    <div className="text-xs text-red-400 font-medium truncate mb-1">
+                    <div className="text-xs text-error font-medium truncate mb-1">
                       {dayHoliday}
                     </div>
                   )}
@@ -378,7 +378,7 @@ const Calendar = ({
                         .map((appt) => (
                           <div 
                             key={appt._id || appt.id}
-                            className="px-1 py-0.5 text-xs truncate rounded bg-blue-900 text-blue-200 hover:bg-blue-800"
+                            className="px-1 py-0.5 text-xs truncate rounded bg-primary/30 text-primary-content hover:bg-primary/50"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedAppointment(appt);

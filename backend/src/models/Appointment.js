@@ -35,8 +35,12 @@ const appointmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "scheduled", "completed", "cancelled"],
+      enum: ["pending", "scheduled", "confirmed", "completed", "cancelled", "declined"],
       default: "pending",
+    },
+    declinedReason: {
+      type: String,
+      default: "",
     },
     bookedBy: {
       firstName: String,
