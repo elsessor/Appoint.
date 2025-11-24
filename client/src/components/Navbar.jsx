@@ -39,7 +39,7 @@ const Navbar = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
+          <div className="flex items-center gap-6 sm:gap-4 ml-auto">
             <Link to={"/notifications"}>
               <div className="indicator">
                 {notificationsCount > 0 && (
@@ -50,19 +50,19 @@ const Navbar = () => {
                 </button>
               </div>
             </Link>
+
+            <ThemeSelector />
+
+            <Link to="/profile" className="avatar">
+              <div className="w-9 rounded-full cursor-pointer">
+                <img src={authUser?.profilePic || '/default-profile.png'} alt="User Avatar" />
+              </div>
+            </Link>
+
+            <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
+              <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
+            </button>
           </div>
-
-          <ThemeSelector />
-
-          <Link to="/profile" className="avatar">
-            <div className="w-9 rounded-full cursor-pointer">
-              <img src={authUser?.profilePic || '/default-profile.png'} alt="User Avatar" />
-            </div>
-          </Link>
-
-          <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
-            <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
-          </button>
         </div>
       </div>
     </nav>

@@ -38,18 +38,29 @@ const App = () => {
         <Route
           path="/"
           element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <HomePage />
-              </Layout>
-            ) : !isAuthenticated ? (
+            !isAuthenticated ? (
               <LandingPage />
-            ) : (
+            ) : !isOnboarded ? (
               <Navigate to="/onboarding" />
+            ) : (
+              <Navigate to="/homepage" />
             )
           }
         />
         <Route path="/landing" element={<LandingPage />} />
+
+        <Route
+          path="/homepage"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <HomePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
         <Route
           path="/friends"
           element={
@@ -65,13 +76,13 @@ const App = () => {
         <Route
           path="/signup"
           element={
-            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
           path="/login"
           element={
-            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
@@ -144,7 +155,7 @@ const App = () => {
               !isOnboarded ? (
                 <OnboardingPage />
               ) : (
-                <Navigate to="/" />
+                <Navigate to="/homepage" />
               )
             ) : (
               <Navigate to="/login" />
