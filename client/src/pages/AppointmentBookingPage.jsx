@@ -1,7 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
+
+// Memoize components for performance
+const MemoizedCalendar = memo(Calendar);
+const MemoizedCalendarSidebar = memo(CalendarSidebar);
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ThemeSelector from '../components/ThemeSelector';
 import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability } from '../lib/api';
@@ -23,6 +27,9 @@ const AppointmentBookingPage = () => {
   const [isMultiCalendarMode, setIsMultiCalendarMode] = useState(true);
   const [selectedMiniCalDate, setSelectedMiniCalDate] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showDesktopSidebar, setShowDesktopSidebar] = useState(true);
+  const [expandTodayAppointments, setExpandTodayAppointments] = useState(true);
+  const [expandSearchResults, setExpandSearchResults] = useState(false);
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -161,6 +168,20 @@ const AppointmentBookingPage = () => {
 
   // Callback handlers
   const handleCreateAppointment = useCallback((appointmentData) => {
+    // Validate appointment data
+    if (!appointmentData.title || !appointmentData.title.trim()) {
+      toast.error('Please enter an appointment title');
+      return;
+    }
+    if (!appointmentData.startTime) {
+      toast.error('Please select a start time');
+      return;
+    }
+    if (!appointmentData.friendId) {
+      toast.error('Please select a friend');
+      return;
+    }
+
     const userId = currentUser?._id || currentUser?.id;
     createAppointmentMutation.mutate({
       ...appointmentData,
@@ -193,12 +214,25 @@ const AppointmentBookingPage = () => {
 
   // Toggle friend visibility in multi-calendar view
   const handleToggleFriendVisibility = useCallback((friendId) => {
-    setVisibleFriends(prev => 
-      prev.includes(friendId)
+    setVisibleFriends(prev => {
+      const newVisibleFriends = prev.includes(friendId)
         ? prev.filter(id => id !== friendId)
-        : [...prev, friendId]
-    );
-  }, []);
+        : [...prev, friendId];
+      
+      const friend = friends.find(f => f._id === friendId);
+      const friendName = friend?.fullName || friend?.name || 'Friend';
+      const isNowVisible = newVisibleFriends.includes(friendId);
+      
+      toast.success(
+        isNowVisible 
+          ? `${friendName}'s calendar is now visible` 
+          : `${friendName}'s calendar is hidden`,
+        { duration: 2000 }
+      );
+      
+      return newVisibleFriends;
+    });
+  }, [friends]);
 
   // Get appointment owner details
   const getAppointmentOwner = (appointment) => {
@@ -316,9 +350,9 @@ const AppointmentBookingPage = () => {
 
       {/* Sidebar */}
       {isMultiCalendarMode && (
-        <div className={`fixed left-0 top-0 h-screen z-50 lg:static lg:z-auto lg:w-80 transition-transform duration-300 ${
+        <div className={`fixed left-0 top-0 h-screen z-50 lg:static lg:z-auto transition-all duration-300 overflow-hidden ${
           showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
+        } ${showDesktopSidebar ? 'lg:w-80' : 'lg:w-0'}`}>
           <div className="w-80 h-full shadow-lg bg-base-100 flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-base-300 lg:hidden">
               <h3 className="font-semibold text-base-content">Calendars</h3>
@@ -326,7 +360,7 @@ const AppointmentBookingPage = () => {
                 ✕
               </button>
             </div>
-            <CalendarSidebar
+            <MemoizedCalendarSidebar
               friends={friends}
               currentUser={currentUser}
               visibleFriends={visibleFriends}
@@ -345,37 +379,56 @@ const AppointmentBookingPage = () => {
             <div>
               <h1 className="text-2xl font-bold text-base-content">Book Appointment</h1>
             </div>
-            {isMultiCalendarMode && (
-              <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="btn btn-outline btn-sm lg:hidden w-full md:w-auto"
-              >
-                📅 Show Calendars
-              </button>
-            )}
+            <div className="flex gap-2 flex-wrap">
+              {isMultiCalendarMode && (
+                <button
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  className="btn btn-outline btn-sm lg:hidden flex-1 md:flex-none"
+                  title="Show/hide calendars sidebar"
+                >
+                  📅 Calendars
+                </button>
+              )}
+              {isMultiCalendarMode && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowDesktopSidebar(!showDesktopSidebar)}
+                    className="btn btn-outline btn-sm hidden lg:inline-flex"
+                    title="Toggle sidebar"
+                  >
+                    {showDesktopSidebar ? '◀' : '▶'}
+                  </button>
+                  <span className="text-xs font-medium text-base-content/60 hidden lg:inline">
+                    {showDesktopSidebar ? 'Hide' : 'Show'} Calendars
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
 
           {/* Friend Search Bar */}
         <div className="mb-8 relative">
           <div className="relative">
-            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-base-content/50">
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-base-content/50 pointer-events-none">
               <Search className="w-5 h-5" />
             </div>
             <input
               type="text"
-              placeholder="Search friends to view their calendar..."
+              placeholder="View friend's calendar (name or email)..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setShowSearchResults(e.target.value.trim().length > 0);
               }}
               onFocus={() => {
-                if (searchQuery.trim().length > 0) {
-                  setShowSearchResults(true);
+                setShowSearchResults(!showSearchResults);
+                if (showSearchResults) {
+                  setExpandSearchResults(false);
                 }
               }}
-              className="w-full pl-12 pr-12 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary/50"
+              aria-label="Search friends by name or email"
+              className="w-full pl-12 pr-12 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary/50 transition"
             />
             {searchQuery && (
               <button
@@ -392,16 +445,33 @@ const AppointmentBookingPage = () => {
           </div>
 
           {/* Search Results Dropdown */}
-          {showSearchResults && filteredFriends.length > 0 && (
+          {showSearchResults && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50">
+              {filteredFriends.length > 0 || friends.length > 0 ? (
+              <>
+                <button
+                  onClick={() => setExpandSearchResults(!expandSearchResults)}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-base-content/60 bg-base-200 hover:bg-base-300 transition cursor-pointer border-b border-base-300"
+                  aria-expanded={expandSearchResults}
+                >
+                  <span className={`text-lg transition-transform duration-200 ${expandSearchResults ? 'rotate-180' : ''}`}>↓</span>
+                  <span>
+                    {searchQuery ? 'Search Results' : 'Quick Access'}
+                  </span>
+                  <span className="ml-auto text-base-content/50">
+                    {searchQuery ? filteredFriends.length : Math.min(3, friends.length)}
+                  </span>
+                </button>
+                {expandSearchResults && (
               <div className="max-h-64 overflow-y-auto">
-                {filteredFriends.map(friend => (
+                {(searchQuery ? filteredFriends : friends.slice(0, 3)).map(friend => (
                   <button
                     key={friend._id}
                     onClick={() => {
                       setViewingFriendId(friend._id);
                       setSearchQuery('');
                       setShowSearchResults(false);
+                      setExpandSearchResults(false);
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-base-200 transition flex items-center gap-3 border-b border-base-300 last:border-b-0"
                   >
@@ -426,7 +496,15 @@ const AppointmentBookingPage = () => {
                     </div>
                   </button>
                 ))}
+                {!searchQuery && friends.length > 3 && (
+                  <div className="px-4 py-2 text-xs text-base-content/60 text-center border-t border-base-300">
+                    {friends.length - 3} more friends • Type to search
+                  </div>
+                )}
               </div>
+                )}
+              </>
+              ) : null}
             </div>
           )}
 
@@ -494,8 +572,8 @@ const AppointmentBookingPage = () => {
         )}
 
         {/* Calendar Component */}
-        <div className="rounded-lg shadow-2xl overflow-hidden mb-8">
-          <Calendar
+        <div className="rounded-lg shadow-2xl overflow-hidden mb-8 transition-all">
+          <MemoizedCalendar
             appointments={viewingFriendId ? friendAppointments : appointments}
             friends={friends}
             currentUser={currentUser}
@@ -511,12 +589,20 @@ const AppointmentBookingPage = () => {
         </div>
 
         {/* Today's Appointments Section */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold text-base-content mb-4">
-            Today's Appointments ({format(new Date(), 'EEEE, MMMM d, yyyy')})
-          </h2>
+        {todayAppointments.length > 0 && (
+        <div className="mt-8 animate-fade-in">
+          <button
+            onClick={() => setExpandTodayAppointments(!expandTodayAppointments)}
+            className="flex items-center gap-2 text-xl font-semibold text-base-content mb-4 hover:text-primary transition cursor-pointer w-full"
+            aria-expanded={expandTodayAppointments}
+          >
+            <span className={`text-lg transition-transform duration-200 ${expandTodayAppointments ? 'rotate-180' : ''}`}>↓</span>
+            <span>
+              Today's Appointments ({todayAppointments.length}) • {format(new Date(), 'EEEE, MMMM d')}
+            </span>
+          </button>
           
-          {todayAppointments.length > 0 ? (
+          {expandTodayAppointments && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {todayAppointments.map((appointment) => {
                 const startTime = typeof appointment.startTime === 'string' 
@@ -595,12 +681,9 @@ const AppointmentBookingPage = () => {
                 );
               })}
             </div>
-          ) : (
-            <div className="text-center py-8 bg-base-200 rounded-lg border-2 border-base-300">
-              <p className="text-base-content/60">No appointments scheduled for today</p>
-            </div>
           )}
         </div>
+        )}
         </div>
       </div>
 
