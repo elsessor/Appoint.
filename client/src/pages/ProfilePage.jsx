@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import useAuthUser from "../hooks/useAuthUser";
+import AvailabilitySettings from "../components/AvailabilitySettings";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
   const [isEditing, setIsEditing] = useState(false);
+  const [showAvailabilitySettings, setShowAvailabilitySettings] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     location: 'Camarines Sur, Philippines',
@@ -79,67 +81,7 @@ const ProfilePage = () => {
   const [selectedSuggested, setSelectedSuggested] = useState(suggestedSkills[0]);
   const [newSkillInput, setNewSkillInput] = useState("");
 
-  useEffect(() => {
-    if (!authUser) return;
-    let cancelled = false;
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    fetch(`/api/users/${authUser._id}/profile`, { headers })
-      .then((res) => {
-        if (!res.ok) throw new Error('No combined profile endpoint');
-        return res.json();
-      })
-      .then((data) => {
-          if (cancelled) return;
-          if (Array.isArray(data.skills)) setSkills(data.skills);
-        })
-        .catch(() => {
-          fetch(`/api/users/${authUser._id}/skills`, { headers })
-            .then((r) => r.ok ? r.json() : null)
-            .then((skillsRes) => {
-              if (cancelled) return;
-              if (skillsRes && Array.isArray(skillsRes.skills)) setSkills(skillsRes.skills);
-              else if (skillsRes && Array.isArray(skillsRes)) setSkills(skillsRes);
-            })
-            .catch((err) => {
-                  console.warn('Could not load skills:', err);
-                });
-          });
-
-        return () => { cancelled = true; };
-  }, [authUser]);
-
   const [stats, setStats] = useState({ friends: 107, appointments: 107, rating: 4.8 });
-  useEffect(() => {
-    if (!authUser) return;
-    let cancelled = false;
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    fetch(`/api/users/${authUser._id}/stats`, { headers })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch stats');
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setStats((prev) => ({
-          friends: data.friends ?? prev.friends,
-          appointments: data.appointments ?? prev.appointments,
-          rating: data.rating ?? prev.rating,
-        }));
-      })
-      .catch((err) => {
-        console.warn('Could not load stats:', err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser]);
 
   const startEditing = () => {
     setDraft(profile);
@@ -320,6 +262,15 @@ const ProfilePage = () => {
                   <span>Cancel</span>
                 </button>
               )}
+              <button
+                onClick={() => setShowAvailabilitySettings(true)}
+                className="flex items-center space-x-2 bg-secondary hover:bg-secondary-focus text-white px-4 py-2 rounded-lg transition-colors ml-auto"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>⚙️ Availability</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -458,6 +409,13 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Availability Settings Modal */}
+      <AvailabilitySettings
+        isOpen={showAvailabilitySettings}
+        onClose={() => setShowAvailabilitySettings(false)}
+        currentUser={authUser}
+      />
     </div>
   );
 };

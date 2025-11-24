@@ -60,7 +60,6 @@ const DayDetailsModal = ({
     if (onCreateAppointment && date) {
       onCreateAppointment(date);
     }
-    onClose();
   };
 
   return (

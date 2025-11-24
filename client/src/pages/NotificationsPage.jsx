@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests, markNotificationsRead } from "../lib/api";
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
+import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead } from "../lib/api";
+import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 import { format } from "date-fns";
 
@@ -51,10 +51,10 @@ const NotificationsPage = () => {
   }, [incomingRequests, acceptedRequests]);
 
   useEffect(() => {
-    if (!isLoading && (incomingRequests.length > 0 || acceptedRequests.length > 0) && hasUnread) {
+    if (!isLoadingFriendRequests && (incomingRequests.length > 0 || acceptedRequests.length > 0) && hasUnread) {
       markAsRead();
     }
-  }, [acceptedRequests.length, hasUnread, incomingRequests.length, isLoading, markAsRead]);
+  }, [acceptedRequests.length, hasUnread, incomingRequests.length, isLoadingFriendRequests, markAsRead]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
@@ -131,7 +131,7 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={request.sender.profilePic} alt={request.sender.fullName} />
+                              <img src={request.sender.profilePic || '/default-profile.png'} alt={request.sender.fullName} />
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
@@ -175,7 +175,7 @@ const NotificationsPage = () => {
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={notification.recipient.profilePic}
+                              src={notification.recipient.profilePic || '/default-profile.png'}
                               alt={notification.recipient.fullName}
                             />
                           </div>

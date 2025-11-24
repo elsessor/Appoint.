@@ -33,6 +33,22 @@ export async function signup(req, res) {
       fullName,
       password,
       profilePic: randomAvatar,
+      availability: {
+        days: [1, 2, 3, 4, 5],
+        start: "09:00",
+        end: "17:00",
+        slotDuration: 30,
+        buffer: 15,
+        maxPerDay: 5,
+        breakTimes: [],
+        minLeadTime: 0,
+        cancelNotice: 0,
+        appointmentDuration: {
+          min: 15,
+          max: 120,
+        },
+      },
+      availabilityStatus: "available",
     });
 
     try {

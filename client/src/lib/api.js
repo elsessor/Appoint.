@@ -171,3 +171,13 @@ export const markAllNotificationsAsRead = async () => {
   return response.data;
 };
 
+// Availability endpoints
+export const saveAvailability = async (availabilityData) => {
+  const response = await axiosInstance.post("/appointments/availability", availabilityData);
+  return response.data;
+};
+
+export const getUserAvailability = async (userId) => {
+  const response = await axiosInstance.get(`/appointments/availability/${userId}`);
+  return response.data;
+};
