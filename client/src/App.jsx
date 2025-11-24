@@ -19,6 +19,7 @@ import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
+import useRealtimeNotifications from "./hooks/useRealtimeNotifications.js";
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -26,6 +27,8 @@ const App = () => {
 
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnboarded;
+
+  useRealtimeNotifications(isAuthenticated && isOnboarded);
 
   if (isLoading) return <PageLoader />;
 
