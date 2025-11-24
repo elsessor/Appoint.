@@ -25,6 +25,7 @@ const Calendar = ({
   isMultiCalendarMode = false,
   isViewingFriendAway = false,
   viewingFriendId = null,
+  friendsAvailability = {},
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -297,12 +298,14 @@ const Calendar = ({
               </svg>
             </button>
           </div>
-          <button
-            onClick={() => handleCreateAppointment(new Date())}
-            className="btn btn-primary btn-xs md:btn-sm"
-          >
-            New +
-          </button>
+          {!viewingFriendId && (
+            <button
+              onClick={() => handleCreateAppointment(new Date())}
+              className="btn btn-primary btn-xs md:btn-sm"
+            >
+              New +
+            </button>
+          )}
         </div>
       </div>
       {/* Friend Search Modal */}
@@ -517,6 +520,7 @@ const Calendar = ({
           friends={friends}
           currentUser={currentUser}
           availability={availability}
+          friendsAvailability={friendsAvailability}
         />
       )}
     </div>

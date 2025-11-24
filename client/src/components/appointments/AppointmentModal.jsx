@@ -27,6 +27,7 @@ const AppointmentModal = ({
   },
   appointment = null,
   onDelete = null,
+  friendsAvailability = {},
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -34,6 +35,8 @@ const AppointmentModal = ({
     startTime: '',
     endTime: '',
     friendId: '',
+    friendSearch: '',
+    showFriendDropdown: false,
     meetingType: 'Video Call',
     duration: 30,
     location: '',
@@ -61,6 +64,8 @@ const AppointmentModal = ({
           startTime,
           endTime,
           friendId: appointment.friendId || appointment.participant?._id || '',
+          friendSearch: '',
+          showFriendDropdown: false,
           meetingType: appointment.meetingType || 'Video Call',
           duration: appointment.duration || 30,
           location: appointment.location || '',
@@ -74,6 +79,8 @@ const AppointmentModal = ({
           startTime: `${dateStr}T${timeStr}`,
           endTime: `${dateStr}T${timeStr}`,
           friendId: '',
+          friendSearch: '',
+          showFriendDropdown: false,
           meetingType: 'Video Call',
           duration: 30,
           location: '',
@@ -185,6 +192,8 @@ const AppointmentModal = ({
       startTime: '',
       endTime: '',
       friendId: '',
+      friendSearch: '',
+      showFriendDropdown: false,
       meetingType: 'Video Call',
       duration: 30,
       location: '',
@@ -291,19 +300,149 @@ const AppointmentModal = ({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Schedule With <span className="text-red-400">*</span>
                 </label>
-                <select
-                  name="friendId"
-                  value={formData.friendId}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select a friend</option>
-                  {friends.map(friend => (
-                    <option key={friend._id} value={friend._id}>
-                      {friend.fullName || friend.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search or select a friend..."
+                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData(prev => ({...prev, friendSearch: e.target.value}));
+                    }}
+                    onFocus={() => {
+                      setFormData(prev => ({...prev, showFriendDropdown: true}));
+                    }}
+                    value={formData.friendSearch || ''}
+                  />
+                  {formData.showFriendDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                      {friends.filter(f => {
+                        const search = (formData.friendSearch || '').toLowerCase();
+                        return (f.fullName || f.name || '').toLowerCase().includes(search) ||
+                               (f.email || '').toLowerCase().includes(search);
+                      }).map(friend => {
+                        const friendStatus = friendsAvailability[friend._id] || 'available';
+                        const isAway = friendStatus === 'away';
+                        const statusConfig = {
+                          available: {
+                            badge: 'bg-green-600',
+                            label: 'Available',
+                            icon: '✓'
+                          },
+                          limited: {
+                            badge: 'bg-yellow-600',
+                            label: 'Limited',
+                            icon: '⚠'
+                          },
+                          away: {
+                            badge: 'bg-red-600',
+                            label: 'Away',
+                            icon: '✕'
+                          }
+                        };
+                        
+                        const config = statusConfig[friendStatus];
+                        
+                        return (
+                          <button
+                            key={friend._id}
+                            type="button"
+                            disabled={isAway}
+                            onClick={() => {
+                              if (!isAway) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  friendId: friend._id,
+                                  friendSearch: friend.fullName || friend.name,
+                                  showFriendDropdown: false
+                                }));
+                              }
+                            }}
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-gray-600 last:border-b-0 transition ${
+                              isAway
+                                ? 'opacity-50 cursor-not-allowed bg-gray-700'
+                                : formData.friendId === friend._id
+                                ? 'bg-gray-600 hover:bg-gray-600 cursor-pointer'
+                                : 'hover:bg-gray-600 cursor-pointer'
+                            }`}
+                          >
+                            {friend.profilePic ? (
+                              <img
+                                src={friend.profilePic}
+                                alt={friend.fullName}
+                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-100 truncate">
+                                {friend.fullName || friend.name}
+                              </p>
+                              <p className="text-xs text-gray-400 truncate">
+                                {friend.email}
+                              </p>
+                            </div>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white flex-shrink-0 ${config.badge}`}>
+                              {config.icon} {config.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected Friend Card */}
+                {formData.friendId && (
+                  <div className="mt-3 p-3 bg-gray-700 rounded-lg border border-gray-600 flex items-center gap-3">
+                    {(() => {
+                      const selectedFriend = friends.find(f => f._id === formData.friendId);
+                      if (!selectedFriend) return null;
+                      
+                      const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
+                      const statusConfig = {
+                        available: {
+                          badge: 'bg-green-600',
+                          label: 'Available',
+                          icon: '✓'
+                        },
+                        limited: {
+                          badge: 'bg-yellow-600',
+                          label: 'Limited',
+                          icon: '⚠'
+                        },
+                        away: {
+                          badge: 'bg-red-600',
+                          label: 'Away',
+                          icon: '✕'
+                        }
+                      };
+                      const config = statusConfig[friendStatus];
+
+                      return (
+                        <>
+                          {selectedFriend.profilePic ? (
+                            <img
+                              src={selectedFriend.profilePic}
+                              alt={selectedFriend.fullName}
+                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                              {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                            </div>
+                          )}
+                          <p className="font-medium text-gray-100 text-sm">{selectedFriend.fullName || selectedFriend.name}</p>
+                          <span className={`ml-auto inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white flex-shrink-0 ${config.badge}`}>
+                            {config.icon} {config.label}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Date and Time Section */}

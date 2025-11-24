@@ -31,6 +31,7 @@ const AppointmentBookingPage = () => {
   const [showDesktopSidebar, setShowDesktopSidebar] = useState(true);
   const [expandTodayAppointments, setExpandTodayAppointments] = useState(true);
   const [expandSearchResults, setExpandSearchResults] = useState(false);
+  const [friendsAvailability, setFriendsAvailability] = useState({});
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -101,6 +102,29 @@ const AppointmentBookingPage = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch availability for all friends
+  useEffect(() => {
+    if (friends.length === 0) return;
+
+    const fetchFriendsAvailability = async () => {
+      const availabilityMap = {};
+      
+      for (const friend of friends) {
+        try {
+          const availability = await getUserAvailability(friend._id);
+          availabilityMap[friend._id] = availability.availabilityStatus || 'available';
+        } catch (error) {
+          console.error(`Failed to fetch availability for friend ${friend._id}:`, error);
+          availabilityMap[friend._id] = 'available'; // Default to available on error
+        }
+      }
+      
+      setFriendsAvailability(availabilityMap);
+    };
+
+    fetchFriendsAvailability();
+  }, [friends]);
 
   // Scheduling availability - will use friend's actual availability when viewing them
   const getAvailabilityForCalendar = useMemo(() => {
@@ -477,17 +501,28 @@ const AppointmentBookingPage = () => {
                   </span>
                 </button>
                 {expandSearchResults && (
-              <div className="max-h-64 overflow-y-auto">
-                {(searchQuery ? filteredFriends : friends.slice(0, 3)).map(friend => (
+              <div className="max-h-80 overflow-y-auto">
+                {(searchQuery ? filteredFriends : friends.slice(0, 3)).map(friend => {
+                  const friendStatus = friendsAvailability[friend._id] || 'available';
+                  const isAway = friendStatus === 'away';
+                  
+                  return (
                   <button
                     key={friend._id}
                     onClick={() => {
-                      setViewingFriendId(friend._id);
-                      setSearchQuery('');
-                      setShowSearchResults(false);
-                      setExpandSearchResults(false);
+                      if (!isAway) {
+                        setViewingFriendId(friend._id);
+                        setSearchQuery('');
+                        setShowSearchResults(false);
+                        setExpandSearchResults(false);
+                      }
                     }}
-                    className="w-full px-4 py-3 text-left hover:bg-base-200 transition flex items-center gap-3 border-b border-base-300 last:border-b-0"
+                    disabled={isAway}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-base-300 last:border-b-0 transition ${
+                      isAway 
+                        ? 'opacity-50 cursor-not-allowed bg-base-200'
+                        : 'hover:bg-base-200 cursor-pointer'
+                    }`}
                   >
                     {friend.profilePic ? (
                       <img
@@ -509,7 +544,8 @@ const AppointmentBookingPage = () => {
                       </p>
                     </div>
                   </button>
-                ))}
+                  );
+                })}
                 {!searchQuery && friends.length > 3 && (
                   <div className="px-4 py-2 text-xs text-base-content/60 text-center border-t border-base-300">
                     {friends.length - 3} more friends • Type to search
@@ -532,42 +568,67 @@ const AppointmentBookingPage = () => {
 
         {/* Selected Friend Info */}
         {viewingFriendId && selectedFriend && (
-          <div className={`mb-6 border-2 rounded-lg p-4 ${
+          <div className={`mb-6 border-2 rounded-lg p-5 ${
             friendAvailability?.availabilityStatus === 'away'
               ? 'bg-error/10 border-error/30'
               : friendAvailability?.availabilityStatus === 'limited'
               ? 'bg-warning/10 border-warning/30'
               : 'bg-primary/10 border-primary/30'
           }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 flex-1">
-                {selectedFriend.profilePic ? (
-                  <img
-                    src={selectedFriend.profilePic}
-                    alt={selectedFriend.fullName}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold">
-                    {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="font-semibold text-base-content">
-                    Viewing {selectedFriend.fullName || selectedFriend.name}'s Calendar
-                  </p>
-                  {friendAvailability?.availabilityStatus === 'away' ? (
-                    <p className="text-sm text-error font-medium flex items-center gap-1 mt-1">
-                      <AlertCircle className="w-4 h-4" />
-                      This user is currently away and not accepting bookings
-                    </p>
-                  ) : friendAvailability?.availabilityStatus === 'limited' ? (
-                    <p className="text-sm text-warning font-medium">
-                      This user has limited availability
-                    </p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4 flex-1">
+                <div className="relative flex-shrink-0">
+                  {selectedFriend.profilePic ? (
+                    <img
+                      src={selectedFriend.profilePic}
+                      alt={selectedFriend.fullName}
+                      className="w-16 h-16 rounded-full object-cover ring-2 ring-base-300"
+                    />
                   ) : (
+                    <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg ring-2 ring-base-300">
+                      {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold text-white badge ${
+                    friendAvailability?.availabilityStatus === 'away'
+                      ? 'badge-error'
+                      : friendAvailability?.availabilityStatus === 'limited'
+                      ? 'badge-warning'
+                      : 'badge-success'
+                  }`}>
+                    {friendAvailability?.availabilityStatus === 'away' ? '✕' : friendAvailability?.availabilityStatus === 'limited' ? '⚠' : '✓'}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="mb-2">
+                    <p className="font-bold text-lg text-base-content">
+                      {selectedFriend.fullName || selectedFriend.name}
+                    </p>
                     <p className="text-sm text-base-content/60">
-                      You can see their appointments and schedule new ones
+                      {selectedFriend.email}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <span className={`badge font-medium ${
+                      friendAvailability?.availabilityStatus === 'away'
+                        ? 'badge-error'
+                        : friendAvailability?.availabilityStatus === 'limited'
+                        ? 'badge-warning'
+                        : 'badge-success'
+                    }`}>
+                      {friendAvailability?.availabilityStatus === 'away'
+                        ? '✕ Away'
+                        : friendAvailability?.availabilityStatus === 'limited'
+                        ? '⚠ Limited Availability'
+                        : '✓ Available'}
+                    </span>
+                    {friendAvailability?.availabilityStatus === 'away' && (
+                      <p className="text-xs text-error font-medium">Not accepting bookings</p>
+                    )}
+                  </div>
+                  {friendAvailability?.availabilityStatus !== 'away' && (
+                    <p className="text-xs text-base-content/60 mt-2">
+                      📅 You can view their calendar and schedule appointments below
                     </p>
                   )}
                 </div>
@@ -579,7 +640,7 @@ const AppointmentBookingPage = () => {
                 }}
                 className="btn btn-outline btn-sm flex-shrink-0"
               >
-                Back to My Calendar
+                Back
               </button>
             </div>
           </div>
@@ -599,6 +660,7 @@ const AppointmentBookingPage = () => {
             isMultiCalendarMode={isMultiCalendarMode}
             isViewingFriendAway={friendAvailability?.availabilityStatus === 'away'}
             viewingFriendId={viewingFriendId}
+            friendsAvailability={friendsAvailability}
           />
         </div>
 
@@ -659,9 +721,29 @@ const AppointmentBookingPage = () => {
                       <div className="flex-1">
                         <h3 className="font-medium text-base-content">{appointment.title || 'Untitled'}</h3>
                         {isMultiCalendarMode && !owner.isCurrentUser && (
-                          <p className="text-xs text-base-content/60 mt-1">
-                            With: {owner.name}
-                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            {(() => {
+                              const ownerFriend = friends.find(f => f._id === owner.id);
+                              return (
+                                <>
+                                  {ownerFriend?.profilePic ? (
+                                    <img
+                                      src={ownerFriend.profilePic}
+                                      alt={ownerFriend.fullName}
+                                      className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                      {(ownerFriend?.fullName || owner.name || 'U')[0].toUpperCase()}
+                                    </div>
+                                  )}
+                                  <p className="text-xs text-base-content/60">
+                                    With: {owner.name}
+                                  </p>
+                                </>
+                              );
+                            })()}
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

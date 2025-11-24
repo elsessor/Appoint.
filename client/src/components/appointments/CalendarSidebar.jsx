@@ -11,6 +11,7 @@ const CalendarSidebar = ({
   onDateSelect = () => {},
 }) => {
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
+  const [expandMyCalendars, setExpandMyCalendars] = useState(true);
 
   // Define unique colors for each person
   const colorPalette = [
@@ -130,10 +131,18 @@ const CalendarSidebar = ({
       </div>
 
       {/* My Calendars Section */}
-      <div className="flex-1 p-3">
-        <h3 className="text-xs font-semibold text-base-content mb-2">My calendars</h3>
+      <div className="flex-1 p-3 flex flex-col">
+        <button
+          onClick={() => setExpandMyCalendars(!expandMyCalendars)}
+          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-base-200 transition-colors mb-2 w-full"
+          aria-expanded={expandMyCalendars}
+        >
+          <span className={`text-lg transition-transform duration-200 ${expandMyCalendars ? 'rotate-180' : ''}`}>↓</span>
+          <h3 className="text-xs font-semibold text-base-content">My calendars</h3>
+        </button>
 
-        <div className="space-y-1.5">
+        {expandMyCalendars && (
+        <div className="space-y-1.5 overflow-y-auto">
           {friendsWithColors.map((friend) => {
             const isCurrentUser = friend.isCurrentUser;
             const visible = isVisible(friend._id);
@@ -170,6 +179,19 @@ const CalendarSidebar = ({
                 {/* Color Dot */}
                 <div className={`w-3 h-3 rounded-full ${color.dot} flex-shrink-0`}></div>
 
+                {/* Profile Picture */}
+                {friend.profilePic ? (
+                  <img
+                    src={friend.profilePic}
+                    alt={friend.fullName || friend.name}
+                    className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {(friend.name || friend.fullName || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+
                 {/* Name */}
                 <span className="text-xs text-base-content truncate">
                   {friend.name || friend.fullName}
@@ -179,8 +201,9 @@ const CalendarSidebar = ({
             );
           })}
         </div>
+        )}
 
-        {friendsWithColors.length === 1 && (
+        {expandMyCalendars && friendsWithColors.length === 1 && (
           <div className="px-3 py-4 text-center text-xs text-base-content/50">
             Add friends to see their calendars
           </div>
