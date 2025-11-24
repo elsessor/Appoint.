@@ -1,6 +1,8 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, CalendarPlus, Calendar } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, CalendarPlus, Calendar, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -73,13 +75,16 @@ const Sidebar = () => {
               )}
             </div>
           </Link>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">{authUser?.fullName}</p>
-            <p className="text-xs text-success flex items-center gap-1">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{authUser?.fullName}</p>
+            <p className="text-xs text-success flex items-center gap-1 mt-1">
               <span className="size-2 rounded-full bg-success inline-block" />
               Online
             </p>
           </div>
+          
+          {/* Availability Status Toggle */}
+          <AvailabilityStatusToggle currentUser={authUser} />
         </div>
       </div>
     </aside>

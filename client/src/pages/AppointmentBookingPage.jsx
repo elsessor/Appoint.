@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
@@ -18,6 +18,7 @@ import { Search, X, AlertCircle } from 'lucide-react';
 const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
   const queryClient = useQueryClient();
+  const searchBarRef = useRef(null);
   const [viewingFriendId, setViewingFriendId] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -87,6 +88,19 @@ const AppointmentBookingPage = () => {
     cancelNotice: 0,
     appointmentDuration: { min: 15, max: 120 },
   };
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchBarRef.current && !searchBarRef.current.contains(event.target)) {
+        setShowSearchResults(false);
+        setExpandSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Scheduling availability - will use friend's actual availability when viewing them
   const getAvailabilityForCalendar = useMemo(() => {
@@ -396,7 +410,7 @@ const AppointmentBookingPage = () => {
                     className="btn btn-outline btn-sm hidden lg:inline-flex"
                     title="Toggle sidebar"
                   >
-                    {showDesktopSidebar ? '◀' : '▶'}
+                    {showDesktopSidebar ? '◄' : '►'}
                   </button>
                   <span className="text-xs font-medium text-base-content/60 hidden lg:inline">
                     {showDesktopSidebar ? 'Hide' : 'Show'} Calendars
@@ -408,7 +422,7 @@ const AppointmentBookingPage = () => {
 
 
           {/* Friend Search Bar */}
-        <div className="mb-8 relative">
+        <div className="mb-8 relative" ref={searchBarRef}>
           <div className="relative">
             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-base-content/50 pointer-events-none">
               <Search className="w-5 h-5" />

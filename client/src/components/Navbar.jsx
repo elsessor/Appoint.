@@ -5,7 +5,6 @@ import { BellIcon, LogOutIcon, ShipWheelIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
 import { getFriendRequests } from "../lib/api";
-import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -41,9 +40,6 @@ const Navbar = () => {
           )}
 
           <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            {authUser && isOnboarded && (
-              <AvailabilityStatusToggle currentUser={authUser} />
-            )}
             <Link to={"/notifications"}>
               <div className="indicator">
                 {notificationsCount > 0 && (

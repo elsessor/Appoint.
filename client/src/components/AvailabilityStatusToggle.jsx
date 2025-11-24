@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -6,6 +6,8 @@ import { axiosInstance } from '../lib/axios';
 
 const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const queryClient = useQueryClient();
 
   // Get current status
@@ -66,8 +68,21 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
   const handleStatusChange = (newStatus) => {
     if (newStatus !== currentStatus) {
       updateStatusMutation.mutate(newStatus);
+      setIsDropdownOpen(false);
     }
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const statusConfig = {
     available: {
@@ -93,9 +108,9 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
   const config = statusConfig[currentStatus];
 
   return (
-    <div className="dropdown dropdown-end">
+    <div className="relative" ref={dropdownRef}>
       <button
-        tabIndex={0}
+        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         className={`btn btn-sm gap-2 btn-outline btn-${config.color}`}
         title={config.tooltip}
       >
@@ -103,10 +118,10 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
         <span className="hidden sm:inline">{config.label}</span>
       </button>
 
-      <ul
-        tabIndex={0}
-        className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 border border-base-300"
-      >
+      {isDropdownOpen && (
+        <ul
+          className="absolute bottom-full right-0 mb-2 z-50 menu p-2 shadow bg-base-100 rounded-box w-56 border border-base-300"
+        >
         {Object.entries(statusConfig).map(([status, { icon, color, label, tooltip }]) => (
           <li key={status}>
             <a
@@ -128,6 +143,7 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
           </li>
         ))}
       </ul>
+      )}
     </div>
   );
 };
