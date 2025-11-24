@@ -8,6 +8,7 @@ import {
   deleteAppointment,
   saveCustomAvailability,
   getUserAvailability,
+  getFriendAppointments,
 } from "../controllers/appointments.controller.js";
 
 const router = express.Router();
@@ -21,6 +22,7 @@ router.get("/availability/:userId", getUserAvailability);
 // Appointment CRUD operations
 router.post("/", createAppointment);
 router.get("/", getAppointments);
+router.get("/friend/:friendId", getFriendAppointments);
 router.get("/:id", getAppointmentById);
 router.put("/:id", updateAppointment);
 router.delete("/:id", deleteAppointment);

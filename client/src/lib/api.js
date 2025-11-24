@@ -121,6 +121,11 @@ export const getAppointments = async () => {
   return response.data;
 };
 
+export const getFriendAppointments = async (friendId) => {
+  const response = await axiosInstance.get(`/appointments/friend/${friendId}`);
+  return response.data;
+};
+
 export async function acceptFriendRequest(requestId) {
   const response = await axiosInstance.put(`/users/friend-request/${requestId}/accept`);
   return response.data;
@@ -128,6 +133,11 @@ export async function acceptFriendRequest(requestId) {
 
 export async function getUserFriends() {
   const response = await axiosInstance.get("/users/friends");
+  return response.data;
+}
+
+export async function unfriendUser(friendId) {
+  const response = await axiosInstance.delete(`/users/friend/${friendId}`);
   return response.data;
 }
 

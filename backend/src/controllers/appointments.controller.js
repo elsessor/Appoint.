@@ -184,6 +184,25 @@ export async function getAppointments(req, res) {
   }
 }
 
+export async function getFriendAppointments(req, res) {
+  try {
+    const { friendId } = req.params;
+
+    // Get ALL appointments for a specific friend (show their complete availability)
+    const appointments = await Appointment.find({
+      $or: [{ userId: friendId }, { friendId: friendId }],
+    })
+      .populate("userId", "fullName profilePic email")
+      .populate("friendId", "fullName profilePic email")
+      .sort({ startTime: 1 });
+
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error("Error in getFriendAppointments controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function getAppointmentById(req, res) {
   try {
     const { id } = req.params;

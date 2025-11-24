@@ -8,6 +8,7 @@ import {
   getRecommendedUsers,
   markNotificationsRead,
   sendFriendRequest,
+  unfriend,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.get("/friends", getMyFriends);
 
 router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
+router.delete("/friend/:id", unfriend);
 router.put("/notifications/read", markNotificationsRead);
 
 router.get("/friend-requests", getFriendRequests);

@@ -1,7 +1,7 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, LogOutIcon, ShipWheelIcon } from "lucide-react";
+import { BellIcon, LogOutIcon, ShipWheelIcon, Home } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
 import { getFriendRequests } from "../lib/api";
@@ -9,6 +9,7 @@ import { getFriendRequests } from "../lib/api";
 const Navbar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const isChatPage = location.pathname?.startsWith("/chat");
   const isOnboarded = authUser?.isOnboarded;
 
@@ -23,6 +24,11 @@ const Navbar = () => {
   const notificationsCount =
     (friendRequests?.incomingReqs?.filter((req) => !req.recipientSeen).length || 0) +
     (friendRequests?.acceptedReqs?.filter((req) => !req.senderSeen).length || 0);
+
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    navigate("/homepage");
+  };
 
   return (
     <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30 h-16 flex items-center">
