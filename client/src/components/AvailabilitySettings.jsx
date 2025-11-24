@@ -32,44 +32,98 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Fetch current availability
-  const { data: currentAvailability, isLoading } = useQuery({
+  const { data: currentAvailability, isLoading, refetch } = useQuery({
     queryKey: ['userAvailability', currentUser?._id],
     queryFn: async () => {
+      console.log('🔄 Fetching availability for user:', currentUser._id);
       const res = await axiosInstance.get(`/appointments/availability/${currentUser._id}`);
+      console.log('📥 Server returned:', {
+        days: res.data.availability.days,
+        start: res.data.availability.start,
+        end: res.data.availability.end,
+      });
       return res.data;
     },
     enabled: !!currentUser?._id,
-    onSuccess: (data) => {
-      if (data) {
-        setAvailability(prev => ({
-          ...prev,
-          ...data.availability,
-        }));
-        if (data.availabilityStatus) {
-          setAvailabilityStatus(data.availabilityStatus);
-        }
-      }
-    },
+    staleTime: 0,
+    gcTime: 1000 * 60 * 10,
   });
+
+  // Update state when fetched data changes
+  useEffect(() => {
+    if (currentAvailability?.availability) {
+      console.log('✅ Updating state with fetched data:', currentAvailability.availability);
+      setAvailability({
+        days: currentAvailability.availability.days || [1, 2, 3, 4, 5],
+        start: currentAvailability.availability.start || '09:00',
+        end: currentAvailability.availability.end || '17:00',
+        slotDuration: currentAvailability.availability.slotDuration || 30,
+        buffer: currentAvailability.availability.buffer || 15,
+        maxPerDay: currentAvailability.availability.maxPerDay || 5,
+        breakTimes: currentAvailability.availability.breakTimes || [],
+        minLeadTime: currentAvailability.availability.minLeadTime || 0,
+        cancelNotice: currentAvailability.availability.cancelNotice || 0,
+        appointmentDuration: currentAvailability.availability.appointmentDuration || {
+          min: 15,
+          max: 120,
+        },
+      });
+      if (currentAvailability.availabilityStatus) {
+        setAvailabilityStatus(currentAvailability.availabilityStatus);
+      }
+    }
+  }, [currentAvailability]);
+
+  // Refetch when modal opens
+  useEffect(() => {
+    if (isOpen && currentUser?._id) {
+      console.log('🎯 Modal opened, fetching latest availability...');
+      refetch();
+    }
+  }, [isOpen, currentUser?._id, refetch]);
 
   // Save availability mutation
   const saveAvailabilityMutation = useMutation({
     mutationFn: async (availabilityData) => {
+      console.log('📤 Sending to server:', {
+        days: availabilityData.days,
+        start: availabilityData.start,
+        end: availabilityData.end,
+        status: availabilityStatus,
+      });
       const res = await axiosInstance.post('/appointments/availability', {
         ...availabilityData,
         availabilityStatus,
       });
+      console.log('📥 Server response:', res.data);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('✅ Save successful, server returned:', {
+        days: data.availability.days,
+        start: data.availability.start,
+      });
+      
+      // Update React Query cache with the server response
+      queryClient.setQueryData(['userAvailability', currentUser._id], {
+        availability: data.availability,
+        availabilityStatus: data.availabilityStatus,
+      });
+      
       toast.success('Availability saved successfully!');
-      // Invalidate related queries to refetch data
-      queryClient.invalidateQueries({ queryKey: ['userAvailability'] });
-      queryClient.invalidateQueries({ queryKey: ['availabilityStatus'] });
-      queryClient.invalidateQueries({ queryKey: ['authUser'] });
-      onClose();
+      
+      // Close modal after a short delay
+      setTimeout(() => {
+        console.log('✋ Closing modal');
+        onClose();
+      }, 500);
     },
     onError: (error) => {
+      console.error('❌ Save failed:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
       toast.error(error.response?.data?.message || 'Failed to save availability');
     },
   });

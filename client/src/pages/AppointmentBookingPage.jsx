@@ -22,15 +22,7 @@ const AppointmentBookingPage = () => {
   const [visibleFriends, setVisibleFriends] = useState([]);
   const [isMultiCalendarMode, setIsMultiCalendarMode] = useState(true);
   const [selectedMiniCalDate, setSelectedMiniCalDate] = useState(null);
-
-  // Scheduling availability
-  const availability = {
-    days: [1, 2, 3, 4, 5], // Monday to Friday
-    start: '09:00',
-    end: '17:00',
-    slotDuration: 30,
-    buffer: 15,
-  };
+  const [showSidebar, setShowSidebar] = useState(false);
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -68,6 +60,35 @@ const AppointmentBookingPage = () => {
     enabled: !!viewingFriendId,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
+
+  // Get current user's availability
+  const { data: currentUserAvailability } = useQuery({
+    queryKey: ['userAvailability', currentUser?._id],
+    queryFn: () => getUserAvailability(currentUser?._id),
+    enabled: !!(currentUser?._id && !viewingFriendId),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+  });
+
+  // Default availability for all users - Monday to Friday, 9 AM to 5 PM
+  const defaultAvailability = {
+    days: [1, 2, 3, 4, 5], // Monday to Friday
+    start: '09:00',
+    end: '17:00',
+    slotDuration: 30,
+    buffer: 15,
+    minLeadTime: 0,
+    cancelNotice: 0,
+    appointmentDuration: { min: 15, max: 120 },
+  };
+
+  // Scheduling availability - will use friend's actual availability when viewing them
+  const getAvailabilityForCalendar = useMemo(() => {
+    if (viewingFriendId && friendAvailability?.availability) {
+      return friendAvailability.availability;
+    }
+    // Use current user's actual availability or default
+    return currentUserAvailability?.availability || defaultAvailability;
+  }, [viewingFriendId, friendAvailability, currentUserAvailability]);
 
   // Create appointment mutation
   const createAppointmentMutation = useMutation({
@@ -287,56 +308,55 @@ const AppointmentBookingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 p-4 md:p-6 lg:p-8" data-theme={theme}>
-      {/* Incoming Requests Banner */}
-      {pendingRequests.length > 0 && (
-        <div className="mb-6 bg-gradient-to-r from-warning/20 to-info/20 border-l-4 border-warning rounded-lg p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">📬</span>
-              <div>
-                <p className="text-base font-bold text-base-content">
-                  {pendingRequests.length} Appointment Request{pendingRequests.length !== 1 ? 's' : ''} Waiting
-                </p>
-                <p className="text-sm text-base-content/70 mt-1">
-                  Friends have sent you appointment requests. Review and respond to them below.
-                </p>
-              </div>
+    <div className="min-h-screen bg-base-100 flex flex-col lg:flex-row" data-theme={theme}>
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && isMultiCalendarMode && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setShowSidebar(false)} />
+      )}
+
+      {/* Sidebar */}
+      {isMultiCalendarMode && (
+        <div className={`fixed left-0 top-0 h-screen z-50 lg:static lg:z-auto lg:w-80 transition-transform duration-300 ${
+          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}>
+          <div className="w-80 h-full shadow-lg bg-base-100 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-base-300 lg:hidden">
+              <h3 className="font-semibold text-base-content">Calendars</h3>
+              <button onClick={() => setShowSidebar(false)} className="btn btn-ghost btn-sm">
+                ✕
+              </button>
             </div>
-            <a href="/appointments" className="btn btn-warning btn-sm">
-              View All Requests
-            </a>
+            <CalendarSidebar
+              friends={friends}
+              currentUser={currentUser}
+              visibleFriends={visibleFriends}
+              onToggleFriendVisibility={handleToggleFriendVisibility}
+              selectedDate={selectedMiniCalDate}
+              onDateSelect={setSelectedMiniCalDate}
+            />
           </div>
         </div>
       )}
 
-      <div className="flex gap-6">
-        {/* Calendar Sidebar */}
-        {isMultiCalendarMode && (
-          <div className="hidden lg:block flex-shrink-0">
-            <div className="rounded-lg shadow-lg overflow-hidden" style={{ width: '300px', maxHeight: 'calc(100vh - 200px)' }}>
-              <CalendarSidebar
-                friends={friends}
-                currentUser={currentUser}
-                visibleFriends={visibleFriends}
-                onToggleFriendVisibility={handleToggleFriendVisibility}
-                selectedDate={selectedMiniCalDate}
-                onDateSelect={setSelectedMiniCalDate}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1">
+      <div className="flex flex-col flex-1">
+        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-base-content">Book Appointment</h1>
-            <p className="text-base-content/60 mt-1">View your schedule and book appointments with friends</p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-base-content">Book Appointment</h1>
+            </div>
+            {isMultiCalendarMode && (
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="btn btn-outline btn-sm lg:hidden w-full md:w-auto"
+              >
+                📅 Show Calendars
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* Friend Search Bar */}
+
+          {/* Friend Search Bar */}
         <div className="mb-8 relative">
           <div className="relative">
             <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-base-content/50">
@@ -482,7 +502,7 @@ const AppointmentBookingPage = () => {
             onAppointmentCreate={handleCreateAppointment}
             onAppointmentUpdate={handleUpdateAppointment}
             onAppointmentDelete={handleDeleteAppointment}
-            availability={availability}
+            availability={getAvailabilityForCalendar}
             visibleFriends={visibleFriends}
             isMultiCalendarMode={isMultiCalendarMode}
             isViewingFriendAway={friendAvailability?.availabilityStatus === 'away'}
@@ -581,7 +601,7 @@ const AppointmentBookingPage = () => {
             </div>
           )}
         </div>
-      </div>
+        </div>
       </div>
 
       {/* Appointment Request Modal */}

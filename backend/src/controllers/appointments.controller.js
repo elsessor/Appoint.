@@ -93,6 +93,33 @@ export async function createAppointment(req, res) {
       });
     }
 
+    // Check if appointment is on an available day
+    const availableDays = friendAvailability.days || [1, 2, 3, 4, 5];
+    const appointmentDay = start.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    if (!availableDays.includes(appointmentDay)) {
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const appointmentDayName = dayNames[appointmentDay];
+      const availableDayNames = availableDays.map(d => dayNames[d]).join(', ');
+      return res.status(400).json({
+        message: `${appointmentDayName} is not available. Available days are: ${availableDayNames}`,
+      });
+    }
+
+    // Check if appointment time is within working hours
+    const [friendStartHour, friendStartMin] = (friendAvailability.start || '09:00').split(':').map(Number);
+    const [friendEndHour, friendEndMin] = (friendAvailability.end || '17:00').split(':').map(Number);
+    const friendStartMinutes = friendStartHour * 60 + friendStartMin;
+    const friendEndMinutes = friendEndHour * 60 + friendEndMin;
+    
+    const appointmentStartMinutes = start.getHours() * 60 + start.getMinutes();
+    const appointmentEndMinutes = end.getHours() * 60 + end.getMinutes();
+    
+    if (appointmentStartMinutes < friendStartMinutes || appointmentEndMinutes > friendEndMinutes) {
+      return res.status(400).json({
+        message: `Appointment must be between ${friendAvailability.start} and ${friendAvailability.end}`,
+      });
+    }
+
     const appointment = new Appointment({
       userId,
       friendId,
@@ -282,41 +309,46 @@ export async function saveCustomAvailability(req, res) {
         .json({ message: "Missing required fields: days, start, end" });
     }
 
-    // Update user availability settings
-    const user = await User.findById(userId);
-    if (!user) {
+    // Update user availability settings using findByIdAndUpdate
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        availability: {
+          days,
+          start,
+          end,
+          slotDuration: slotDuration || 30,
+          buffer: buffer || 15,
+          maxPerDay: maxPerDay || 5,
+          breakTimes: breakTimes || [],
+          minLeadTime: minLeadTime || 0,
+          cancelNotice: cancelNotice || 0,
+          appointmentDuration: appointmentDuration || {
+            min: 15,
+            max: 120,
+          },
+        },
+        ...(availabilityStatus && ['available', 'limited', 'away'].includes(availabilityStatus) && {
+          availabilityStatus: availabilityStatus,
+        }),
+      },
+      { new: true, runValidators: false }
+    );
+
+    if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.availability = {
-      days,
-      start,
-      end,
-      slotDuration: slotDuration || 30,
-      buffer: buffer || 15,
-      maxPerDay: maxPerDay || 5,
-      breakTimes: breakTimes || [],
-      minLeadTime: minLeadTime || 0,
-      cancelNotice: cancelNotice || 0,
-      appointmentDuration: appointmentDuration || {
-        min: 15,
-        max: 120,
-      },
-    };
-
-    if (availabilityStatus && ['available', 'limited', 'away'].includes(availabilityStatus)) {
-      user.availabilityStatus = availabilityStatus;
-    }
-
-    await user.save();
+    console.log('✅ User availability updated successfully');
+    console.log('Saved availability:', JSON.stringify(updatedUser.availability, null, 2));
 
     res.status(200).json({
       message: "Availability saved successfully",
-      availability: user.availability,
-      availabilityStatus: user.availabilityStatus,
+      availability: updatedUser.availability,
+      availabilityStatus: updatedUser.availabilityStatus,
     });
   } catch (error) {
-    console.error("Error in saveCustomAvailability controller", error.message);
+    console.error("❌ Error in saveCustomAvailability:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

@@ -196,9 +196,6 @@ const Calendar = ({
 
   // Check if a date is available for booking
   const isDateAvailable = (date) => {
-    // Check if it's a weekend
-    if (isWeekend(date)) return false;
-    
     // Check if it's a Philippine holiday
     if (isHoliday(date, phHolidays)) return false;
     
@@ -207,9 +204,17 @@ const Calendar = ({
     today.setHours(0, 0, 0, 0);
     if (isBefore(date, today)) return false;
     
-    // Check if it's within available days
+    // Check if it's within available days (based on friend's availability)
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    return availability.days.includes(dayOfWeek);
+    const friendAvailableDays = availability?.days || [1, 2, 3, 4, 5];
+    if (!friendAvailableDays.includes(dayOfWeek)) return false;
+    
+    // Check if it's within working hours
+    if (availability?.start && availability?.end) {
+      // We'll allow any date within available days, but time validation happens during booking
+    }
+    
+    return true;
   };
 
   // Check if a specific time slot is available
@@ -236,32 +241,24 @@ const Calendar = ({
         </div>
       )}
       {/* Calendar Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-base-300 bg-base-200">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-base-content">
-              {viewMode === 'month' 
-                ? format(currentMonth, 'MMMM yyyy')
-                : `${format(displayStart, 'MMM d')} - ${format(displayEnd, 'MMM d, yyyy')}`
-              }
-            </h2>
-          </div>
-          <p className="text-sm text-base-content/60">
-            {format(new Date(), 'EEEE, MMMM d, yyyy')}
-          </p>
-        </div>
-        <div className="flex items-center space-x-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-4 border-b border-base-300 bg-base-200">
+        <h2 className="text-lg font-semibold text-base-content">
+          {viewMode === 'month' 
+            ? format(currentMonth, 'MMMM yyyy')
+            : `${format(displayStart, 'MMM d')} - ${format(displayEnd, 'MMM d, yyyy')}`
+          }
+        </h2>
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={resetToToday}
-            className="btn btn-outline btn-sm"
+            className="btn btn-outline btn-xs md:btn-sm"
           >
             Today
           </button>
-          <div className="divider divider-horizontal h-8 my-0"></div>
           <div className="flex rounded-md shadow-sm">
             <button
               onClick={() => setViewMode('month')}
-              className={`btn btn-sm rounded-r-none ${
+              className={`btn btn-xs md:btn-sm rounded-r-none ${
                 viewMode === 'month' 
                   ? 'btn-primary' 
                   : 'btn-outline'
@@ -271,7 +268,7 @@ const Calendar = ({
             </button>
             <button
               onClick={() => setViewMode('week')}
-              className={`btn btn-sm rounded-l-none ${
+              className={`btn btn-xs md:btn-sm rounded-l-none ${
                 viewMode === 'week' 
                   ? 'btn-primary' 
                   : 'btn-outline'
@@ -283,54 +280,102 @@ const Calendar = ({
           <div className="flex rounded-md shadow-sm">
             <button
               onClick={viewMode === 'month' ? prevMonth : prevWeek}
-              className="btn btn-outline btn-sm rounded-r-none"
+              className="btn btn-outline btn-xs md:btn-sm rounded-r-none"
+              title="Previous"
             >
-              <span className="sr-only">Previous</span>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </button>
             <button
               onClick={viewMode === 'month' ? nextMonth : nextWeek}
-              className="btn btn-outline btn-sm rounded-l-none"
+              className="btn btn-outline btn-xs md:btn-sm rounded-l-none"
+              title="Next"
             >
-              <span className="sr-only">Next</span>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
           <button
             onClick={() => handleCreateAppointment(new Date())}
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-xs md:btn-sm"
           >
-            New Appointment +
+            New +
           </button>
         </div>
       </div>
       {/* Friend Search Modal */}
       {/* Legend */}
-      <div className="px-6 py-3 bg-base-200 border-b border-base-300">
-        <div className="flex items-center justify-center gap-6 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-info"></div>
+      <div className="px-6 py-2 bg-base-200 border-b border-base-300">
+        <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-info"></div>
             <span className="text-base-content/70">Today</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-success"></div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-success"></div>
             <span className="text-base-content/70">Available</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-primary/70"></div>
-            <span className="text-base-content/70">Has Appointments</span>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded bg-primary/70"></div>
+            <span className="text-base-content/70">Has Appts</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-error"></div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded bg-error"></div>
             <span className="text-base-content/70">Holiday</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-base-300 border border-base-400"></div>
-            <span className="text-base-content/70">Unavailable</span>
+        </div>
+      </div>
+
+      {/* Availability Schedule Info */}
+      <div className="px-6 py-4 bg-base-100 border-b border-base-300">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Working Hours */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Working Hours</p>
+            <p className="text-sm font-medium text-base-content">
+              {availability?.start || '09:00'} - {availability?.end || '17:00'}
+            </p>
+          </div>
+
+          {/* Available Days */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Available Days</p>
+            <div className="flex flex-wrap gap-1">
+              {(() => {
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const availableDays = availability?.days || [1, 2, 3, 4, 5];
+                return dayNames.map((day, idx) => (
+                  <span
+                    key={idx}
+                    className={`text-xs px-2 py-1 rounded font-medium ${
+                      availableDays.includes(idx)
+                        ? 'bg-success text-success-content'
+                        : 'bg-base-300 text-base-content/50 line-through'
+                    }`}
+                  >
+                    {day}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
+
+          {/* Slot Duration */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Slot Duration</p>
+            <p className="text-sm font-medium text-base-content">
+              {availability?.slotDuration || 30} min
+            </p>
+          </div>
+
+          {/* Lead Time */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Lead Time</p>
+            <p className="text-sm font-medium text-base-content">
+              {availability?.minLeadTime || 0} hour{(availability?.minLeadTime || 0) !== 1 ? 's' : ''}
+            </p>
           </div>
         </div>
       </div>
@@ -357,11 +402,13 @@ const Calendar = ({
             <div 
               key={i}
               className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 ${
-                isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : 'hover:bg-base-200 cursor-pointer'
+                isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : (
+                  !isDateAvailableNow && isCurrentMonth ? 'opacity-60 cursor-not-allowed bg-base-300' : 'hover:bg-base-200 cursor-pointer'
+                )
               } ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
               } ${isSelected ? 'ring-2 ring-primary z-10' : ''}`}
-              onClick={() => handleDateClick(day)}
+              onClick={() => isDateAvailableNow && !isViewingFriendAway && handleDateClick(day)}
             >
               <div className="flex flex-col h-full">
                 <div className="flex justify-between items-center mb-1">
@@ -378,12 +425,22 @@ const Calendar = ({
                   {isDateAvailableNow && !hasAppts && !dayHoliday && (
                     <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
                   )}
+                  
+                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
+                    <span className="text-xs font-semibold text-error">✕</span>
+                  )}
                 </div>
                 
                 <div className="flex-1 overflow-hidden">
                   {dayHoliday && (
                     <div className="text-xs text-error font-medium truncate mb-1">
                       {dayHoliday}
+                    </div>
+                  )}
+                  
+                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
+                    <div className="text-xs text-error/70 font-medium">
+                      Unavailable
                     </div>
                   )}
                   
