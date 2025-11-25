@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, Save, X, Plus, Trash2, AlertCircle, Coffee } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { axiosInstance } from '../lib/axios';
 
 const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {

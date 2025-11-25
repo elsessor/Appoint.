@@ -1,5 +1,7 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import mongoose from "mongoose";
+import { upsertStreamUser } from "../lib/stream.js";
 import { emitNotificationUpdate } from "../lib/socket.js";
 
 export async function getRecommendedUsers(req, res) {
@@ -151,23 +153,257 @@ export async function getOutgoingFriendReqs(req, res) {
   }
 }
 
+export async function getMySettings(req, res) {
+  try {
+    const user = await User.findById(req.user.id).select("settings");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.settings || {});
+  } catch (error) {
+    console.error("Error in getMySettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateMySettings(req, res) {
+  try {
+    const { notifications, privacy, videoAudio } = req.body;
+
+    const updates = {};
+    if (notifications) updates["settings.notifications"] = notifications;
+    if (privacy) updates["settings.privacy"] = privacy;
+    if (videoAudio) updates["settings.videoAudio"] = videoAudio;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No settings provided to update" });
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true }).select(
+      "settings"
+    );
+
+    res.status(200).json(user.settings);
+  } catch (error) {
+    console.error("Error in updateMySettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function changePassword(req, res) {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "Current and new passwords are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters long" });
+    }
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isCurrentPasswordValid = await user.matchPassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Error in changePassword controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function deleteMyAccount(req, res) {
+  try {
+    const userId = req.user.id;
+    const { confirmation } = req.body || {};
+
+    if (confirmation !== "DELETE") {
+      return res.status(400).json({ message: "Invalid confirmation phrase" });
+    }
+
+    await FriendRequest.deleteMany({
+      $or: [{ sender: userId }, { recipient: userId }],
+    });
+
+    await User.updateMany(
+      { friends: userId },
+      { $pull: { friends: userId } }
+    );
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.clearCookie("jwt");
+    res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteMyAccount controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateProfilePicture(req, res) {
+  try {
+    const userId = req.user.id;
+    const { profilePic } = req.body;
+
+    if (!profilePic) {
+      return res.status(400).json({ message: "Profile picture is required" });
+    }
+
+    if (typeof profilePic !== 'string') {
+      return res.status(400).json({ message: "Invalid profile picture format" });
+    }
+
+    if (!profilePic.startsWith('data:image/')) {
+      return res.status(400).json({ message: "Profile picture must be a valid image data URL" });
+    }
+
+    if (profilePic.length > 10 * 1024 * 1024) {
+      return res.status(400).json({ message: "Profile picture is too large. Maximum size is 10MB." });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    try {
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || "",
+      });
+      console.log(`Stream user updated for ${updatedUser.fullName}`);
+    } catch (streamError) {
+      console.log("Error updating Stream user:", streamError.message);
+    }
+
+    res.status(200).json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error("Error in updateProfilePicture controller", error.message);
+    if (error.name === 'PayloadTooLargeError') {
+      return res.status(413).json({ message: "Image file is too large. Please use a smaller image." });
+    }
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getMyProfile(req, res) {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      fullName: user.fullName,
+      profilePic: user.profilePic,
+      bio: user.bio,
+      location: user.location,
+      phone: user.phone,
+      twitter: user.twitter,
+      github: user.github,
+      linkedin: user.linkedin,
+      skills: user.skills || [],
+    });
+  } catch (error) {
+    console.error("Error in getMyProfile controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateMyProfile(req, res) {
+  try {
+    const userId = req.user.id;
+    const { fullName, bio, location, phone, twitter, github, linkedin, skills } = req.body;
+
+    const updates = {};
+    if (fullName !== undefined) updates.fullName = fullName;
+    if (bio !== undefined) updates.bio = bio;
+    if (location !== undefined) updates.location = location;
+    if (phone !== undefined) updates.phone = phone;
+    if (twitter !== undefined) updates.twitter = twitter;
+    if (github !== undefined) updates.github = github;
+    if (linkedin !== undefined) updates.linkedin = linkedin;
+    if (skills !== undefined) updates.skills = Array.isArray(skills) ? skills : [];
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No profile fields provided to update" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    try {
+      await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || "",
+      });
+      console.log(`Stream user updated for ${updatedUser.fullName}`);
+    } catch (streamError) {
+      console.log("Error updating Stream user:", streamError.message);
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        fullName: updatedUser.fullName,
+        profilePic: updatedUser.profilePic,
+        bio: updatedUser.bio,
+        location: updatedUser.location,
+        phone: updatedUser.phone,
+        twitter: updatedUser.twitter,
+        github: updatedUser.github,
+        linkedin: updatedUser.linkedin,
+        skills: updatedUser.skills || [],
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateMyProfile controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function markNotificationsRead(req, res) {
   try {
     const userId = req.user.id;
 
     await FriendRequest.updateMany(
-      { recipient: userId, status: "pending", recipientSeen: false },
-      { recipientSeen: true }
+      { recipient: userId, recipientSeen: false },
+      { $set: { recipientSeen: true } }
     );
 
     await FriendRequest.updateMany(
-      { sender: userId, status: "accepted", senderSeen: false },
-      { senderSeen: true }
+      { sender: userId, senderSeen: false },
+      { $set: { senderSeen: true } }
     );
 
-    res.status(200).json({ message: "Notifications marked as read" });
+    res.status(200).json({ success: true, message: "Notifications marked as read" });
   } catch (error) {
-    console.log("Error in markNotificationsRead controller", error.message);
+    console.error("Error in markNotificationsRead controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
