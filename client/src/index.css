@@ -2,37 +2,123 @@
 @tailwind components;
 @tailwind utilities;
 
-.str-chat__channel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(to bottom, #c9e8c9, #b7e7bb);
-  height: 100%;
+.btn-purple {
+  @apply bg-purple-700 hover:bg-purple-800 text-white;
+}
+
+/* ========== Stream Chat Custom Styles ========== */
+
+/* Main chat container */
+.str-chat {
+  height: 100% !important;
 }
 
 .str-chat__container {
-  max-width: 1200px;
-  width: 100%;
-  height: 80% !important;
-  margin: 0 auto !important;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  height: 100% !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
 }
 
+.str-chat__main-panel {
+  height: 100% !important;
+}
+
+.str-chat__channel {
+  height: 100% !important;
+  background: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Message list */
 .str-chat__list {
-  background-color: #ffffff;
-  padding: 12px;
+  background: #f9fafb !important;
+  padding: 1rem !important;
+  flex: 1 !important;
 }
 
 .str-chat__list-notifications {
-  display: none;
+  display: none !important;
+}
+
+.str-chat__list--thread {
+  height: 100% !important;
+}
+
+/* Thread panel */
+.str-chat__thread {
+  background: #ffffff !important;
+}
+
+/* Message styling - REMOVED custom bubble colors, using defaults */
+.str-chat__message-simple {
+  background: transparent !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Message input styling */
+.str-chat__input-flat {
+  background: #ffffff !important;
+  border-radius: 1.5rem !important;
+  border: 1px solid #e5e7eb !important;
+  padding: 0.75rem 1rem !important;
+}
+
+.str-chat__input-flat-wrapper {
+  background: transparent !important;
+  padding: 1rem !important;
 }
 
 .str-chat__message-input {
-  border-top: 1px solid #ddd;
+  border-top: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
 }
 
-.btn-purple {
-  @apply bg-purple-700 hover:bg-purple-800 text-white;
+/* Header styling */
+.str-chat__header-livestream {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  padding: 1rem !important;
+}
+
+/* Date separators */
+.str-chat__date-separator {
+  color: #6b7280 !important;
+}
+
+.str-chat__date-separator-line {
+  background: #e5e7eb !important;
+}
+
+/* Scrollbar styling */
+.str-chat__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.str-chat__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.str-chat__list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.str-chat__list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Avatar styling */
+.str-chat__avatar {
+  border-radius: 50% !important;
+}
+
+/* Timestamp styling */
+.str-chat__message-simple-timestamp {
+  color: #6b7280 !important;
+  font-size: 0.75rem !important;
 }

@@ -17,8 +17,9 @@ import {
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
 import ConversationList from "../components/ConversationList";
+import { MessageCircle } from "lucide-react";
 
-const ChatPage = () => {
+const ChatsPage = () => {
   const { id: targetUserId } = useParams();
   const chatClient = useStreamChat();
   const [channel, setChannel] = useState(null);
@@ -27,7 +28,7 @@ const ChatPage = () => {
 
   useEffect(() => {
     const setupChannel = async () => {
-      if (!chatClient || !authUser || !targetUserId) {
+      if (!chatClient || !authUser) {
         setLoading(false);
         return;
       }
@@ -35,14 +36,18 @@ const ChatPage = () => {
       try {
         setLoading(true);
 
-        const channelId = [authUser._id, targetUserId].sort().join("-");
+        if (targetUserId) {
+          const channelId = [authUser._id, targetUserId].sort().join("-");
 
-        const currChannel = chatClient.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
+          const currChannel = chatClient.channel("messaging", channelId, {
+            members: [authUser._id, targetUserId],
+          });
 
-        await currChannel.watch();
-        setChannel(currChannel);
+          await currChannel.watch();
+          setChannel(currChannel);
+        } else {
+          setChannel(null);
+        }
       } catch (error) {
         console.error("Error setting up channel:", error);
         toast.error("Could not load chat. Please try again.");
@@ -69,11 +74,11 @@ const ChatPage = () => {
   if (loading || !chatClient) return <ChatLoader />;
 
   return (
-    <div className="flex h-screen bg-base-100">
+    <div className="flex h-[calc(100vh-4rem)]">
       {chatClient && <ConversationList chatClient={chatClient} />}
 
       <div className="flex-1 flex flex-col">
-        {chatClient && channel ? (
+        {chatClient && channel && targetUserId ? (
           <Chat client={chatClient}>
             <Channel channel={channel}>
               <div className="flex-1 flex flex-col relative">
@@ -90,7 +95,9 @@ const ChatPage = () => {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <h2 className="text-2xl font-semibold mb-2">Loading chat...</h2>
+              <MessageCircle className="w-20 h-20 mx-auto text-gray-500 mb-4" />
+              <h2 className="text-2xl font-semibold mb-2">Select a conversation</h2>
+              <p className="text-gray-400">Choose a contact from the list to start chatting</p>
             </div>
           </div>
         )}
@@ -99,4 +106,4 @@ const ChatPage = () => {
   );
 };
 
-export default ChatPage;
+export default ChatsPage;

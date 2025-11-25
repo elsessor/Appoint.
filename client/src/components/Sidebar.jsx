@@ -55,14 +55,14 @@ const Sidebar = () => {
         <span className="font-medium">Meeting Log</span>
         </Link>
         <Link
-          to="/chats"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/chats" ? "btn-active" : ""
-          }`}
-        >
-          <MessageCircle className="size-5 text-base-content opacity-70" />
-          <span>Chats</span>
-        </Link>
+  to="/chats"
+  className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+    currentPath.startsWith("/chats") ? "btn-active" : ""  // ✅ Highlight if on /chats
+  }`}
+>
+  <MessageCircle className="size-5 text-base-content opacity-70" />
+  <span>Messages</span>
+</Link>
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto">
