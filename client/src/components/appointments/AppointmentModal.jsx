@@ -99,25 +99,34 @@ const AppointmentModal = ({
     const duration = availability.slotDuration || 30;
     const now = new Date();
 
-    let current = new Date();
-    current.setHours(startHour, startMin, 0, 0);
-    const end = new Date();
-    end.setHours(endHour, endMin, 0, 0);
+    // Parse the selected date from formData
+    let selectedDate = new Date();
+    if (formData.startTime) {
+      selectedDate = parseISO(formData.startTime);
+    } else if (initialDate) {
+      selectedDate = new Date(initialDate);
+    }
 
-    // If the initial date is today, only show future slots
-    const selectedDate = initialDate ? new Date(initialDate) : new Date();
     const isSelectedToday = isToday(selectedDate);
 
+    // Create time slots for the selected date
+    let current = new Date(selectedDate);
+    current.setHours(startHour, startMin, 0, 0);
+    
+    let end = new Date(selectedDate);
+    end.setHours(endHour, endMin, 0, 0);
+
     while (current < end) {
-      const slotTime = format(current, 'HH:mm');
-      // Disable past time slots if booking for today
+      const slotTime24 = format(current, 'HH:mm');
+      const slotTime12 = format(current, 'h:mm a');
+      // Only disable past times for today
       const isDisabled = isSelectedToday && isBefore(current, now);
-      slots.push({ time: slotTime, disabled: isDisabled });
+      slots.push({ time: slotTime24, display: slotTime12, disabled: isDisabled });
       current = addMinutes(current, duration);
     }
 
     return slots;
-  }, [availability, initialDate]);
+  }, [availability, formData.startTime, initialDate]);
 
   const timeSlots = generateTimeSlots;
 
@@ -454,59 +463,98 @@ const AppointmentModal = ({
               </div>
 
               {/* Date and Time Section */}
-              <div className="bg-gradient-to-br from-base-200/50 to-base-300/30 rounded-2xl p-6 border-2 border-base-300">
+              <div className="bg-gradient-to-br from-primary/5 via-base-200/30 to-base-300/20 rounded-2xl p-6 border-2 border-primary/20">
                 <h3 className="text-lg font-semibold text-base-content mb-6 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />
                   Schedule Details
                 </h3>
 
-                {/* Start Date/Time */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-base-content mb-2">
-                    Start Date & Time <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleStartTimeChange}
-                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  />
-                  <p className="text-xs text-base-content/60 mt-2">Cannot schedule in the past</p>
-                </div>
-
-                {/* Duration */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-base-content mb-2">
-                    Duration <span className="text-error">*</span>
-                  </label>
-                  <select
-                    value={formData.duration}
-                    onChange={handleDurationChange}
-                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  >
-                    {durationOptions.map(duration => (
-                      <option key={duration} value={duration}>
-                        {duration} minutes
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* End Time (Auto-calculated) */}
-                {formData.startTime && (
+                <div className="space-y-6">
+                  {/* Date Picker */}
                   <div>
-                    <label className="block text-sm font-medium text-base-content mb-2">
-                      End Time (Auto-calculated)
+                    <label className="block text-sm font-semibold text-base-content mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      Date <span className="text-error">*</span>
                     </label>
-                    <div className="px-4 py-3 bg-base-100 rounded-xl text-base-content font-medium border-2 border-base-300/50">
-                      {formData.endTime 
-                        ? format(parseISO(formData.endTime), 'MMM d, yyyy - h:mm a')
-                        : 'Will be calculated based on duration'
-                      }
-                    </div>
+                    <input
+                      type="date"
+                      value={formData.startTime.split('T')[0] || ''}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        const time = formData.startTime.split('T')[1] || '09:00';
+                        setFormData(prev => ({
+                          ...prev,
+                          startTime: `${newDate}T${time}`,
+                          endTime: format(addMinutes(parseISO(`${newDate}T${time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
+                        }));
+                      }}
+                      className="w-full px-4 py-3 bg-base-100 border-2 border-primary/30 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    <p className="text-xs text-base-content/60 mt-2">Select your preferred date</p>
                   </div>
-                )}
+
+                  {/* Time Picker */}
+                  <div>
+                    <label className="block text-sm font-semibold text-base-content mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      Time <span className="text-error">*</span>
+                    </label>
+                    <select
+                      value={formData.startTime.split('T')[1] || '09:00'}
+                      onChange={(e) => {
+                        const newTime = e.target.value;
+                        const date = formData.startTime.split('T')[0] || format(new Date(), 'yyyy-MM-dd');
+                        setFormData(prev => ({
+                          ...prev,
+                          startTime: `${date}T${newTime}`,
+                          endTime: format(addMinutes(parseISO(`${date}T${newTime}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
+                        }));
+                      }}
+                      className="w-full px-4 py-3 bg-base-100 border-2 border-primary/30 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                    >
+                      {timeSlots.map(slot => (
+                        <option key={slot.time} value={slot.time} disabled={slot.disabled}>
+                          {slot.display} {slot.disabled ? '(Past)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {isToday(parseISO(formData.startTime || format(new Date(), 'yyyy-MM-dd'))) && (
+                      <p className="text-xs text-base-content/60 mt-2">Past times are disabled for today</p>
+                    )}
+                  </div>
+
+                  {/* Duration */}
+                  <div>
+                    <label className="block text-sm font-semibold text-base-content mb-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      Duration <span className="text-error">*</span>
+                    </label>
+                    <select
+                      value={formData.duration}
+                      onChange={handleDurationChange}
+                      className="w-full px-4 py-3 bg-base-100 border-2 border-primary/30 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
+                    >
+                      {durationOptions.map(duration => (
+                        <option key={duration} value={duration}>
+                          {duration} minute{duration !== 1 ? 's' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* End Time Display */}
+                  {formData.startTime && formData.endTime && (
+                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-4">
+                      <p className="text-xs text-base-content/60 mb-2 font-medium uppercase tracking-wide">End Time</p>
+                      <p className="text-lg font-bold text-base-content">
+                        {format(parseISO(formData.endTime), 'h:mm a')}
+                      </p>
+                      <p className="text-xs text-base-content/50 mt-1">
+                        {format(parseISO(formData.endTime), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Meeting Type */}
@@ -589,49 +637,70 @@ const AppointmentModal = ({
 
               {/* Booking Information Summary */}
               {formData.startTime && formData.friendId && (
-                <div className="bg-gradient-to-br from-info/20 to-info/5 border-2 border-info/30 rounded-2xl p-6">
-                  <h4 className="text-sm font-semibold text-info-content mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-info"></span>
-                    Appointment Summary
+                <div className="bg-gradient-to-br from-success/10 via-base-200/50 to-success/5 border-2 border-success/30 rounded-2xl p-6">
+                  <h4 className="text-lg font-bold text-base-content mb-6 flex items-center gap-2">
+                    <span className="text-2xl">📋</span>
+                    Appointment Overview
                   </h4>
-                  <div className="space-y-3 text-sm text-base-content">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Title:</span>
-                      <span className="font-semibold">{formData.title || 'Not set'}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Date & Time:</span>
-                      <span className="font-semibold text-right">{format(parseISO(formData.startTime), 'MMM d, yyyy - h:mm a')}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Duration:</span>
-                      <span className="font-semibold">{formData.duration} minutes</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Type:</span>
-                      <span className="font-semibold">{formData.meetingType}</span>
-                    </div>
-                    {formData.meetingType === 'In Person' && formData.location && (
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-base-content/70">Location:</span>
-                        <span className="font-semibold text-right">{formData.location}</span>
+                  <div className="space-y-4">
+                    {/* Title */}
+                    {formData.title && (
+                      <div className="pb-4 border-b border-success/20">
+                        <p className="text-xs text-base-content/60 font-semibold uppercase mb-1 tracking-wide">Title</p>
+                        <p className="text-base font-bold text-base-content">{formData.title}</p>
                       </div>
                     )}
+
+                    {/* Date & Time Info */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-base-100/70 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-semibold mb-1">📅 Date</p>
+                        <p className="text-sm font-bold text-base-content">{format(parseISO(formData.startTime), 'MMM d, yyyy')}</p>
+                      </div>
+                      <div className="bg-base-100/70 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-semibold mb-1">⏰ Time</p>
+                        <p className="text-sm font-bold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')} - {format(parseISO(formData.endTime), 'h:mm a')}</p>
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div className="bg-base-100/70 rounded-lg p-3">
+                      <p className="text-xs text-base-content/60 font-semibold mb-1">⌛ Duration</p>
+                      <p className="text-sm font-bold text-base-content">{formData.duration} minute{formData.duration !== 1 ? 's' : ''}</p>
+                    </div>
+
+                    {/* Meeting Type & Location */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-base-100/70 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-semibold mb-1">📞 Type</p>
+                        <p className="text-sm font-bold text-base-content">{formData.meetingType}</p>
+                      </div>
+                      {formData.meetingType === 'In Person' && formData.location && (
+                        <div className="bg-base-100/70 rounded-lg p-3">
+                          <p className="text-xs text-base-content/60 font-semibold mb-1">📍 Location</p>
+                          <p className="text-sm font-bold text-base-content truncate">{formData.location}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* With Whom */}
                     {formData.friendId && (
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-base-content/70">With:</span>
-                        <span className="font-semibold">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</span>
+                      <div className="bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg p-3 border border-primary/30">
+                        <p className="text-xs text-base-content/60 font-semibold mb-2">👥 With</p>
+                        <p className="text-sm font-bold text-base-content">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
                       </div>
                     )}
+
+                    {/* Reminder */}
                     {formData.reminder > 0 && (
-                      <div className="flex justify-between items-start pt-3 border-t border-info/20">
-                        <span className="font-medium text-base-content/70">Reminder:</span>
-                        <span className="font-semibold">
+                      <div className="bg-warning/10 rounded-lg p-3 border border-warning/20">
+                        <p className="text-xs text-base-content/60 font-semibold mb-1">🔔 Reminder</p>
+                        <p className="text-sm font-bold text-base-content">
                           {formData.reminder === 1440 ? '1 day before' :
                            formData.reminder === 120 ? '2 hours before' :
                            formData.reminder === 60 ? '1 hour before' :
                            `${formData.reminder} minutes before`}
-                        </span>
+                        </p>
                       </div>
                     )}
                   </div>
