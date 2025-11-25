@@ -95,8 +95,11 @@ const NotificationsPage = () => {
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.png'}
+                              src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
                               alt={notification.senderId?.fullName || 'User'}
+                              onError={(e) => {
+                                e.target.src = '/default-profile.svg';
+                              }}
                             />
                           </div>
                           <div className="flex-1">
@@ -136,7 +139,13 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.png'} alt={request.sender.fullName} />
+                              <img 
+                                src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
+                                alt={request.sender.fullName}
+                                onError={(e) => {
+                                  e.target.src = '/default-profile.svg';
+                                }}
+                              />
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
@@ -180,8 +189,11 @@ const NotificationsPage = () => {
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.png'}
+                              src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
                               alt={notification.recipient?.fullName}
+                              onError={(e) => {
+                                e.target.src = '/default-profile.svg';
+                              }}
                             />
                           </div>
                           <div className="flex-1">

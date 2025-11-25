@@ -200,6 +200,9 @@ const ProfilePage = () => {
               src={authUser?.profilePicture || profile.profilePicture || "/profile.jpg"}
               alt={authUser?.name || profile.name}
               className="w-24 h-24 rounded-full object-cover"
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
             />
             <div className="mt-2 text-center">
               <button

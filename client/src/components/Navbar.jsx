@@ -56,7 +56,13 @@ const Navbar = () => {
 
           <Link to="/profile" className="avatar">
             <div className="w-9 rounded-full cursor-pointer">
-              <img src={authUser?.profilePic || '/default-profile.png'} alt="User Avatar" />
+              <img 
+                src={authUser?.profilePic || '/default-profile.svg'} 
+                alt="User Avatar"
+                onError={(e) => {
+                  e.target.src = '/default-profile.svg';
+                }}
+              />
             </div>
           </Link>
 
