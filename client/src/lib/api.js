@@ -171,3 +171,18 @@ export async function deleteMyAccount(payload) {
   return response.data;
 }
 
+export async function updateProfilePicture(payload) {
+  const response = await axiosInstance.put("/users/me/profile-picture", payload);
+  return response.data;
+}
+
+export async function getMyProfile() {
+  const response = await axiosInstance.get("/users/me/profile");
+  return response.data;
+}
+
+export async function updateMyProfile(payload) {
+  const response = await axiosInstance.put("/users/me/profile", payload);
+  return response.data;
+}
+
