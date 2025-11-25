@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, CalendarPlus, Calendar, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
@@ -47,18 +46,38 @@ const Sidebar = () => {
             currentPath === "/appointments" ? "btn-active" : ""
           }`}
         >
-          <Calendar className="size-5 text-base-content opacity-70" />
+          <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
           <span>Appointments</span>
-        </Link>
+        </Link> 
 
         <Link
           to="/booking"
           className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/booking" || currentPath === "/book-appointment" ? "btn-active" : ""
+            currentPath === "/booking" ? "btn-active" : ""
           }`}
         >
-          <CalendarPlus className="size-5 text-base-content opacity-70" />
+          <CalendarIcon className="size-5 text-base-content opacity-70" />
           <span>Book Appointment</span>
+        </Link>
+
+        <Link
+          to="/notifications"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/notifications" ? "btn-active" : ""
+          }`}
+        >
+          <BellIcon className="size-5 text-base-content opacity-70" />
+          <span>Notifications</span>
+        </Link>
+
+        <Link
+          to="/settings"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/settings" ? "btn-active" : ""
+          }`}
+        >
+          <SettingsIcon className="size-5 text-base-content opacity-70" />
+          <span>Settings</span>
         </Link>
       </nav>
 

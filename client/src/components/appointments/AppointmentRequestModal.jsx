@@ -182,6 +182,24 @@ const AppointmentRequestModal = ({
                       </p>
                     </div>
                   )}
+
+                  {/* Reminder */}
+                  {appointment.reminder && (
+                    <div>
+                      <p className="text-sm text-base-content/60">Reminder</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="badge badge-info gap-1">
+                          <span>🔔</span>
+                          <span>
+                            {appointment.reminder === 1440 ? '1 day before' :
+                             appointment.reminder === 120 ? '2 hours before' :
+                             appointment.reminder === 60 ? '1 hour before' :
+                             `${appointment.reminder} minutes before`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -197,6 +215,14 @@ const AppointmentRequestModal = ({
                   <p><span className="text-primary font-medium">Type:</span> {appointment.meetingType || 'Not specified'}</p>
                   {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
                     <p><span className="text-primary font-medium">Location:</span> {appointment.location}</p>
+                  )}
+                  {appointment.reminder && (
+                    <p><span className="text-primary font-medium">Reminder:</span> {
+                      appointment.reminder === 1440 ? '1 day before' :
+                      appointment.reminder === 120 ? '2 hours before' :
+                      appointment.reminder === 60 ? '1 hour before' :
+                      `${appointment.reminder} minutes before`
+                    }</p>
                   )}
                   {requester && (
                     <p><span className="text-primary font-medium">With:</span> {requester.fullName || requester.name}</p>

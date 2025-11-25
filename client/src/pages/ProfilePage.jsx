@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import useAuthUser from "../hooks/useAuthUser";
+import { updateProfilePicture, getMyProfile, updateMyProfile } from "../lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
 import AvailabilitySettings from "../components/AvailabilitySettings";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showAvailabilitySettings, setShowAvailabilitySettings] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
@@ -20,40 +25,66 @@ const ProfilePage = () => {
   const draftRef = useRef(draft);
 
   useEffect(() => {
-    if (authUser) {
-      const authName = authUser?.fullName || authUser?.full_name || authUser?.name || authUser?.displayName || authUser?.full_name_text || '';
-      const authPic = authUser?.profilePic || authUser?.profile_pic || authUser?.profilePicture || authUser?.profilePicUrl || authUser?.profilePicURL || authUser?.avatar || authUser?.picture || '';
-  const authBio = authUser?.bio || authUser?.about || authUser?.description || authUser?.bioText || '';
-  const authLoc = authUser?.location || authUser?.place || authUser?.city || authUser?.address || '';
-      const key = `profile_${authUser._id}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          parsed.name = authName || parsed.name;
-          parsed.profilePicture = authPic || parsed.profilePicture;
-          if ((!parsed.about || parsed.about === '') && authBio) parsed.about = authBio;
-          if ((!parsed.location || parsed.location === '') && authLoc) parsed.location = authLoc;
-      setProfile(prev => ({ ...prev, ...parsed }));
-      setDraft(prev => ({ ...prev, ...parsed }));
+    if (!authUser) return;
+    
+    let cancelled = false;
+    
+    (async () => {
+      try {
+        const profileData = await getMyProfile();
+        if (cancelled) return;
 
-          try {
-            localStorage.setItem(key, JSON.stringify(parsed));
-          } catch (e) {
-          }
-        } catch (err) {
-          setProfile(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
-          setDraft(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
+        const profileUpdate = {
+          name: profileData.fullName || authUser?.fullName || '',
+          profilePicture: profileData.profilePic || authUser?.profilePic || '',
+          about: profileData.bio || '',
+          location: profileData.location || '',
+          phone: profileData.phone || '',
+          twitter: profileData.twitter || '',
+          github: profileData.github || '',
+          linkedin: profileData.linkedin || '',
+          skills: profileData.skills || [],
+        };
+
+        setProfile(prev => ({ ...prev, ...profileUpdate }));
+        setDraft(prev => ({ ...prev, ...profileUpdate }));
+        if (Array.isArray(profileData.skills)) {
+          setSkills(profileData.skills);
         }
-      } else {
-      const seeded = { name: authName || '', profilePicture: authPic || '', about: authBio || profile.about, location: authLoc || profile.location };
-  setProfile(prev => ({ ...prev, ...seeded }));
-  setDraft(prev => ({ ...prev, ...seeded }));
+
         try {
-          localStorage.setItem(key, JSON.stringify(seeded));
-        } catch (e) {}
+          const key = `profile_${authUser._id}`;
+          localStorage.setItem(key, JSON.stringify(profileUpdate));
+        } catch (e) {
+          console.warn('Failed to cache profile in localStorage', e);
+        }
+      } catch (err) {
+        console.warn('Failed to load profile from server, using authUser data', err);
+        const authName = authUser?.fullName || '';
+        const authPic = authUser?.profilePic || '';
+        const authBio = authUser?.bio || '';
+        const authLoc = authUser?.location || '';
+        
+        const fallback = {
+          name: authName,
+          profilePicture: authPic,
+          about: authBio,
+          location: authLoc,
+          phone: '',
+          twitter: '',
+          github: '',
+          linkedin: '',
+          skills: [],
+        };
+        
+        setProfile(prev => ({ ...prev, ...fallback }));
+        setDraft(prev => ({ ...prev, ...fallback }));
       }
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [authUser]);
   const [skills, setSkills] = useState(["Time Management", "Coordination", "Skills Management"]);
 
@@ -81,6 +112,7 @@ const ProfilePage = () => {
   const [selectedSuggested, setSelectedSuggested] = useState(suggestedSkills[0]);
   const [newSkillInput, setNewSkillInput] = useState("");
 
+
   const [stats, setStats] = useState({ friends: 107, appointments: 107, rating: 4.8 });
 
   const startEditing = () => {
@@ -93,16 +125,47 @@ const ProfilePage = () => {
     setDraft(profile);
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
+    if (!authUser) {
+      toast.error("Please log in to save your profile");
+      return;
+    }
+
     const toSave = draftRef.current || draft;
-    setProfile(toSave);
-    setIsEditing(false);
+    
     try {
-      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
-      localStorage.setItem(key, JSON.stringify(toSave));
+      setIsEditing(false);
+      
+      const updatePayload = {
+        fullName: toSave.name || authUser.fullName,
+        bio: toSave.about || '',
+        location: toSave.location || '',
+        phone: toSave.phone || '',
+        twitter: toSave.twitter || '',
+        github: toSave.github || '',
+        linkedin: toSave.linkedin || '',
+        skills: Array.isArray(toSave.skills) ? toSave.skills : skills,
+      };
+
+      await updateMyProfile(updatePayload);
+      
+      setProfile(toSave);
       if (Array.isArray(toSave.skills)) setSkills(toSave.skills);
+      
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      
+      try {
+        const key = `profile_${authUser._id}`;
+        localStorage.setItem(key, JSON.stringify(toSave));
+      } catch (e) {
+        console.warn('Failed to cache profile in localStorage', e);
+      }
+      
+      toast.success("Profile updated successfully");
     } catch (err) {
-      console.error('Failed to save profile to localStorage', err);
+      console.error('Failed to save profile', err);
+      toast.error(err?.response?.data?.message || "Failed to update profile");
+      setIsEditing(true);
     }
   };
 
@@ -112,6 +175,7 @@ const ProfilePage = () => {
     setDraft(nextDraft);
     draftRef.current = nextDraft;
     setProfile(prev => ({ ...prev, [field]: value }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -119,46 +183,129 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...nextDraft };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist profile field change', err);
+      console.warn('Failed to cache profile field change', err);
     }
   };
 
   const fileInputRef = useRef(null);
 
-  const handleImageSelect = (e) => {
+  const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('File must be an image'));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            },
+            file.type,
+            quality
+          );
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageSelect = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-  setProfile(prev => ({ ...prev, profilePicture: dataUrl }));
-  const next = { ...draftRef.current, profilePicture: dataUrl };
-  setDraft(next);
-  draftRef.current = next;
-      try {
-        const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
-        const saved = localStorage.getItem(key);
-        const parsed = saved ? JSON.parse(saved) : {};
-        const merged = { ...parsed, profilePicture: dataUrl };
-        localStorage.setItem(key, JSON.stringify(merged));
-      } catch (err) {
-        console.error('Failed to save profile picture', err);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+
+    if (!authUser) {
+      toast.error("Please log in to update your profile picture");
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Image size must be less than 5MB. The image will be compressed.");
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      
+      const compressedDataUrl = await compressImage(file);
+      
+      setProfile(prev => ({ ...prev, profilePicture: compressedDataUrl }));
+      const next = { ...draftRef.current, profilePicture: compressedDataUrl };
+      setDraft(next);
+      draftRef.current = next;
+
+      await updateProfilePicture({ profilePic: compressedDataUrl });
+      
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      
+      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : {};
+      const merged = { ...parsed, profilePicture: compressedDataUrl };
+      localStorage.setItem(key, JSON.stringify(merged));
+      
+      toast.success("Profile picture updated successfully");
+    } catch (err) {
+      console.error('Failed to save profile picture', err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to update profile picture";
+      toast.error(errorMessage);
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
   };
 
   const addSkillToDraft = (skill) => {
     if (!skill) return;
-    const current = Array.isArray(draft.skills) ? draft.skills.slice() : (Array.isArray(profile.skills) ? profile.skills.slice() : []);
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : (Array.isArray(profile.skills) ? profile.skills.slice() : skills.slice());
     if (current.includes(skill)) return;
     const updated = [...current, skill];
-  const next = { ...draftRef.current, skills: updated };
-  setDraft(next);
-  draftRef.current = next;
+    const next = { ...draftRef.current, skills: updated };
+    setDraft(next);
+    draftRef.current = next;
     setSkills(updated);
     setProfile(prev => ({ ...prev, skills: updated }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -166,18 +313,19 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...(draftRef.current || profile), skills: updated };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist skills to localStorage', err);
+      console.warn('Failed to cache skills in localStorage', err);
     }
   };
 
   const removeSkillFromDraft = (idx) => {
-    const current = Array.isArray(draft.skills) ? draft.skills.slice() : [];
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : skills.slice();
     current.splice(idx, 1);
-  const next = { ...draftRef.current, skills: current };
-  setDraft(next);
-  draftRef.current = next;
+    const next = { ...draftRef.current, skills: current };
+    setDraft(next);
+    draftRef.current = next;
     setSkills(current);
     setProfile(prev => ({ ...prev, skills: current }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -185,7 +333,7 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...(draftRef.current || profile), skills: current };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist skills to localStorage', err);
+      console.warn('Failed to cache skills in localStorage', err);
     }
   };
  
@@ -197,20 +345,24 @@ const ProfilePage = () => {
         <div className="flex items-start space-x-6">
           <div className="relative">
             <img
-              src={authUser?.profilePicture || profile.profilePicture || "/profile.jpg"}
-              alt={authUser?.name || profile.name}
+              src={authUser?.profilePic || profile.profilePicture || "/profile.jpg"}
+              alt={authUser?.fullName || profile.name}
               className="w-24 h-24 rounded-full object-cover"
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
             />
             <div className="mt-2 text-center">
               <button
                 type="button"
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="text-sm text-primary hover:underline"
+                disabled={isUploadingPhoto}
               >
-                Change photo
+                {isUploadingPhoto ? "Uploading..." : "Change photo"}
               </button>
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} disabled={isUploadingPhoto} />
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-4 mb-4">

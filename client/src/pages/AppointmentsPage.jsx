@@ -67,16 +67,11 @@ const AppointmentsPage = () => {
     }
   });
 
-  // Separate incoming requests (pending OR scheduled appointments where current user is the recipient/friendId)
-  // These are requests FROM others TO the user that need a response
+  // Separate incoming requests (pending appointments where current user is the recipient/friendId)
   const incomingRequests = appointments.filter(apt => {
     const currentUserId = currentUser?._id || currentUser?.id;
     const appointmentFriendId = apt.friendId?._id || apt.friendId;
-    // Show appointments where:
-    // 1. Status is 'pending' (newly created, waiting for response), OR
-    // 2. Status is 'scheduled' (legacy - created before fix)
-    // AND the current user is the recipient (friendId)
-    return (apt.status === 'pending' || apt.status === 'scheduled') && appointmentFriendId === currentUserId;
+    return apt.status === 'pending' && appointmentFriendId === currentUserId;
   });
   
   // User's own appointments (created by them, excluding incoming requests)
@@ -84,10 +79,8 @@ const AppointmentsPage = () => {
     const currentUserId = currentUser?._id || currentUser?.id;
     const appointmentUserId = apt.userId?._id || apt.userId;
     const appointmentFriendId = apt.friendId?._id || apt.friendId;
-    // Show appointments created by the user, regardless of status
-    // Exclude incoming requests (pending/scheduled where user is friendId)
     const isCreatedByUser = appointmentUserId === currentUserId;
-    const isIncomingRequest = (apt.status === 'pending' || apt.status === 'scheduled') && appointmentFriendId === currentUserId;
+    const isIncomingRequest = apt.status === 'pending' && appointmentFriendId === currentUserId;
     return isCreatedByUser && !isIncomingRequest;
   });
 
@@ -173,6 +166,21 @@ const AppointmentsPage = () => {
       default:
         return <Video className="w-4 h-4" />;
     }
+  };
+
+  // Helper: Get the other user in the appointment (not the current user)
+  const getOtherUser = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const appointmentUserId = appointment.userId?._id || appointment.userId;
+    // If current user created the appointment, show the friend
+    // Otherwise show the user who created it
+    return appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
+  };
+
+  // Helper: Get other user's profile picture with fallback
+  const getOtherUserProfilePic = (appointment) => {
+    const otherUser = getOtherUser(appointment);
+    return (otherUser?.profilePic?.trim()) ? otherUser.profilePic : '/default-profile.svg';
   };
 
   if (isLoading) {
@@ -263,17 +271,14 @@ const AppointmentsPage = () => {
                       <div className="flex items-start gap-3 mb-3">
                         {/* Requester Avatar */}
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                          {requester?.profilePic ? (
-                            <img
-                              src={requester.profilePic}
-                              alt={requester.fullName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
-                              {(requester?.fullName || 'U')[0].toUpperCase()}
-                            </div>
-                          )}
+                          <img
+                            src={requester?.profilePic || '/default-profile.svg'}
+                            alt={requester.fullName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = '/default-profile.svg';
+                            }}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-base-content truncate">
@@ -306,60 +311,48 @@ const AppointmentsPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAppointments.map((appointment) => (
-                  <div
-                    key={appointment._id}
-                    className="bg-base-100 border border-base-300 rounded-lg p-4 hover:shadow-md transition flex flex-col h-full"
-                  >
-                    {/* Top section: Avatar, Name, Status */}
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        {/* Avatar */}
-                        <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                          <img
-                            src={
-                              (() => {
-                                const currentUserId = currentUser?._id || currentUser?.id;
-                                const appointmentUserId = appointment.userId?._id || appointment.userId;
-                                const otherUserProfilePic = appointmentUserId === currentUserId 
-                                  ? appointment.friendId?.profilePic 
-                                  : appointment.userId?.profilePic;
-                                return otherUserProfilePic || '/default-profile.png';
-                              })()
-                            }
-                            alt="User"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = '/default-profile.png';
-                            }}
-                          />
+                {filteredAppointments.map((appointment) => {
+                  const otherUser = getOtherUser(appointment);
+                  const otherUserProfilePic = getOtherUserProfilePic(appointment);
+                  
+                  return (
+                    <div
+                      key={appointment._id}
+                      className="bg-base-100 border border-base-300 rounded-lg p-4 hover:shadow-md transition flex flex-col h-full"
+                    >
+                      {/* Top section: Avatar, Name, Status */}
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* Avatar with default SVG fallback */}
+                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <img
+                              src={otherUserProfilePic}
+                              alt={otherUser?.fullName || 'User'}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = '/default-profile.svg';
+                              }}
+                            />
+                          </div>
+
+                          {/* Name and Title */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base-content text-sm line-clamp-2">
+                              {otherUser?.fullName || 'Unknown User'}
+                            </h3>
+                            <p className="text-xs text-base-content/60 line-clamp-1">
+                              {appointment.title || 'Untitled Appointment'}
+                            </p>
+                          </div>
                         </div>
 
-                        {/* Name and Specialty */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base-content text-sm line-clamp-2">
-                            {(() => {
-                              const currentUserId = currentUser?._id || currentUser?.id;
-                              const appointmentUserId = appointment.userId?._id || appointment.userId;
-                              const otherUser = appointmentUserId === currentUserId 
-                                ? appointment.friendId 
-                                : appointment.userId;
-                              return otherUser?.fullName || 'Unknown';
-                            })()}
-                          </h3>
-                          <p className="text-xs text-base-content/60 line-clamp-1">
-                            {appointment.title || 'Appointment'}
-                          </p>
+                        {/* Status Badge */}
+                        <div
+                          className={`badge badge-sm ${getStatusBadgeColor(appointment.status)}`}
+                        >
+                          {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
                         </div>
                       </div>
-
-                      {/* Status Badge */}
-                      <div
-                        className={`badge badge-sm ${getStatusBadgeColor(appointment.status)}`}
-                      >
-                        {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
-                      </div>
-                    </div>
 
                     {/* Details: Date, Time, Location */}
                     <div className="flex flex-col gap-2 mb-3 text-xs text-base-content/70">
@@ -407,7 +400,8 @@ const AppointmentsPage = () => {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -96,6 +96,9 @@ const NotificationsPage = () => {
                             <img
                               src={notification.senderId?.profilePic && notification.senderId.profilePic.trim() ? notification.senderId.profilePic : '/default-profile.png'}
                               alt={notification.senderId?.fullName || 'User'}
+                              onError={(e) => {
+                                e.target.src = '/default-profile.svg';
+                              }}
                             />
                           </div>
                           <div className="flex-1">

@@ -40,6 +40,7 @@ const AppointmentModal = ({
     meetingType: 'Video Call',
     duration: 30,
     location: '',
+    reminder: 15, // minutes before appointment
   });
 
   const [showCancellation, setShowCancellation] = useState(false);
@@ -69,6 +70,7 @@ const AppointmentModal = ({
           meetingType: appointment.meetingType || 'Video Call',
           duration: appointment.duration || 30,
           location: appointment.location || '',
+          reminder: appointment.reminder || 15,
         });
       } else if (initialDate) {
         const dateStr = format(initialDate, 'yyyy-MM-dd');
@@ -84,6 +86,7 @@ const AppointmentModal = ({
           meetingType: 'Video Call',
           duration: 30,
           location: '',
+          reminder: 15,
         });
       }
     }
@@ -246,17 +249,17 @@ const AppointmentModal = ({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-75 transition-opacity"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       ></div>
 
       {/* Sliding Modal */}
       <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-gray-800 shadow-xl overflow-y-auto">
+        <div className="w-screen max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-gray-800 to-gray-700 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+          <div className="sticky top-0 bg-gradient-to-br from-base-100 to-base-200 border-b border-base-300 px-8 py-6 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-100">
+              <h2 className="text-3xl font-bold text-base-content">
                 {showCancellation 
                   ? 'Cancel Appointment' 
                   : showDeclineForm 
@@ -264,14 +267,14 @@ const AppointmentModal = ({
                   : appointment ? 'Edit Appointment' : 'Create Appointment'}
               </h2>
               {appointment && !showCancellation && !showDeclineForm && (
-                <p className="text-sm text-gray-400 mt-1">
-                  Appointment ID: {appointment._id?.slice(-6) || 'N/A'}
+                <p className="text-xs text-base-content/50 mt-2 font-mono">
+                  {appointment._id?.slice(-8) || 'N/A'}
                 </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-300 transition"
+              className="p-2 hover:bg-base-300 rounded-lg transition-colors text-base-content/60 hover:text-base-content"
             >
               <X className="w-6 h-6" />
             </button>
@@ -279,11 +282,12 @@ const AppointmentModal = ({
 
           {/* Content */}
           {!showCancellation && !showDeclineForm ? (
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-8">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Appointment Title <span className="text-red-400">*</span>
+                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Appointment Title <span className="text-error">*</span>
                 </label>
                 <input
                   type="text"
@@ -291,20 +295,21 @@ const AppointmentModal = ({
                   value={formData.title}
                   onChange={handleChange}
                   placeholder="e.g., Project Discussion, Language Lesson"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                 />
               </div>
 
               {/* Friend Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Schedule With <span className="text-red-400">*</span>
+                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Schedule With <span className="text-error">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="Search or select a friend..."
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                     onChange={(e) => {
                       setFormData(prev => ({...prev, friendSearch: e.target.value}));
                     }}
@@ -314,7 +319,7 @@ const AppointmentModal = ({
                     value={formData.friendSearch || ''}
                   />
                   {formData.showFriendDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border-2 border-base-300 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
                       {friends.filter(f => {
                         const search = (formData.friendSearch || '').toLowerCase();
                         return (f.fullName || f.name || '').toLowerCase().includes(search) ||
@@ -324,17 +329,17 @@ const AppointmentModal = ({
                         const isAway = friendStatus === 'away';
                         const statusConfig = {
                           available: {
-                            badge: 'bg-green-600',
+                            badge: 'badge-success',
                             label: 'Available',
                             icon: '✓'
                           },
                           limited: {
-                            badge: 'bg-yellow-600',
+                            badge: 'badge-warning',
                             label: 'Limited',
                             icon: '⚠'
                           },
                           away: {
-                            badge: 'bg-red-600',
+                            badge: 'badge-error',
                             label: 'Away',
                             icon: '✕'
                           }
@@ -357,34 +362,34 @@ const AppointmentModal = ({
                                 }));
                               }
                             }}
-                            className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-gray-600 last:border-b-0 transition ${
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-base-200 last:border-b-0 transition ${
                               isAway
-                                ? 'opacity-50 cursor-not-allowed bg-gray-700'
+                                ? 'opacity-50 cursor-not-allowed bg-base-200'
                                 : formData.friendId === friend._id
-                                ? 'bg-gray-600 hover:bg-gray-600 cursor-pointer'
-                                : 'hover:bg-gray-600 cursor-pointer'
+                                ? 'bg-primary/10 hover:bg-primary/20 cursor-pointer'
+                                : 'hover:bg-base-200 cursor-pointer'
                             }`}
                           >
                             {friend.profilePic ? (
                               <img
                                 src={friend.profilePic}
                                 alt={friend.fullName}
-                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-base-300"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                              <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                                 {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-100 truncate">
+                              <p className="font-medium text-base-content truncate">
                                 {friend.fullName || friend.name}
                               </p>
-                              <p className="text-xs text-gray-400 truncate">
+                              <p className="text-xs text-base-content/50 truncate">
                                 {friend.email}
                               </p>
                             </div>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white flex-shrink-0 ${config.badge}`}>
+                            <span className={`badge ${config.badge} gap-1 text-xs flex-shrink-0`}>
                               {config.icon} {config.label}
                             </span>
                           </button>
@@ -396,7 +401,7 @@ const AppointmentModal = ({
 
                 {/* Selected Friend Card */}
                 {formData.friendId && (
-                  <div className="mt-3 p-3 bg-gray-700 rounded-lg border border-gray-600 flex items-center gap-3">
+                  <div className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20 flex items-center gap-4">
                     {(() => {
                       const selectedFriend = friends.find(f => f._id === formData.friendId);
                       if (!selectedFriend) return null;
@@ -404,17 +409,17 @@ const AppointmentModal = ({
                       const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
                       const statusConfig = {
                         available: {
-                          badge: 'bg-green-600',
+                          badge: 'badge-success',
                           label: 'Available',
                           icon: '✓'
                         },
                         limited: {
-                          badge: 'bg-yellow-600',
+                          badge: 'badge-warning',
                           label: 'Limited',
                           icon: '⚠'
                         },
                         away: {
-                          badge: 'bg-red-600',
+                          badge: 'badge-error',
                           label: 'Away',
                           icon: '✕'
                         }
@@ -427,15 +432,18 @@ const AppointmentModal = ({
                             <img
                               src={selectedFriend.profilePic}
                               alt={selectedFriend.fullName}
-                              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-2 ring-primary"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
                               {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
                             </div>
                           )}
-                          <p className="font-medium text-gray-100 text-sm">{selectedFriend.fullName || selectedFriend.name}</p>
-                          <span className={`ml-auto inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white flex-shrink-0 ${config.badge}`}>
+                          <div className="flex-1">
+                            <p className="font-semibold text-base-content">{selectedFriend.fullName || selectedFriend.name}</p>
+                            <p className="text-xs text-base-content/60">{selectedFriend.email}</p>
+                          </div>
+                          <span className={`badge ${config.badge} gap-1`}>
                             {config.icon} {config.label}
                           </span>
                         </>
@@ -446,36 +454,36 @@ const AppointmentModal = ({
               </div>
 
               {/* Date and Time Section */}
-              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
+              <div className="bg-gradient-to-br from-base-200/50 to-base-300/30 rounded-2xl p-6 border-2 border-base-300">
+                <h3 className="text-lg font-semibold text-base-content mb-6 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
                   Schedule Details
                 </h3>
 
                 {/* Start Date/Time */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Start Date & Time <span className="text-red-400">*</span>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-base-content mb-2">
+                    Start Date & Time <span className="text-error">*</span>
                   </label>
                   <input
                     type="datetime-local"
                     name="startTime"
                     value={formData.startTime}
                     onChange={handleStartTimeChange}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Note: Cannot schedule in the past</p>
+                  <p className="text-xs text-base-content/60 mt-2">Cannot schedule in the past</p>
                 </div>
 
                 {/* Duration */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Duration <span className="text-red-400">*</span>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-base-content mb-2">
+                    Duration <span className="text-error">*</span>
                   </label>
                   <select
                     value={formData.duration}
                     onChange={handleDurationChange}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                   >
                     {durationOptions.map(duration => (
                       <option key={duration} value={duration}>
@@ -488,10 +496,10 @@ const AppointmentModal = ({
                 {/* End Time (Auto-calculated) */}
                 {formData.startTime && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-base-content mb-2">
                       End Time (Auto-calculated)
                     </label>
-                    <div className="px-4 py-3 bg-gray-600 rounded-lg text-gray-200 border border-gray-600">
+                    <div className="px-4 py-3 bg-base-100 rounded-xl text-base-content font-medium border-2 border-base-300/50">
                       {formData.endTime 
                         ? format(parseISO(formData.endTime), 'MMM d, yyyy - h:mm a')
                         : 'Will be calculated based on duration'
@@ -503,14 +511,15 @@ const AppointmentModal = ({
 
               {/* Meeting Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   Meeting Type
                 </label>
                 <select
                   name="meetingType"
                   value={formData.meetingType}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                 >
                   <option>Video Call</option>
                   <option>Phone Call</option>
@@ -521,8 +530,9 @@ const AppointmentModal = ({
               {/* Location - Only show for In Person meetings */}
               {formData.meetingType === 'In Person' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Meeting Location <span className="text-red-400">*</span>
+                  <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                    Meeting Location <span className="text-error">*</span>
                   </label>
                   <input
                     type="text"
@@ -530,14 +540,15 @@ const AppointmentModal = ({
                     value={formData.location}
                     onChange={handleChange}
                     placeholder="e.g., Coffee Shop, Library, Park"
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
                   />
                 </div>
               )}
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   Notes & Details
                 </label>
                 <textarea
@@ -546,36 +557,94 @@ const AppointmentModal = ({
                   onChange={handleChange}
                   placeholder="Add any additional information about this appointment..."
                   rows="4"
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
                 />
+              </div>
+
+              {/* Reminder */}
+              <div>
+                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Reminder Notification
+                </label>
+                <select
+                  name="reminder"
+                  value={formData.reminder}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                >
+                  <option value={0}>No reminder</option>
+                  <option value={5}>5 minutes before</option>
+                  <option value={10}>10 minutes before</option>
+                  <option value={15}>15 minutes before</option>
+                  <option value={30}>30 minutes before</option>
+                  <option value={60}>1 hour before</option>
+                  <option value={120}>2 hours before</option>
+                  <option value={1440}>1 day before</option>
+                </select>
+                <p className="text-xs text-base-content/60 mt-2">
+                  Get notified before your appointment
+                </p>
               </div>
 
               {/* Booking Information Summary */}
               {formData.startTime && formData.friendId && (
-                <div className="bg-blue-900 bg-opacity-30 border border-blue-700 rounded-lg p-4">
-                  <h4 className="text-sm font-semibold text-blue-200 mb-2">Appointment Summary</h4>
-                  <div className="space-y-1 text-sm text-blue-100">
-                    <p><span className="text-blue-300 font-medium">Title:</span> {formData.title || 'Not set'}</p>
-                    <p><span className="text-blue-300 font-medium">Date & Time:</span> {format(parseISO(formData.startTime), 'MMM d, yyyy - h:mm a')}</p>
-                    <p><span className="text-blue-300 font-medium">Duration:</span> {formData.duration} minutes</p>
-                    <p><span className="text-blue-300 font-medium">Type:</span> {formData.meetingType}</p>
+                <div className="bg-gradient-to-br from-info/20 to-info/5 border-2 border-info/30 rounded-2xl p-6">
+                  <h4 className="text-sm font-semibold text-info-content mb-4 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-info"></span>
+                    Appointment Summary
+                  </h4>
+                  <div className="space-y-3 text-sm text-base-content">
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-base-content/70">Title:</span>
+                      <span className="font-semibold">{formData.title || 'Not set'}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-base-content/70">Date & Time:</span>
+                      <span className="font-semibold text-right">{format(parseISO(formData.startTime), 'MMM d, yyyy - h:mm a')}</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-base-content/70">Duration:</span>
+                      <span className="font-semibold">{formData.duration} minutes</span>
+                    </div>
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-base-content/70">Type:</span>
+                      <span className="font-semibold">{formData.meetingType}</span>
+                    </div>
                     {formData.meetingType === 'In Person' && formData.location && (
-                      <p><span className="text-blue-300 font-medium">Location:</span> {formData.location}</p>
+                      <div className="flex justify-between items-start">
+                        <span className="font-medium text-base-content/70">Location:</span>
+                        <span className="font-semibold text-right">{formData.location}</span>
+                      </div>
                     )}
                     {formData.friendId && (
-                      <p><span className="text-blue-300 font-medium">With:</span> {friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
+                      <div className="flex justify-between items-start">
+                        <span className="font-medium text-base-content/70">With:</span>
+                        <span className="font-semibold">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</span>
+                      </div>
+                    )}
+                    {formData.reminder > 0 && (
+                      <div className="flex justify-between items-start pt-3 border-t border-info/20">
+                        <span className="font-medium text-base-content/70">Reminder:</span>
+                        <span className="font-semibold">
+                          {formData.reminder === 1440 ? '1 day before' :
+                           formData.reminder === 120 ? '2 hours before' :
+                           formData.reminder === 60 ? '1 hour before' :
+                           `${formData.reminder} minutes before`}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-gray-700">
+              <div className="flex gap-4 pt-6 border-t-2 border-base-300">
                 {appointment && onDelete && (
                   <button
                     type="button"
                     onClick={() => setShowCancellation(true)}
-                    className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+                    className="px-6 py-3 bg-error/20 hover:bg-error/30 text-error font-semibold rounded-xl transition-all border-2 border-error/30"
                   >
                     Cancel Appointment
                   </button>
@@ -584,13 +653,13 @@ const AppointmentModal = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-medium transition"
+                    className="px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
                   >
                     Close
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                    className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
                   >
                     {appointment ? 'Update' : 'Create'} Appointment
                   </button>
@@ -629,40 +698,42 @@ const CancellationForm = ({
   onCancel, 
   onSubmit 
 }) => (
-  <div className="p-6 space-y-6">
-    <div className="bg-red-900 bg-opacity-30 border border-red-700 rounded-lg p-4">
-      <p className="text-red-200 text-sm">
-        Cancelling this appointment will notify the other person. Please provide a reason for accountability.
+  <div className="p-8 space-y-8">
+    <div className="bg-gradient-to-br from-error/20 to-error/5 border-2 border-error/30 rounded-2xl p-6">
+      <p className="text-error-content text-sm font-medium flex items-start gap-3">
+        <span className="text-xl flex-shrink-0">⚠</span>
+        <span>Cancelling this appointment will notify the other person. Please provide a reason for accountability.</span>
       </p>
     </div>
 
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-3">
-        Reason for Cancellation <span className="text-red-400">*</span>
+      <label className="block text-sm font-semibold text-base-content mb-4 flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+        Reason for Cancellation <span className="text-error">*</span>
       </label>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {CANCELLATION_REASONS.map((reason) => (
-          <div key={reason} className="flex items-center">
+          <label key={reason} className="flex items-center gap-3 p-3 rounded-xl hover:bg-base-200/50 cursor-pointer transition group">
             <input
               type="radio"
-              id={reason}
               name="cancellation"
               value={reason}
               checked={cancellationReason === reason}
               onChange={(e) => setCancellationReason(e.target.value)}
-              className="h-4 w-4 rounded-full border-gray-500 text-blue-600 focus:ring-blue-500"
+              className="radio radio-primary"
             />
-            <label htmlFor={reason} className="ml-3 text-sm text-gray-300 cursor-pointer">
+            <span className="text-sm font-medium text-base-content group-hover:text-primary transition">
               {reason}
-            </label>
-          </div>
+            </span>
+          </label>
         ))}
       </div>
     </div>
 
     {cancellationReason === 'Other (Please specify)' && (
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
           Please explain your reason
         </label>
         <textarea
@@ -670,23 +741,23 @@ const CancellationForm = ({
           onChange={(e) => setCustomReason(e.target.value)}
           placeholder="Enter your cancellation reason..."
           rows="4"
-          className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
         />
       </div>
     )}
 
-    <div className="flex gap-3 pt-4 border-t border-gray-700">
+    <div className="flex gap-4 pt-6 border-t-2 border-base-300">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-medium transition"
+        className="flex-1 px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition"
+        className="flex-1 px-6 py-3 bg-gradient-to-r from-error to-error/80 hover:from-error/90 hover:to-error/70 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
       >
         Confirm Cancellation
       </button>
@@ -696,38 +767,40 @@ const CancellationForm = ({
 
 // Decline Form Component
 const DeclineForm = ({ declineMessage, setDeclineMessage, onCancel, onSubmit }) => (
-  <div className="p-6 space-y-6">
-    <div className="bg-yellow-900 bg-opacity-30 border border-yellow-700 rounded-lg p-4">
-      <p className="text-yellow-200 text-sm">
-        Declining this appointment will notify the requester. Please provide a reason in your message.
+  <div className="p-8 space-y-8">
+    <div className="bg-gradient-to-br from-warning/20 to-warning/5 border-2 border-warning/30 rounded-2xl p-6">
+      <p className="text-warning-content text-sm font-medium flex items-start gap-3">
+        <span className="text-xl flex-shrink-0">ℹ</span>
+        <span>Declining this appointment will notify the requester. Please provide a reason in your message.</span>
       </p>
     </div>
 
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-2">
-        Message <span className="text-red-400">*</span>
+      <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-warning"></span>
+        Message <span className="text-error">*</span>
       </label>
       <textarea
         value={declineMessage}
         onChange={(e) => setDeclineMessage(e.target.value)}
         placeholder="Explain why you're declining this appointment..."
         rows="6"
-        className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
       />
     </div>
 
-    <div className="flex gap-3 pt-4 border-t border-gray-700">
+    <div className="flex gap-4 pt-6 border-t-2 border-base-300">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg font-medium transition"
+        className="flex-1 px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition"
+        className="flex-1 px-6 py-3 bg-gradient-to-r from-warning to-warning/80 hover:from-warning/90 hover:to-warning/70 text-warning-content font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
       >
         Decline Appointment
       </button>

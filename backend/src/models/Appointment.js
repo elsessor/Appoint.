@@ -71,6 +71,19 @@ const appointmentSchema = new mongoose.Schema(
       min: 15,
       max: 480, // max 8 hours
     },
+    reminder: {
+      type: Number,
+      default: 15, // minutes before appointment
+      enum: [0, 5, 10, 15, 30, 60, 120, 1440], // 0, 5min, 10min, 15min, 30min, 1hr, 2hr, 1day
+    },
+    location: {
+      type: String,
+      default: "",
+    },
+    duration: {
+      type: Number,
+      default: 30,
+    },
   },
   { timestamps: true }
 );
