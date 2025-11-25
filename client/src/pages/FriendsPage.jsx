@@ -26,7 +26,7 @@ const LanguageBadge = ({ type, language }) => {
 
 const FriendRow = ({ friend }) => {
   const name = friend.fullName || friend.name || "Unknown";
-  const avatar = friend.profilePic || friend.avatar || "/default-profile.png";
+  const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
   const native = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
 
@@ -35,7 +35,14 @@ const FriendRow = ({ friend }) => {
       <div className="flex items-start gap-4">
         <div className="relative">
           <div className="w-12 h-12 rounded-full overflow-hidden">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <img 
+              src={avatar} 
+              alt={name} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
+            />
           </div>
         </div>
 
