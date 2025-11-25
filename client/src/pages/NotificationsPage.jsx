@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead } from "../lib/api";
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon } from "lucide-react";
@@ -7,6 +7,7 @@ import { format } from "date-fns";
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const { data: friendRequests, isLoading: isLoadingFriendRequests } = useQuery({
     queryKey: ["friendRequests"],
@@ -61,10 +62,92 @@ const NotificationsPage = () => {
     }
   }, [acceptedRequests.length, hasUnread, incomingRequests.length, isLoadingFriendRequests, markAsRead]);
 
+  // Filter logic based on active filter
+  const filteredAppointments = useMemo(() => {
+    if (activeFilter === "all") return appointmentNotifications;
+    if (activeFilter === "unread") return appointmentNotifications.filter(n => !n.isRead);
+    if (activeFilter === "appointments") return appointmentNotifications;
+    return [];
+  }, [appointmentNotifications, activeFilter]);
+
+  const filteredFriendRequests = useMemo(() => {
+    if (activeFilter === "all" || activeFilter === "friends") return incomingRequests;
+    if (activeFilter === "unread") return incomingRequests.filter(req => !req.recipientSeen);
+    return [];
+  }, [incomingRequests, activeFilter]);
+
+  const filteredNewConnections = useMemo(() => {
+    if (activeFilter === "all" || activeFilter === "friends") return acceptedRequests;
+    if (activeFilter === "unread") return acceptedRequests.filter(req => !req.senderSeen);
+    return [];
+  }, [acceptedRequests, activeFilter]);
+
+  // Count unread for each category
+  const unreadCounts = useMemo(() => {
+    return {
+      all: appointmentNotifications.filter(n => !n.isRead).length + 
+            incomingRequests.filter(r => !r.recipientSeen).length +
+            acceptedRequests.filter(r => !r.senderSeen).length,
+      appointments: appointmentNotifications.filter(n => !n.isRead).length,
+      friends: incomingRequests.filter(r => !r.recipientSeen).length + 
+               acceptedRequests.filter(r => !r.senderSeen).length,
+    };
+  }, [appointmentNotifications, incomingRequests, acceptedRequests]);
+
+  const hasNoNotifications = 
+    filteredAppointments.length === 0 && 
+    filteredFriendRequests.length === 0 && 
+    filteredNewConnections.length === 0;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto max-w-4xl space-y-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
+
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveFilter("all")}
+            className={`btn btn-sm ${activeFilter === "all" ? "btn-primary" : "btn-ghost"}`}
+          >
+            All
+            {unreadCounts.all > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("unread")}
+            className={`btn btn-sm ${activeFilter === "unread" ? "btn-primary" : "btn-ghost"}`}
+          >
+            Unread
+            {unreadCounts.all > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("appointments")}
+            className={`btn btn-sm ${activeFilter === "appointments" ? "btn-primary" : "btn-ghost"}`}
+          >
+            <CalendarIcon className="h-4 w-4 mr-1" />
+            Appointments
+            {unreadCounts.appointments > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.appointments}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("friends")}
+            className={`btn btn-sm ${activeFilter === "friends" ? "btn-primary" : "btn-ghost"}`}
+          >
+            <UserCheckIcon className="h-4 w-4 mr-1" />
+            Friends
+            {unreadCounts.friends > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.friends}</span>
+            )}
+          </button>
+        </div>
 
         {(isLoadingFriendRequests || isLoadingNotifications) ? (
           <div className="flex justify-center py-12">
@@ -72,19 +155,19 @@ const NotificationsPage = () => {
           </div>
         ) : (
           <>
-            {appointmentNotifications.length > 0 && (
+            {filteredAppointments.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                   <CalendarIcon className="h-5 w-5 text-primary" />
                   Appointment Notifications
-                  <span className="badge badge-primary ml-2">{appointmentNotifications.length}</span>
+                  <span className="badge badge-primary ml-2">{filteredAppointments.length}</span>
                 </h2>
 
                 <div className="space-y-3">
-                  {appointmentNotifications.map((notification) => (
+                  {filteredAppointments.map((notification) => (
                     <div
                       key={notification._id}
-                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
+                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => {
                         if (!notification.isRead) {
                           markAsReadMutation(notification._id);
@@ -118,16 +201,16 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {incomingRequests.length > 0 && (
+            {filteredFriendRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                   <UserCheckIcon className="h-5 w-5 text-primary" />
                   Friend Requests
-                  <span className="badge badge-primary ml-2">{incomingRequests.length}</span>
+                  <span className="badge badge-primary ml-2">{filteredFriendRequests.length}</span>
                 </h2>
 
                 <div className="space-y-3">
-                  {incomingRequests.map((request) => (
+                  {filteredFriendRequests.map((request) => (
                     <div
                       key={request._id}
                       className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
@@ -166,7 +249,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {acceptedRequests.length > 0 && (
+            {filteredNewConnections.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                   <BellIcon className="h-5 w-5 text-success" />
@@ -174,7 +257,7 @@ const NotificationsPage = () => {
                 </h2>
 
                 <div className="space-y-3">
-                  {acceptedRequests.map((notification) => (
+                  {filteredNewConnections.map((notification) => (
                     <div key={notification._id} className="card bg-base-200 shadow-sm">
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
@@ -206,7 +289,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && appointmentNotifications.length === 0 && (
+            {hasNoNotifications && (
               <NoNotificationsFound />
             )}
           </>
