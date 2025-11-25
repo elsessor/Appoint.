@@ -224,7 +224,9 @@ export async function updateAppointment(req, res) {
     const { startTime, endTime, title, description, meetingType, status, bookedBy, declinedReason } =
       req.body;
 
-    const appointment = await Appointment.findById(id);
+    const appointment = await Appointment.findById(id)
+      .populate("userId", "fullName profilePic")
+      .populate("friendId", "fullName profilePic");
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
@@ -239,6 +241,10 @@ export async function updateAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
+    // Track if status changed to send notification
+    const oldStatus = appointment.status;
+    const statusChanged = status && status !== oldStatus;
+
     if (startTime) appointment.startTime = new Date(startTime);
     if (endTime) appointment.endTime = new Date(endTime);
     if (title) appointment.title = title;
@@ -249,6 +255,91 @@ export async function updateAppointment(req, res) {
     if (bookedBy) appointment.bookedBy = { ...appointment.bookedBy, ...bookedBy };
 
     await appointment.save();
+
+    // Send notification based on status change
+    if (statusChanged) {
+      const currentUser = await User.findById(userId);
+      const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      let notificationTitle = "";
+      let notificationMessage = "";
+      let recipientId = "";
+
+      // Determine who to notify based on who made the update
+      if (userId === appointmentUserId) {
+        // Creator updated the appointment, notify the friend
+        recipientId = appointmentFriendId;
+      } else {
+        // Friend updated the appointment, notify the creator
+        recipientId = appointmentUserId;
+      }
+
+      switch (status) {
+        case "accepted":
+          notificationTitle = "Appointment Accepted";
+          notificationMessage = `${currentUser.fullName} accepted your appointment on ${formattedDate} at ${formattedTime}`;
+          break;
+        case "declined":
+          notificationTitle = "Appointment Declined";
+          notificationMessage = `${currentUser.fullName} declined your appointment on ${formattedDate} at ${formattedTime}${declinedReason ? `: ${declinedReason}` : ''}`;
+          break;
+        case "cancelled":
+          notificationTitle = "Appointment Cancelled";
+          notificationMessage = `${currentUser.fullName} cancelled the appointment scheduled for ${formattedDate} at ${formattedTime}`;
+          break;
+        case "completed":
+          notificationTitle = "Appointment Completed";
+          notificationMessage = `Your appointment with ${currentUser.fullName} on ${formattedDate} has been marked as completed`;
+          break;
+      }
+
+      if (notificationTitle && notificationMessage) {
+        await createNotification({
+          recipientId,
+          senderId: userId,
+          type: "appointment",
+          title: notificationTitle,
+          message: notificationMessage,
+          appointmentId: appointment._id,
+        });
+      }
+    }
+
+    // Check if time was rescheduled (even without status change)
+    if ((startTime || endTime) && !statusChanged) {
+      const currentUser = await User.findById(userId);
+      const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      const recipientId = userId === appointmentUserId ? appointmentFriendId : appointmentUserId;
+
+      await createNotification({
+        recipientId,
+        senderId: userId,
+        type: "appointment",
+        title: "Appointment Rescheduled",
+        message: `${currentUser.fullName} rescheduled your appointment to ${formattedDate} at ${formattedTime}`,
+        appointmentId: appointment._id,
+      });
+    }
+
     await appointment.populate(["userId", "friendId"]);
 
     res.status(200).json(appointment);
@@ -263,19 +354,45 @@ export async function deleteAppointment(req, res) {
     const { id } = req.params;
     const userId = req.user._id.toString();
 
-    const appointment = await Appointment.findById(id);
+    const appointment = await Appointment.findById(id)
+      .populate("userId", "fullName profilePic")
+      .populate("friendId", "fullName profilePic");
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
     // Check if user has authorization to delete (either userId or friendId can delete)
-    const appointmentUserId = appointment.userId.toString();
-    const appointmentFriendId = appointment.friendId.toString();
+    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
+    const appointmentFriendId = (appointment.friendId._id || appointment.friendId).toString();
     
     if (appointmentUserId !== userId && appointmentFriendId !== userId) {
       return res.status(403).json({ message: "Not authorized to delete this appointment" });
     }
+
+    // Send cancellation notification to the other party
+    const currentUser = await User.findById(userId);
+    const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+    const recipientId = userId === appointmentUserId ? appointmentFriendId : appointmentUserId;
+
+    await createNotification({
+      recipientId,
+      senderId: userId,
+      type: "appointment",
+      title: "Appointment Deleted",
+      message: `${currentUser.fullName} deleted the appointment scheduled for ${formattedDate} at ${formattedTime}`,
+      appointmentId: appointment._id,
+    });
 
     await Appointment.findByIdAndDelete(id);
 
