@@ -9,6 +9,7 @@ import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import appointmentRoutes from "./routes/appointments.route.js";
 import notificationRoutes from "./routes/notifications.route.js";
+import adminRoutes from "./routes/admin.route.js";
 
 import { connectDB } from "./lib/db.js";
 import { initSocket } from "./lib/socket.js";
@@ -33,6 +34,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 
 const server = createServer(app);
 initSocket(server, CLIENT_ORIGIN);

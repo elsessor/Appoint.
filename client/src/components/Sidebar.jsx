@@ -1,12 +1,14 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, Shield } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
+
+  const isAdmin = authUser?.role === "admin";
 
   return (
     <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
@@ -20,65 +22,79 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        <Link
-          to="/"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/" ? "btn-active" : ""
-          }`}
-        >
-          <HomeIcon className="size-5 text-base-content opacity-70" />
-          <span>Home</span>
-        </Link>
+        {isAdmin ? (
+          <Link
+            to="/admin"
+            className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+              currentPath === "/admin" ? "btn-active" : ""
+            }`}
+          >
+            <Shield className="size-5 text-base-content opacity-70" />
+            <span>Admin Dashboard</span>
+          </Link>
+        ) : (
+          <>
+            <Link
+              to="/"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/" ? "btn-active" : ""
+              }`}
+            >
+              <HomeIcon className="size-5 text-base-content opacity-70" />
+              <span>Home</span>
+            </Link>
 
-        <Link
-          to="/friends"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/friends" ? "btn-active" : ""
-          }`}
-        >
-          <UsersIcon className="size-5 text-base-content opacity-70" />
-          <span>Friends</span>
-        </Link>
+            <Link
+              to="/friends"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/friends" ? "btn-active" : ""
+              }`}
+            >
+              <UsersIcon className="size-5 text-base-content opacity-70" />
+              <span>Friends</span>
+            </Link>
 
-        <Link
-          to="/appointments"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/appointments" ? "btn-active" : ""
-          }`}
-        >
-          <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
-          <span>Appointments</span>
-        </Link> 
+            <Link
+              to="/appointments"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/appointments" ? "btn-active" : ""
+              }`}
+            >
+              <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
+              <span>Appointments</span>
+            </Link>
 
-        <Link
-          to="/booking"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/booking" ? "btn-active" : ""
-          }`}
-        >
-          <CalendarIcon className="size-5 text-base-content opacity-70" />
-          <span>Book Appointment</span>
-        </Link>
+            <Link
+              to="/booking"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/booking" ? "btn-active" : ""
+              }`}
+            >
+              <CalendarIcon className="size-5 text-base-content opacity-70" />
+              <span>Book Appointment</span>
+            </Link>
 
-        <Link
-          to="/notifications"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/notifications" ? "btn-active" : ""
-          }`}
-        >
-          <BellIcon className="size-5 text-base-content opacity-70" />
-          <span>Notifications</span>
-        </Link>
+            <Link
+              to="/notifications"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/notifications" ? "btn-active" : ""
+              }`}
+            >
+              <BellIcon className="size-5 text-base-content opacity-70" />
+              <span>Notifications</span>
+            </Link>
 
-        <Link
-          to="/settings"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/settings" ? "btn-active" : ""
-          }`}
-        >
-          <SettingsIcon className="size-5 text-base-content opacity-70" />
-          <span>Settings</span>
-        </Link>
+            <Link
+              to="/settings"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/settings" ? "btn-active" : ""
+              }`}
+            >
+              <SettingsIcon className="size-5 text-base-content opacity-70" />
+              <span>Settings</span>
+            </Link>
+          </>
+        )}
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto">
@@ -96,14 +112,22 @@ const Sidebar = () => {
           </Link>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">{authUser?.fullName}</p>
-            <p className="text-xs text-success flex items-center gap-1 mt-1">
-              <span className="size-2 rounded-full bg-success inline-block" />
-              Online
+            <p className="text-xs text-base-content/70 flex items-center gap-1 mt-1">
+              {isAdmin ? (
+                <>
+                  <Shield className="size-3" />
+                  Admin
+                </>
+              ) : (
+                <>
+                  <span className="size-2 rounded-full bg-success inline-block" />
+                  Online
+                </>
+              )}
             </p>
           </div>
-          
-          {/* Availability Status Toggle */}
-          <AvailabilityStatusToggle currentUser={authUser} />
+
+          {!isAdmin && <AvailabilityStatusToggle currentUser={authUser} />}
         </div>
       </div>
     </aside>

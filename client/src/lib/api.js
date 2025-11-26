@@ -207,3 +207,33 @@ export async function updateMyProfile(payload) {
   return response.data;
 }
 
+export const getAdminDashboardStats = async () => {
+  const response = await axiosInstance.get("/admin/dashboard");
+  return response.data;
+};
+
+export const getAdminUsers = async (params = {}) => {
+  const response = await axiosInstance.get("/admin/users", { params });
+  return response.data;
+};
+
+export const updateAdminUserRole = async (id, role) => {
+  const response = await axiosInstance.put(`/admin/users/${id}/role`, { role });
+  return response.data;
+};
+
+export const deleteAdminUser = async (id) => {
+  const response = await axiosInstance.delete(`/admin/users/${id}`);
+  return response.data;
+};
+
+export const getAdminAppointments = async (params = {}) => {
+  const response = await axiosInstance.get("/admin/appointments", { params });
+  return response.data;
+};
+
+export const deleteAdminAppointment = async (id) => {
+  const response = await axiosInstance.delete(`/admin/appointments/${id}`);
+  return response.data;
+};
+

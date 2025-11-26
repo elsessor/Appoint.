@@ -61,6 +61,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,
