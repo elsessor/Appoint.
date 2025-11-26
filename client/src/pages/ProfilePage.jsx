@@ -107,10 +107,56 @@ const ProfilePage = () => {
     "Project Management",
     "Public Speaking",
     "Data Analysis",
-    "Skills Management"
+    "Skills Management",
+    "Web Development",
+    "UI/UX Design",
+    "Data Analysis",
+    "Graphic Design",
+    "Copywriting"
   ];
+
+  const suggestedInterests = [
+    "Baking",
+    "Cooking",
+    "Photography",
+    "Video Editing",
+    "Writing",
+    "Content Creation",
+    "Social Media Management",
+    "Event Planning",
+    "Teaching",
+    "Tutoring",
+    "Travel",
+    "Gaming",
+    "Music",
+    "Sports",
+    "Reading",
+    "Blogging"
+  ];
+
   const [selectedSuggested, setSelectedSuggested] = useState(suggestedSkills[0]);
-  const [newSkillInput, setNewSkillInput] = useState("");
+  const [skillSearch, setSkillSearch] = useState("");
+  const [interestSearch, setInterestSearch] = useState("");
+  const [customSkillInput, setCustomSkillInput] = useState("");
+
+  const filteredSuggestions = skillSearch
+    ? suggestedSkills.filter((s) => {
+        const query = skillSearch.toLowerCase();
+        const inText = s.toLowerCase().includes(query);
+        const current = (draft.skills || skills || []);
+        const alreadyAdded = current.includes(s);
+        return inText && !alreadyAdded;
+      })
+    : [];
+
+  const filteredInterestSuggestions = interestSearch
+    ? suggestedInterests.filter((s) => {
+        const query = interestSearch.toLowerCase();
+        const current = (draft.skills || skills || []);
+        const alreadyAdded = current.includes(s);
+        return s.toLowerCase().includes(query) && !alreadyAdded;
+      })
+    : [];
 
 
   const [stats, setStats] = useState({ friends: 107, appointments: 107, rating: 4.8 });
@@ -428,8 +474,8 @@ const ProfilePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
@@ -440,7 +486,7 @@ const ProfilePage = () => {
                         className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     ) : (
-                      <span>{profile.phone}</span>
+                      <span className="w-full">{profile.phone}</span>
                     )}
                   </div>
                   {[
@@ -460,7 +506,10 @@ const ProfilePage = () => {
                       </svg>
                     )}
                   ].map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
+                    <div
+                      key={item.id}
+                      className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full"
+                    >
                       <span className="text-slate-300">{item.svg}</span>
                       {isEditing ? (
                         <input
@@ -469,7 +518,7 @@ const ProfilePage = () => {
                           className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       ) : (
-                        <span>{profile[item.field]}</span>
+                        <span className="w-full">{profile[item.field]}</span>
                       )}
                     </div>
                   ))}
@@ -481,34 +530,88 @@ const ProfilePage = () => {
                 <div className="p-4 bg-base-100 rounded-lg">
                   {isEditing ? (
                     <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <select
-                          value={selectedSuggested}
-                          onChange={(e) => setSelectedSuggested(e.target.value)}
-                          className="select select-bordered"
-                        >
-                          {suggestedSkills.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => addSkillToDraft(selectedSuggested)}
-                          className="btn btn-sm btn-primary"
-                        >
-                          Add
-                        </button>
+                      {/* Skills box with dropdown mechanics */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold mb-2">Skills</h4>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
+                          <div className="w-full max-w-xs">
+                            <input
+                              placeholder="Search skill (e.g. Programming) and click from dropdown"
+                              value={skillSearch}
+                              onChange={(e) => setSkillSearch(e.target.value)}
+                              className="input input-bordered w-full"
+                            />
+                            {filteredSuggestions.length > 0 && (
+                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                                {filteredSuggestions.map((s) => (
+                                  <button
+                                    type="button"
+                                    key={s}
+                                    onClick={() => { addSkillToDraft(s); setSkillSearch(''); }}
+                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm text-base-content/70">
+                            Start typing to see matching skills, then click to add.
+                          </span>
+                        </div>
+                      </div>
 
+                      {/* Interests box with its own dropdown */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold mb-2">Interests</h4>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
+                          <div className="w-full max-w-xs">
+                            <input
+                              placeholder="Search interest (e.g. Baking) and click from dropdown"
+                              value={interestSearch}
+                              onChange={(e) => setInterestSearch(e.target.value)}
+                              className="input input-bordered w-full"
+                            />
+                            {filteredInterestSuggestions.length > 0 && (
+                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                                {filteredInterestSuggestions.map((s) => (
+                                  <button
+                                    type="button"
+                                    key={s}
+                                    onClick={() => { addSkillToDraft(s); setInterestSearch(''); }}
+                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm text-base-content/70">
+                            Start typing to see matching interests, then click to add.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Separate box for custom skills/interests without dropdown */}
+                      <div className="flex flex-col md:flex-row items-start md:items-center gap-2 mb-4">
                         <input
-                          placeholder="Add custom skill"
-                          value={newSkillInput}
-                          onChange={(e) => setNewSkillInput(e.target.value)}
+                          placeholder="Add custom skill or interest"
+                          value={customSkillInput}
+                          onChange={(e) => setCustomSkillInput(e.target.value)}
                           className="input input-bordered w-full max-w-xs"
                         />
                         <button
                           type="button"
-                          onClick={() => { addSkillToDraft(newSkillInput.trim()); setNewSkillInput(''); }}
-                          className="btn btn-sm"
+                          onClick={() => {
+                            const trimmed = customSkillInput.trim();
+                            if (trimmed) {
+                              addSkillToDraft(trimmed);
+                              setCustomSkillInput('');
+                            }
+                          }}
+                          className="btn btn-sm btn-primary"
                         >
                           Add
                         </button>

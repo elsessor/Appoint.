@@ -14,6 +14,7 @@ export async function getRecommendedUsers(req, res) {
         { _id: { $ne: currentUserId } },
         { _id: { $nin: currentUser.friends } },
         { isOnboarded: true },
+        { isDeletionPending: { $ne: true } },
       ],
     });
     res.status(200).json(recommendedUsers);
@@ -224,28 +225,42 @@ export async function changePassword(req, res) {
 export async function deleteMyAccount(req, res) {
   try {
     const userId = req.user.id;
-    const { confirmation } = req.body || {};
+    const { confirmation, gracePeriodDays } = req.body || {};
 
     if (confirmation !== "DELETE") {
       return res.status(400).json({ message: "Invalid confirmation phrase" });
     }
 
-    await FriendRequest.deleteMany({
-      $or: [{ sender: userId }, { recipient: userId }],
-    });
+    // Determine grace period (default 14 days, clamp to 1–30 days for safety)
+    let days = Number.isFinite(Number(gracePeriodDays)) ? Number(gracePeriodDays) : 14;
+    if (Number.isNaN(days)) days = 14;
+    days = Math.min(Math.max(days, 1), 30);
 
-    await User.updateMany(
-      { friends: userId },
-      { $pull: { friends: userId } }
+    const now = new Date();
+    const scheduledFor = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          isDeletionPending: true,
+          deletionRequestedAt: now,
+          deletionScheduledFor: scheduledFor,
+        },
+      },
+      { new: true }
     );
 
-    const deletedUser = await User.findByIdAndDelete(userId);
-    if (!deletedUser) {
+    if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
     res.clearCookie("jwt");
-    res.status(200).json({ message: "Account deleted successfully" });
+    res.status(200).json({
+      message: "Account scheduled for deletion",
+      deletionScheduledFor: scheduledFor,
+      gracePeriodDays: days,
+    });
   } catch (error) {
     console.error("Error in deleteMyAccount controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });

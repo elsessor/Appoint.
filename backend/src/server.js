@@ -9,6 +9,7 @@ import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import appointmentRoutes from "./routes/appointments.route.js";
 import notificationRoutes from "./routes/notifications.route.js";
+import { hardDeleteExpiredUsers } from "./deleteScheduler.js";
 
 import { connectDB } from "./lib/db.js";
 import { initSocket } from "./lib/socket.js";
@@ -40,4 +41,13 @@ initSocket(server, CLIENT_ORIGIN);
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   connectDB();
+
+  // Run scheduled hard delete for users whose 14-day grace period has expired
+  // Runs once every 24 hours
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    hardDeleteExpiredUsers().catch((err) => {
+      console.error("Error in scheduled hardDeleteExpiredUsers:", err);
+    });
+  }, ONE_DAY_MS);
 });

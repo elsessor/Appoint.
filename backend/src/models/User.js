@@ -91,6 +91,17 @@ const userSchema = new mongoose.Schema(
         mirrorVideo: { type: Boolean, default: false },
       },
     },
+    // Soft delete / scheduled deletion
+    isDeletionPending: {
+      type: Boolean,
+      default: false,
+    },
+    deletionRequestedAt: {
+      type: Date,
+    },
+    deletionScheduledFor: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
