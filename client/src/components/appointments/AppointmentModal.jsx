@@ -136,16 +136,41 @@ const AppointmentModal = ({
             setSelectedFriendAvailability(data);
             setLoadingFriendAvailability(false);
             
-            // Set default time to friend's start availability
+            // Set default time to friend's start availability, or current time if it has passed
             if (data?.availability?.start && formData.startTime) {
               const dateStr = formData.startTime.split('T')[0];
               const friendStartTime = data.availability.start;
-              const friendDuration = data.availability.appointmentDuration?.max || 60;
+              const slotDuration = data.availability.slotDuration || 30;
+              const isSelectedToday = isToday(parseISO(`${dateStr}T00:00`));
               
+              let defaultTime = friendStartTime;
+              
+              // If it's today, check if friend's start time has already passed
+              if (isSelectedToday) {
+                const now = new Date();
+                const currentTimeStr = format(now, 'HH:mm');
+                const friendStartMinutes = parseInt(friendStartTime.split(':')[0]) * 60 + parseInt(friendStartTime.split(':')[1]);
+                const currentMinutes = parseInt(currentTimeStr.split(':')[0]) * 60 + parseInt(currentTimeStr.split(':')[1]);
+                
+                // If friend's start time has passed, use current time rounded to next slot
+                if (currentMinutes > friendStartMinutes) {
+                  // Round current time to the next slot boundary
+                  const remainder = currentMinutes % slotDuration;
+                  let roundedMinutes = currentMinutes;
+                  if (remainder > 0) {
+                    roundedMinutes = currentMinutes + (slotDuration - remainder);
+                  }
+                  const roundedHours = Math.floor(roundedMinutes / 60);
+                  const roundedMins = roundedMinutes % 60;
+                  defaultTime = `${String(roundedHours).padStart(2, '0')}:${String(roundedMins).padStart(2, '0')}`;
+                }
+              }
+              
+              // Use formData.duration for end time calculation (the selected duration in the form)
               setFormData(prev => ({
                 ...prev,
-                startTime: `${dateStr}T${friendStartTime}`,
-                endTime: format(addMinutes(parseISO(`${dateStr}T${friendStartTime}`), friendDuration), 'yyyy-MM-dd\'T\'HH:mm')
+                startTime: `${dateStr}T${defaultTime}`,
+                endTime: format(addMinutes(parseISO(`${dateStr}T${defaultTime}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
               }));
             }
           })
