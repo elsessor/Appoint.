@@ -11,7 +11,8 @@ import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import FriendsPage from "./pages/FriendsPage.jsx"; 
+import SettingPage from "./pages/SettingPage.jsx";
+import FriendsPage from "./pages/FriendsPage.jsx";
 
 import { Toaster } from "react-hot-toast";
 
@@ -163,6 +164,18 @@ const App = () => {
               <Navigate to="/login" />
             )
           } 
+        />
+        <Route
+          path="/settings"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <SettingPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
         />
       </Routes>
 
