@@ -81,15 +81,38 @@ const AppointmentModal = ({
           reminder: appointment.reminder || 15,
         });
       } else if (initialDate) {
-        const dateStr = format(initialDate, 'yyyy-MM-dd');
-        const timeStr = initialTime ? format(initialTime, 'HH:mm') : '09:00';
+        // Validate initialDate is a valid Date object
+        let dateStr = '';
+        try {
+          dateStr = format(initialDate, 'yyyy-MM-dd');
+        } catch (e) {
+          dateStr = format(new Date(), 'yyyy-MM-dd');
+        }
+        
+        // Validate initialTime before formatting
+        let timeStr = '09:00';
+        if (initialTime instanceof Date) {
+          try {
+            timeStr = format(initialTime, 'HH:mm');
+          } catch (e) {
+            timeStr = '09:00';
+          }
+        }
+        
+        // Get the friend's name if initialFriendId is provided
+        let friendSearchText = '';
+        if (initialFriendId) {
+          const selectedFriend = friends.find(f => f._id === initialFriendId);
+          friendSearchText = selectedFriend?.fullName || selectedFriend?.name || '';
+        }
+        
         setFormData({
           title: '',
           description: '',
           startTime: `${dateStr}T${timeStr}`,
           endTime: `${dateStr}T${timeStr}`,
           friendId: initialFriendId || '',
-          friendSearch: '',
+          friendSearch: friendSearchText,
           showFriendDropdown: false,
           meetingType: 'Video Call',
           duration: 30,
@@ -98,7 +121,7 @@ const AppointmentModal = ({
         });
       }
     }
-  }, [appointment, initialDate, initialTime, initialFriendId, isOpen]);
+  }, [appointment, initialDate, initialTime, initialFriendId, isOpen, friends]);
 
   // Fetch selected friend's availability when friendId changes
   useEffect(() => {
@@ -112,6 +135,19 @@ const AppointmentModal = ({
           .then(data => {
             setSelectedFriendAvailability(data);
             setLoadingFriendAvailability(false);
+            
+            // Set default time to friend's start availability
+            if (data?.availability?.start && formData.startTime) {
+              const dateStr = formData.startTime.split('T')[0];
+              const friendStartTime = data.availability.start;
+              const friendDuration = data.availability.appointmentDuration?.max || 60;
+              
+              setFormData(prev => ({
+                ...prev,
+                startTime: `${dateStr}T${friendStartTime}`,
+                endTime: format(addMinutes(parseISO(`${dateStr}T${friendStartTime}`), friendDuration), 'yyyy-MM-dd\'T\'HH:mm')
+              }));
+            }
           })
           .catch(error => {
             console.error('Failed to fetch friend availability:', error);
@@ -383,8 +419,10 @@ const AppointmentModal = ({
       meetingType: 'Video Call',
       duration: 30,
       location: '',
+      reminder: 15,
     });
     setStep(1);
+    onClose();
   };
 
   const handleCancelAppointment = () => {

@@ -18,6 +18,7 @@ const DayDetailsModal = ({
   viewingFriendId = null,
 }) => {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+
   const formatTime = (timeString) => {
     if (!timeString) return '';
     try {
@@ -72,10 +73,13 @@ const DayDetailsModal = ({
   };
 
   const handleAppointmentSubmit = (formData) => {
-    setShowAppointmentModal(false);
-    if (onAppointmentSubmit) {
-      onAppointmentSubmit(formData);
+    // Call the same handler as in Calendar/AppointmentBookingPage
+    if (onCreateAppointment) {
+      onCreateAppointment(formData);
     }
+    
+    // Close the appointment modal after submission
+    setShowAppointmentModal(false);
   };
 
   return (
