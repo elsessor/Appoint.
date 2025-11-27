@@ -15,6 +15,7 @@ const DayDetailsModal = ({
   availability = {},
   onAppointmentSubmit,
   friendsAvailability = {},
+  viewingFriendId = null,
 }) => {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const formatTime = (timeString) => {
@@ -71,10 +72,10 @@ const DayDetailsModal = ({
   };
 
   const handleAppointmentSubmit = (formData) => {
+    setShowAppointmentModal(false);
     if (onAppointmentSubmit) {
       onAppointmentSubmit(formData);
     }
-    setShowAppointmentModal(false);
   };
 
   return (
@@ -200,6 +201,8 @@ const DayDetailsModal = ({
         onClose={handleAppointmentModalClose}
         onSubmit={handleAppointmentSubmit}
         initialDate={date}
+        initialTime={undefined}
+        initialFriendId={viewingFriendId}
         friends={friends}
         currentUser={currentUser}
         availability={availability}
@@ -241,6 +244,7 @@ DayDetailsModal.propTypes = {
   friends: PropTypes.arrayOf(PropTypes.object),
   availability: PropTypes.object,
   friendsAvailability: PropTypes.object,
+  viewingFriendId: PropTypes.string,
 };
 
 export default DayDetailsModal;

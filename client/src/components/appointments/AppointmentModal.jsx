@@ -21,6 +21,7 @@ const AppointmentModal = ({
   onSubmit,
   initialDate,
   initialTime,
+  initialFriendId = null,
   friends = [],
   availability = {
     days: [1, 2, 3, 4, 5],
@@ -87,7 +88,7 @@ const AppointmentModal = ({
           description: '',
           startTime: `${dateStr}T${timeStr}`,
           endTime: `${dateStr}T${timeStr}`,
-          friendId: '',
+          friendId: initialFriendId || '',
           friendSearch: '',
           showFriendDropdown: false,
           meetingType: 'Video Call',
@@ -97,7 +98,7 @@ const AppointmentModal = ({
         });
       }
     }
-  }, [appointment, initialDate, initialTime, isOpen]);
+  }, [appointment, initialDate, initialTime, initialFriendId, isOpen]);
 
   // Fetch selected friend's availability when friendId changes
   useEffect(() => {
@@ -1275,6 +1276,7 @@ AppointmentModal.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   initialDate: PropTypes.instanceOf(Date),
   initialTime: PropTypes.instanceOf(Date),
+  initialFriendId: PropTypes.string,
   friends: PropTypes.arrayOf(PropTypes.object),
   currentUser: PropTypes.object,
   availability: PropTypes.object,

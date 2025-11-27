@@ -527,6 +527,7 @@ const Calendar = ({
           friends={friends}
           availability={availability}
           friendsAvailability={friendsAvailability}
+          viewingFriendId={viewingFriendId}
         />
       )}
 
