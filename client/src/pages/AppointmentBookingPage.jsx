@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, memo, useRef, useEffect } from '
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
+import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
 
 // Memoize components for performance
 const MemoizedCalendar = memo(Calendar);
@@ -22,6 +23,7 @@ const AppointmentBookingPage = () => {
   const [viewingFriendId, setViewingFriendId] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [visibleFriends, setVisibleFriends] = useState([]);
@@ -325,8 +327,21 @@ const AppointmentBookingPage = () => {
     return appointment.status === 'pending' && appointmentFriendId === currentUserId;
   }, [currentUser]);
 
-  // Filter today's appointments (all appointments for today)
-  const todayAppointments = appointments.filter(appt => {
+  // Get appointments for the viewed friend
+  const friendAppointments = useMemo(() => {
+    if (!viewingFriendId) return appointments;
+    
+    // Filter appointments where the viewed friend is involved
+    return appointments.filter(apt => {
+      const friendId = apt.friendId?._id || apt.friendId;
+      const userId = apt.userId?._id || apt.userId;
+      
+      return friendId === viewingFriendId || userId === viewingFriendId;
+    });
+  }, [viewingFriendId, appointments]);
+
+  // Filter today's appointments (use friendAppointments if viewing a friend, otherwise all appointments)
+  const todayAppointments = (viewingFriendId ? friendAppointments : appointments).filter(appt => {
     const apptDate = typeof appt.startTime === 'string' 
       ? parseISO(appt.startTime)
       : new Date(appt.startTime);
@@ -353,19 +368,6 @@ const AppointmentBookingPage = () => {
   const selectedFriend = useMemo(() => {
     return friends.find(f => f._id === viewingFriendId);
   }, [viewingFriendId, friends]);
-
-  // Get appointments for the viewed friend
-  const friendAppointments = useMemo(() => {
-    if (!viewingFriendId) return appointments;
-    
-    // Filter appointments where the viewed friend is involved
-    return appointments.filter(apt => {
-      const friendId = apt.friendId?._id || apt.friendId;
-      const userId = apt.userId?._id || apt.userId;
-      
-      return friendId === viewingFriendId || userId === viewingFriendId;
-    });
-  }, [viewingFriendId, appointments]);
 
   if (loadingFriends || loadingUser || loadingAppointments) {
     return <PageLoader />;
@@ -671,7 +673,6 @@ const AppointmentBookingPage = () => {
         </div>
 
         {/* Today's Appointments Section */}
-        {todayAppointments.length > 0 && (
         <div className="mt-8 animate-fade-in">
           <button
             onClick={() => setExpandTodayAppointments(!expandTodayAppointments)}
@@ -686,7 +687,12 @@ const AppointmentBookingPage = () => {
           
           {expandTodayAppointments && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {todayAppointments.map((appointment) => {
+              {todayAppointments.length === 0 ? (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-base-content/60 font-medium">No appointments scheduled for today</p>
+                </div>
+              ) : (
+                todayAppointments.map((appointment) => {
                 const startTime = typeof appointment.startTime === 'string' 
                   ? parseISO(appointment.startTime)
                   : new Date(appointment.startTime);
@@ -720,6 +726,8 @@ const AppointmentBookingPage = () => {
                       if (isPending) {
                         setSelectedRequest(appointment);
                         setShowRequestModal(true);
+                      } else {
+                        setSelectedAppointmentDetail(appointment);
                       }
                     }}
                   >
@@ -781,12 +789,12 @@ const AppointmentBookingPage = () => {
                     )}
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
         </div>
-        )}
-        </div>
+      </div>
       </div>
 
       {/* Appointment Request Modal */}
@@ -802,6 +810,22 @@ const AppointmentBookingPage = () => {
         onDecline={handleDeclineAppointment}
         isLoading={acceptAppointmentMutation.isLoading || declineAppointmentMutation.isLoading}
       />
+
+      {/* Appointment Details View */}
+      {selectedAppointmentDetail && (
+        <AppointmentDetailsView
+          appointment={selectedAppointmentDetail}
+          currentUser={currentUser}
+          onClose={() => setSelectedAppointmentDetail(null)}
+          onDelete={() => {
+            handleDeleteAppointment(selectedAppointmentDetail._id);
+            setSelectedAppointmentDetail(null);
+          }}
+          onEdit={() => {
+            console.log('Edit appointment:', selectedAppointmentDetail._id);
+          }}
+        />
+      )}
     </div>
   );
 };

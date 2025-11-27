@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO, isToday, isBefore } from 'date-fns';
-import { Clock, User, MessageSquare, Calendar, X } from 'lucide-react';
+import { Clock, User, MessageSquare, Calendar, X, Send, ArrowDown } from 'lucide-react';
 import AppointmentModal from './AppointmentModal';
+import AppointmentDetailsView from './AppointmentDetailsView';
 
 const DayDetailsModal = ({
   date,
@@ -18,6 +19,7 @@ const DayDetailsModal = ({
   viewingFriendId = null,
 }) => {
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
 
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -62,6 +64,19 @@ const DayDetailsModal = ({
         {config.label}
       </span>
     );
+  };
+
+  const getAppointmentType = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const appointmentUserId = appointment.userId?._id || appointment.userId;
+    const isRequested = appointmentUserId === currentUserId;
+    return isRequested ? 'Requested' : 'Received';
+  };
+
+  const getOtherUser = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const appointmentUserId = appointment.userId?._id || appointment.userId;
+    return appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
   };
 
   const handleCreateAppointment = () => {
@@ -133,46 +148,80 @@ const DayDetailsModal = ({
             ) : (
               <div className="mt-6 flow-root">
                 <ul className="-my-5 divide-y divide-gray-700">
-                  {appointments.map((appointment) => (
+                  {appointments.map((appointment) => {
+                    const appointmentType = getAppointmentType(appointment);
+                    const otherUser = getOtherUser(appointment);
+                    const isRequested = appointmentType === 'Requested';
+
+                    return (
                     <li key={appointment._id || appointment.id} className="py-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-gray-200 truncate">
-                              {appointment.title}
-                            </p>
-                            {getStatusBadge(appointment.status)}
-                          </div>
-                          <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
-                            <div className="mt-2 flex items-center text-sm text-gray-400">
-                              <Clock className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500" />
-                              {formatTime(appointment.startTime)}
-                              {appointment.endTime && (
-                                <>
-                                  <span className="mx-1">-</span>
-                                  {formatTime(appointment.endTime)}
-                                  <span className="text-gray-500 mx-1">•</span>
-                                  <span>{formatDuration(appointment.startTime, appointment.endTime)}</span>
-                                </>
+                      <button
+                        onClick={() => setSelectedAppointmentDetail(appointment)}
+                        className="w-full text-left hover:bg-gray-700/50 p-3 rounded-lg transition"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-200 truncate">
+                                  {appointment.title}
+                                </p>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <div className="flex items-center gap-1">
+                                    {isRequested ? (
+                                      <Send className="w-3 h-3 text-blue-400" />
+                                    ) : (
+                                      <ArrowDown className="w-3 h-3 text-yellow-400" />
+                                    )}
+                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                      isRequested 
+                                        ? 'bg-blue-900/40 text-blue-300' 
+                                        : 'bg-yellow-900/40 text-yellow-300'
+                                    }`}>
+                                      {appointmentType}
+                                    </span>
+                                  </div>
+                                  {otherUser && (
+                                    <span className="text-xs text-gray-400">
+                                      with <span className="text-gray-300 font-semibold">{otherUser.fullName || otherUser.name}</span>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {getStatusBadge(appointment.status)}
+                            </div>
+                            <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+                              <div className="mt-2 flex items-center text-sm text-gray-400">
+                                <Clock className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500" />
+                                {formatTime(appointment.startTime)}
+                                {appointment.endTime && (
+                                  <>
+                                    <span className="mx-1">-</span>
+                                    {formatTime(appointment.endTime)}
+                                    <span className="text-gray-500 mx-1">•</span>
+                                    <span>{formatDuration(appointment.startTime, appointment.endTime)}</span>
+                                  </>
+                                )}
+                              </div>
+                              {appointment.participant && (
+                                <div className="mt-2 flex items-center text-sm text-gray-400">
+                                  <User className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500" />
+                                  {appointment.participant.name || appointment.participant.email}
+                                </div>
                               )}
                             </div>
-                            {appointment.participant && (
-                              <div className="mt-2 flex items-center text-sm text-gray-400">
-                                <User className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500" />
-                                {appointment.participant.name || appointment.participant.email}
+                            {appointment.message && (
+                              <div className="mt-2 flex items-start text-sm text-gray-400">
+                                <MessageSquare className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500 mt-0.5" />
+                                <p className="whitespace-pre-line">{appointment.message}</p>
                               </div>
                             )}
                           </div>
-                          {appointment.message && (
-                            <div className="mt-2 flex items-start text-sm text-gray-400">
-                              <MessageSquare className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-500 mt-0.5" />
-                              <p className="whitespace-pre-line">{appointment.message}</p>
-                            </div>
-                          )}
                         </div>
-                      </div>
+                      </button>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -198,6 +247,23 @@ const DayDetailsModal = ({
           )}
         </div>
       </div>
+
+      {/* Show appointment details when an appointment is clicked */}
+      {selectedAppointmentDetail && (
+        <AppointmentDetailsView
+          appointment={selectedAppointmentDetail}
+          currentUser={currentUser}
+          onClose={() => setSelectedAppointmentDetail(null)}
+          onDelete={() => {
+            setSelectedAppointmentDetail(null);
+            // Optionally trigger a delete handler here if needed
+          }}
+          onEdit={() => {
+            // Handle edit
+            console.log('Edit appointment:', selectedAppointmentDetail._id);
+          }}
+        />
+      )}
 
       {/* Appointment Modal */}
       <AppointmentModal

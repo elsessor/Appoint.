@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
-import { format, parseISO, isBefore, isToday, addMinutes } from 'date-fns';
+import { format, parseISO, isBefore, isToday, addMinutes, isAfter } from 'date-fns';
 import { X, Clock, User, MessageSquare, Calendar, ChevronDown } from 'lucide-react';
 import AvailabilityInfo from '../AvailabilityInfo';
 import { getUserAvailability } from '../../lib/api';
@@ -199,7 +199,7 @@ const AppointmentModal = ({
     const [startHour, startMin] = effectiveAvailability.start.split(':').map(Number);
     const [endHour, endMin] = effectiveAvailability.end.split(':').map(Number);
     const duration = effectiveAvailability.slotDuration || 30;
-    const appointmentDuration = effectiveAvailability.appointmentDuration?.max || 60;
+    const appointmentDuration = formData.duration || 30; // Use selected duration, not max from backend
     const minLeadTime = effectiveAvailability.minLeadTime || 0; // in hours
     const breakTimes = effectiveAvailability.breakTimes || [];
     const now = new Date();
@@ -383,11 +383,23 @@ const AppointmentModal = ({
 
     // Constraint: Check appointment fits within available hours
     if (friendAvail && friendAvail.start && friendAvail.end) {
+      const [startHour, startMin] = friendAvail.start.split(':').map(Number);
       const [endHour, endMin] = friendAvail.end.split(':').map(Number);
+      
+      const availStartTime = new Date(startDateTime);
+      availStartTime.setHours(startHour, startMin, 0, 0);
+      
       const availEndTime = new Date(startDateTime);
       availEndTime.setHours(endHour, endMin, 0, 0);
       
-      if (isBefore(availEndTime, endDateTime)) {
+      // Check if start time is before available start time
+      if (isBefore(startDateTime, availStartTime)) {
+        toast.error(`Appointment starts before available time (${friendAvail.start})`);
+        return;
+      }
+      
+      // Check if end time is after available end time
+      if (isAfter(endDateTime, availEndTime)) {
         toast.error(`Appointment extends past available time (${friendAvail.end})`);
         return;
       }
