@@ -18,6 +18,7 @@ import {
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import toast from "react-hot-toast";
 import PageLoader from "../components/PageLoader";
+import { updateAppointment } from "../lib/api";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
@@ -57,7 +58,14 @@ const CallPage = () => {
         const callInstance = videoClient.call("default", callId);
 
         await callInstance.join({ create: true });
-
+        
+        // Mark the current user as having joined the appointment on the server
+        try {
+          await updateAppointment({ id: callId, join: true });
+          console.log("Marked appointment attended on server");
+        } catch (err) {
+          console.warn("Failed to mark attendance:", err?.message || err);
+        }
         console.log("Joined call successfully");
 
         setClient(videoClient);

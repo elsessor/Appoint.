@@ -191,3 +191,8 @@ export const getUserAvailability = async (userId) => {
   const response = await axiosInstance.get(`/appointments/availability/${userId}`);
   return response.data;
 };
+
+export async function getFriendProfile(friendId) {
+  const response = await axiosInstance.get(`/users/${friendId}`);
+  return response.data;
+}

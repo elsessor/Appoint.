@@ -11,6 +11,7 @@ import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import FriendProfilePage from "./pages/FriendProfilePage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx"; 
 
 import { Toaster } from "react-hot-toast";
@@ -169,6 +170,18 @@ const App = () => {
             isAuthenticated ? (
               <Layout showSidebar>
                 <ProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+        <Route 
+          path="/profile/:id" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <FriendProfilePage />
               </Layout>
             ) : (
               <Navigate to="/login" />

@@ -1,9 +1,10 @@
-import { Calendar, UserX, MessageCircle } from "lucide-react";
+import { Calendar, UserX, MessageCircle, User } from "lucide-react";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { getUserFriends, getAppointments, unfriendUser, getFriendAppointments } from "../lib/api";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { parseISO, format, isToday, isSameDay, addDays } from "date-fns";
 import useAuthUser from "../hooks/useAuthUser";
 
 const LanguageBadge = ({ type, language }) => {
@@ -27,14 +28,32 @@ const LanguageBadge = ({ type, language }) => {
 };
 
 const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
-  // Fetch ALL appointments for this specific friend
+  const [selectedDate, setSelectedDate] = useState(null);
+
+
   const { data: friendAppointments = [] } = useQuery({
     queryKey: ["friendAppointments", friend?._id],
     queryFn: () => getFriendAppointments(friend?._id),
     enabled: Boolean(isOpen && friend?._id),
   });
 
-  // Check if current user is involved in each appointment
+
+  const uniqueDates = friendAppointments.length > 0 
+    ? [...new Set(friendAppointments.map(apt => {
+        const date = new Date(apt.startTime);
+        return date.toDateString();
+      }))].map(dateStr => new Date(dateStr)).sort((a, b) => a - b)
+    : [];
+
+
+  const filteredAppointments = selectedDate
+    ? friendAppointments.filter(apt => {
+        const aptDate = new Date(apt.startTime);
+        return isSameDay(aptDate, selectedDate);
+      })
+    : friendAppointments;
+
+
   const isUserInvolved = (apt) => {
     const currentUserIdStr = currentUserId?._id?.toString() || currentUserId?.toString();
     const friendId = apt.friendId?._id?.toString() || apt.friendId?.toString();
@@ -42,17 +61,17 @@ const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
     return userId === currentUserIdStr || friendId === currentUserIdStr;
   };
 
-  // Get the other person's name in the appointment
+
   const getOtherPersonName = (apt) => {
     const friendIdStr = apt.friendId?._id?.toString() || apt.friendId?.toString();
     const userIdStr = apt.userId?._id?.toString() || apt.userId?.toString();
     const currentFriendIdStr = friend?._id?.toString() || friend?._id;
 
-    // If friend is the userId, show the friendId person's name
+
     if (userIdStr === currentFriendIdStr) {
       return apt.friendId?.fullName || "Unknown";
     }
-    // If friend is the friendId, show the userId person's name
+
     return apt.userId?.fullName || "Unknown";
   };
 
@@ -60,66 +79,128 @@ const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
 
   return (
     <dialog open className="modal modal-bottom sm:modal-middle">
-      <div className="modal-box w-full max-w-md">
-        <h3 className="font-bold text-lg mb-4">
-          <span className="text-primary">{friend?.fullName}</span>'s Availability
+      <div className="modal-box w-full max-w-2xl">
+        <h3 className="font-bold text-xl mb-4">
+          <span className="text-primary">{friend?.fullName}</span>'s Schedule
         </h3>
         
         {friendAppointments.length === 0 ? (
-          <div className="text-center py-6">
-            <Calendar className="w-12 h-12 opacity-30 mx-auto mb-2" />
-            <p className="text-sm opacity-70">No appointments scheduled.</p>
-            <p className="text-xs opacity-50 mt-2">This friend is available for booking!</p>
+          <div className="text-center py-12">
+            <Calendar className="w-16 h-16 opacity-30 mx-auto mb-4" />
+            <p className="text-lg font-semibold opacity-70">No appointments scheduled</p>
+            <p className="text-sm opacity-50 mt-2">This friend is available for booking!</p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {friendAppointments.map((apt) => {
-              const userInvolved = isUserInvolved(apt);
-              const otherPersonName = getOtherPersonName(apt);
-              
-              return (
-                <div 
-                  key={apt._id} 
-                  className={`p-4 rounded-lg border-l-4 transition-all ${
-                    userInvolved 
-                      ? 'bg-primary/20 border-primary' 
-                      : 'bg-warning/20 border-warning'
+          <>
+            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+              <button
+                onClick={() => setSelectedDate(null)}
+                className={`px-3 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  selectedDate === null
+                    ? 'btn btn-primary btn-sm'
+                    : 'btn btn-outline btn-sm'
+                }`}
+              >
+                All Dates ({friendAppointments.length})
+              </button>
+              {uniqueDates.map((date) => (
+                <button
+                  key={date.toDateString()}
+                  onClick={() => setSelectedDate(date)}
+                  className={`px-3 py-2 rounded-lg font-medium whitespace-nowrap transition-all ${
+                    selectedDate && isSameDay(date, selectedDate)
+                      ? 'btn btn-primary btn-sm'
+                      : 'btn btn-outline btn-sm'
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">{apt.title || "Appointment"}</p>
-                      <p className="text-xs opacity-80 mt-1">
-                        with <span className="font-medium">{otherPersonName}</span>
-                      </p>
-                      <div className={`text-xs mt-2 ${userInvolved ? 'opacity-90' : 'opacity-70'}`}>
-                        {userInvolved ? (
-                          <span className="badge badge-primary badge-sm">You're involved</span>
-                        ) : (
-                          <span className="badge badge-warning badge-sm">Not your appointment</span>
-                        )}
+                  <span className="text-xs">
+                    {isToday(date) ? 'Today' : format(date, 'MMM dd')} ({friendAppointments.filter(apt => isSameDay(new Date(apt.startTime), date)).length})
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+              {filteredAppointments.length === 0 ? (
+                <div className="text-center py-6">
+                  <Calendar className="w-12 h-12 opacity-30 mx-auto mb-2" />
+                  <p className="text-sm opacity-70">No appointments on this date</p>
+                </div>
+              ) : (
+                filteredAppointments.map((apt) => {
+                  const userInvolved = isUserInvolved(apt);
+                  const otherPersonName = getOtherPersonName(apt);
+                  const startTime = new Date(apt.startTime);
+                  const endTime = new Date(apt.endTime);
+                  
+                  return (
+                    <div 
+                      key={apt._id} 
+                      className={`rounded-lg p-5 border-l-4 transition-all ${
+                        userInvolved 
+                          ? 'bg-primary/15 border-primary shadow-sm hover:shadow-md' 
+                          : 'bg-warning/15 border-warning shadow-sm hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <p className="font-bold text-base text-base-content">{apt.title || "Appointment"}</p>
+                          <p className="text-xs opacity-70 mt-0.5">
+                            with <span className="font-semibold">{otherPersonName}</span>
+                          </p>
+                        </div>
+                        <span className={`badge badge-sm font-semibold ${
+                          apt.status === 'confirmed' 
+                            ? 'badge-success' 
+                            : apt.status === 'completed' 
+                            ? 'badge-info' 
+                            : apt.status === 'pending' 
+                            ? 'badge-warning' 
+                            : 'badge-ghost'
+                        }`}>
+                          {apt.status}
+                        </span>
+                      </div>
+
+                      <div className="bg-base-200/50 rounded-lg p-4 mb-3 border border-base-300/50">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold opacity-70">📅 Date</span>
+                          <span className="font-semibold text-base">{startTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold opacity-70">🕐 Time</span>
+                          <span className="font-bold text-lg text-primary">
+                            {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">💬</span>
+                          <div>
+                            <p className="text-xs opacity-60">Type</p>
+                            <p className="font-medium">{apt.meetingType}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{userInvolved ? '✓' : '⊗'}</span>
+                          <div>
+                            <p className="text-xs opacity-60">Involvement</p>
+                            <p className="font-medium text-xs">{userInvolved ? 'You\'re involved' : 'Not your appointment'}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="text-xs opacity-70 space-y-1 mt-3">
-                    <p>📅 {new Date(apt.startTime).toLocaleDateString()}</p>
-                    <p>🕐 {new Date(apt.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(apt.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    <p>💬 {apt.meetingType}</p>
-                    <p className="capitalize">
-                      Status: <span className={`badge badge-sm ${apt.status === 'confirmed' ? 'badge-success' : apt.status === 'completed' ? 'badge-info' : apt.status === 'pending' ? 'badge-warning' : 'badge-ghost'}`}>
-                        {apt.status}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })
+              )}
+            </div>
+          </>
         )}
 
-        <div className="modal-action mt-6">
-          <button className="btn btn-outline btn-sm" onClick={onClose}>Close</button>
+        <div className="modal-action mt-6 pt-4 border-t border-base-300">
+          <button className="btn btn-outline" onClick={onClose}>Close</button>
         </div>
       </div>
       <form method="dialog" className="modal-backdrop" onClick={onClose}>
@@ -130,6 +211,7 @@ const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
 };
 
 const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
+  const navigate = useNavigate();
   const [showSchedule, setShowSchedule] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
@@ -144,11 +226,23 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
     onUnfriend(friend._id || friend.id);
   };
 
+  const handleCalendarClick = () => {
+    navigate(`/booking?friendId=${friend._id || friend.id}`);
+  };
+
   return (
     <>
-      <div className="card bg-gradient-to-br from-base-200 to-base-300 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group">
-        {/* Header with avatar and status */}
+      <div className="card relative bg-gradient-to-br from-base-200 to-base-300 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group">
         <div className="relative h-32 bg-gradient-to-r from-primary/20 to-secondary/20">
+          <Link
+            to={`/profile/${friend._id || friend.id}`}
+            className="absolute top-3 right-3 btn btn-ghost btn-sm btn-circle z-10"
+            title={`View ${name}'s profile`}
+            aria-label={`View ${name} profile`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <User className="w-4 h-4" />
+          </Link>
           <div className="absolute -bottom-6 left-4">
             <div className="relative">
               <img 
@@ -182,8 +276,8 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
             </Link>
             <button 
               className="btn btn-circle btn-sm btn-ghost"
-              onClick={() => setShowSchedule(true)}
-              title="View availability"
+              onClick={handleCalendarClick}
+              title="Book appointment"
             >
               <Calendar className="w-4 h-4" />
             </button>
@@ -198,9 +292,6 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
         </div>
       </div>
       
-      <ScheduleModal friend={friend} isOpen={showSchedule} onClose={() => setShowSchedule(false)} currentUserId={currentUserId} />
-      
-      {/* Unfriend Confirmation Modal */}
       {showUnfriendConfirm && (
         <dialog open className="modal modal-bottom sm:modal-middle">
           <div className="modal-box">
@@ -254,15 +345,62 @@ const FriendsPage = () => {
   });
 
   const friends = Array.isArray(data) ? data : [];
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredFriends = useMemo(() => {
+    const q = (searchQuery || "").trim().toLowerCase();
+    if (!q) return friends;
+
+    return friends.filter((f) => {
+      const name = (f.fullName || f.name || "").toLowerCase();
+      const native = (f.nativeLanguage || f.native || "").toLowerCase();
+      const learning = (f.learningLanguage || f.learning || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        native.includes(q) ||
+        learning.includes(q)
+      );
+    });
+  }, [friends, searchQuery]);
 
   return (
     <div className="p-6 bg-base-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-4xl font-bold text-primary mb-2">Friends</h1>
-          <p className="text-base-content opacity-70">
-            {friends.length} {friends.length === 1 ? 'friend' : 'friends'} connected
+          <p className="text-base-content opacity-70 mb-3">
+            {searchQuery ? (
+              <span>Showing {filteredFriends.length} of {friends.length} results</span>
+            ) : (
+              <span>
+                {friends.length} {friends.length === 1 ? 'friend' : 'friends'} connected
+              </span>
+            )}
           </p>
+
+          <div className="mb-4">
+            <label htmlFor="friends-search" className="sr-only">Search friends</label>
+            <div className="flex gap-2 items-center">
+              <input
+                id="friends-search"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or language"
+                aria-label="Search friends by name or language"
+                className="input input-bordered w-full md:w-1/2"
+              />
+              {searchQuery && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
@@ -287,7 +425,7 @@ const FriendsPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {friends.map((friend) => (
+            {filteredFriends.map((friend) => (
               <FriendCard 
                 friend={friend} 
                 key={friend._id || friend.id}

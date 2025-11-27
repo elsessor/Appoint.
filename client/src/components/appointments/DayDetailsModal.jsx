@@ -56,6 +56,17 @@ const DayDetailsModal = ({
     );
   };
 
+  const getAttendanceBadge = (appointment) => {
+    if (!appointment || appointment.status !== 'completed') return null;
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${attended ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
+        {attended ? 'Joined' : 'Missed'}
+      </span>
+    );
+  };
+
   const handleCreateAppointment = () => {
     if (onCreateAppointment && date) {
       onCreateAppointment(date);
@@ -121,7 +132,10 @@ const DayDetailsModal = ({
                             <p className="text-sm font-medium text-gray-200 truncate">
                               {appointment.title}
                             </p>
-                            {getStatusBadge(appointment.status)}
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(appointment.status)}
+                              {getAttendanceBadge(appointment)}
+                            </div>
                           </div>
                           <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
                             <div className="mt-2 flex items-center text-sm text-gray-400">

@@ -35,7 +35,7 @@ const NotificationsPage = () => {
 
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
-  const appointmentNotifications = notifications.filter((n) => n.type === 'appointment') || [];
+  const appointmentNotifications = notifications.filter((n) => n.type === 'appointment' || n.type === 'rating') || [];
 
   const { mutate: markAsRead } = useMutation({
     mutationFn: markNotificationsRead,

@@ -75,14 +75,12 @@ const HomePage = () => {
     const mainFriends = realFriends.slice(0, 10);
     const otherFriends = realFriends.slice(10, 20);
 
-  // Calculate analytics
   const totalAppointments = appointments.length;
   const completedCalls = appointments.filter((apt) => apt.status === "completed").length;
   const activeContacts = realFriends.length;
   const pendingAppointments = appointments.filter((apt) => apt.status === "pending").length;
   const pendingRequests = (friendRequests?.incomingReqs?.length || 0) + pendingAppointments;
 
-  // Percentage change calculations (compare last 30 days vs previous 30 days)
   const msInDay = 24 * 60 * 60 * 1000;
   const now = Date.now();
   const currentStart = new Date(now - 30 * msInDay);
@@ -106,7 +104,6 @@ const HomePage = () => {
   const incomingCurrent = (friendRequests?.incomingReqs || []).filter((r) => countInRange(r.createdAt, currentStart, new Date())).length;
   const incomingPrev = (friendRequests?.incomingReqs || []).filter((r) => countInRange(r.createdAt, prevStart, currentStart)).length;
 
-  // For active contacts, use accepted friend requests (approximation)
   const acceptedCurrent = (friendRequests?.acceptedReqs || []).filter((r) => countInRange(r.updatedAt || r.createdAt, currentStart, new Date())).length;
   const acceptedPrev = (friendRequests?.acceptedReqs || []).filter((r) => countInRange(r.updatedAt || r.createdAt, prevStart, currentStart)).length;
   const prevActiveContacts = Math.max(activeContacts - acceptedCurrent, 0);
@@ -128,13 +125,11 @@ const HomePage = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto space-y-10">
-        {/* Analytics Section */}
         <div className="space-y-4">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>
           <p className="text-base-content opacity-70">Here's what's happening with your appointments today.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-6">
-            {/* Total Appointments */}
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
@@ -152,7 +147,6 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Completed Calls */}
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
@@ -170,7 +164,6 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Active Contacts */}
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
@@ -188,7 +181,6 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Pending Appointments */}
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
@@ -206,7 +198,6 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Pending Friend Requests */}
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
@@ -226,7 +217,6 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Friends Section */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Your Friends</h2>
@@ -276,7 +266,6 @@ const HomePage = () => {
               })}
             </div>
 
-            {/* Other Friends (remaining) */}
             {otherFriends.length > 0 && (
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {otherFriends.map((f) => {

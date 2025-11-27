@@ -4,9 +4,13 @@ import AppointmentBookingModal from '../components/appointments/AppointmentBooki
 import { getMyFriends, getAuthUser, createAppointment } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
+import { useSearchParams, useNavigate } from 'react-router';
 
 const BookingPage = () => {
   const [showBookingModal, setShowBookingModal] = useState(true);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const friendIdParam = searchParams.get('friendId');
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
