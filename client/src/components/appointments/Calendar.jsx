@@ -524,6 +524,9 @@ const Calendar = ({
           onCreateAppointment={handleCreateAppointment}
           isHoliday={getHolidayName(selectedDate, phHolidays)}
           currentUser={currentUser}
+          friends={friends}
+          availability={availability}
+          friendsAvailability={friendsAvailability}
         />
       )}
 
@@ -544,6 +547,7 @@ const Calendar = ({
           currentUser={currentUser}
           availability={availability}
           friendsAvailability={friendsAvailability}
+          currentUserStatus={currentUser?.availabilityStatus || 'available'}
         />
       )}
     </div>

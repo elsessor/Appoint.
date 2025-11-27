@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO, isToday, isBefore } from 'date-fns';
 import { Clock, User, MessageSquare, Calendar, X } from 'lucide-react';
+import AppointmentModal from './AppointmentModal';
 
 const DayDetailsModal = ({
   date,
@@ -10,7 +11,12 @@ const DayDetailsModal = ({
   onCreateAppointment,
   isHoliday,
   currentUser,
+  friends = [],
+  availability = {},
+  onAppointmentSubmit,
+  friendsAvailability = {},
 }) => {
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const formatTime = (timeString) => {
     if (!timeString) return '';
     try {
@@ -57,9 +63,18 @@ const DayDetailsModal = ({
   };
 
   const handleCreateAppointment = () => {
-    if (onCreateAppointment && date) {
-      onCreateAppointment(date);
+    setShowAppointmentModal(true);
+  };
+
+  const handleAppointmentModalClose = () => {
+    setShowAppointmentModal(false);
+  };
+
+  const handleAppointmentSubmit = (formData) => {
+    if (onAppointmentSubmit) {
+      onAppointmentSubmit(formData);
     }
+    setShowAppointmentModal(false);
   };
 
   return (
@@ -178,6 +193,19 @@ const DayDetailsModal = ({
           )}
         </div>
       </div>
+
+      {/* Appointment Modal */}
+      <AppointmentModal
+        isOpen={showAppointmentModal}
+        onClose={handleAppointmentModalClose}
+        onSubmit={handleAppointmentSubmit}
+        initialDate={date}
+        friends={friends}
+        currentUser={currentUser}
+        availability={availability}
+        friendsAvailability={friendsAvailability}
+        currentUserStatus={currentUser?.availabilityStatus || 'available'}
+      />
     </div>
   );
 };
@@ -202,12 +230,17 @@ DayDetailsModal.propTypes = {
   ),
   onClose: PropTypes.func.isRequired,
   onCreateAppointment: PropTypes.func,
+  onAppointmentSubmit: PropTypes.func,
   isHoliday: PropTypes.string,
   currentUser: PropTypes.shape({
     _id: PropTypes.string,
     name: PropTypes.string,
     email: PropTypes.string,
+    availabilityStatus: PropTypes.string,
   }),
+  friends: PropTypes.arrayOf(PropTypes.object),
+  availability: PropTypes.object,
+  friendsAvailability: PropTypes.object,
 };
 
 export default DayDetailsModal;

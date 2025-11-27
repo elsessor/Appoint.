@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO } from 'date-fns';
 import { X, Clock, User, Calendar, CheckCircle, XCircle, MessageSquare, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const AppointmentRequestModal = ({
   isOpen,
@@ -30,7 +31,7 @@ const AppointmentRequestModal = ({
 
   const handleDecline = () => {
     if (!declineMessage.trim()) {
-      alert('Please provide a reason for declining');
+      toast.error('Please provide a reason for declining');
       return;
     }
     onDecline?.(appointment._id, declineMessage);
