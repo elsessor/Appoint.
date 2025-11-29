@@ -447,12 +447,6 @@ const Calendar = ({
                     </div>
                   )}
                   
-                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
-                    <div className="text-xs text-error/70 font-medium">
-                      Unavailable
-                    </div>
-                  )}
-                  
                   {hasAppts && (
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
@@ -549,6 +543,8 @@ const Calendar = ({
           availability={availability}
           friendsAvailability={friendsAvailability}
           currentUserStatus={currentUser?.availabilityStatus || 'available'}
+          appointments={appointments}
+          selectedDate={selectedDate}
         />
       )}
     </div>

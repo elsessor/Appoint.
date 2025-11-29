@@ -33,6 +33,8 @@ const AppointmentModal = ({
   onDelete = null,
   friendsAvailability = {},
   currentUserStatus = 'available',
+  appointments = [],
+  selectedDate = null,
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -284,6 +286,24 @@ const AppointmentModal = ({
   }, [availability, formData.startTime, initialDate, selectedFriendAvailability, formData.duration]);
 
   const timeSlots = generateTimeSlots;
+
+  // Get appointments for the selected date
+  const selectedDateAppointments = useMemo(() => {
+    if (!formData.startTime || appointments.length === 0) return [];
+    
+    try {
+      const selectedDateStr = formData.startTime.split('T')[0];
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        return apptDateStr === selectedDateStr;
+      });
+    } catch (e) {
+      return [];
+    }
+  }, [formData.startTime, appointments]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -976,6 +996,60 @@ const AppointmentModal = ({
                       </p>
                     </div>
                   )}
+
+                  {/* Existing Appointments on Selected Date */}
+                  {selectedDateAppointments.length > 0 && formData.startTime && (
+                    <div className="bg-gradient-to-r from-info/10 to-info/5 border-2 border-info/20 rounded-xl p-5 space-y-3">
+                      <p className="text-xs font-semibold text-info uppercase tracking-wide flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Existing Appointments on This Date
+                      </p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {selectedDateAppointments.map(appt => {
+                          const apptStart = typeof appt.startTime === 'string' 
+                            ? parseISO(appt.startTime)
+                            : new Date(appt.startTime);
+                          const apptEnd = appt.endTime
+                            ? (typeof appt.endTime === 'string' 
+                              ? parseISO(appt.endTime)
+                              : new Date(appt.endTime))
+                            : null;
+                          
+                          const apptFriendId = appt.friendId?._id || appt.friendId;
+                          const friend = Array.isArray(friends) ? friends.find(f => f._id === apptFriendId) : null;
+
+                          return (
+                            <div key={appt._id || appt.id} className="bg-base-100/60 rounded-lg p-3 border border-info/20">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-base-content">{appt.title || 'Appointment'}</p>
+                                  <p className="text-xs text-base-content/60 mt-1">
+                                    <Clock className="w-3 h-3 inline mr-1" />
+                                    {format(apptStart, 'h:mm a')}
+                                    {apptEnd && ` - ${format(apptEnd, 'h:mm a')}`}
+                                  </p>
+                                  {friend && (
+                                    <p className="text-xs text-base-content/60 mt-1">
+                                      <User className="w-3 h-3 inline mr-1" />
+                                      with {friend.fullName || friend.name}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className={`badge badge-sm ${
+                                  appt.status === 'confirmed' ? 'badge-success' :
+                                  appt.status === 'pending' ? 'badge-warning' :
+                                  appt.status === 'declined' ? 'badge-error' :
+                                  'badge-info'
+                                }`}>
+                                  {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Scheduled'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1361,6 +1435,8 @@ AppointmentModal.propTypes = {
   onDecline: PropTypes.func,
   friendsAvailability: PropTypes.object,
   currentUserStatus: PropTypes.oneOf(['available', 'limited', 'away']),
+  appointments: PropTypes.arrayOf(PropTypes.object),
+  selectedDate: PropTypes.instanceOf(Date),
 };
 
 export default AppointmentModal;
