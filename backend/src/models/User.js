@@ -37,6 +37,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    nationality: {
+      type: String,
+      default: "",
+    },
+    profession: {
+      type: String,
+      default: "",
+    },
     phone: {
       type: String,
       default: "",

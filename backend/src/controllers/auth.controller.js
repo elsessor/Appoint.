@@ -144,27 +144,52 @@ export async function onboard(req, res) {
   try {
     const userId = req.user._id;
 
-    const { fullName, bio, nativeLanguage, learningLanguage, location } = req.body;
+    const { 
+      fullName, 
+      bio, 
+      nativeLanguage, 
+      learningLanguage, 
+      location, 
+      nationality,
+      profession,
+      skills,
+      profilePic
+    } = req.body;
 
-    if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
+    // Required fields validation
+    if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location || !nationality) {
       return res.status(400).json({
-        message: "All fields are required",
+        message: "Required fields are missing",
         missingFields: [
           !fullName && "fullName",
           !bio && "bio",
           !nativeLanguage && "nativeLanguage",
           !learningLanguage && "learningLanguage",
           !location && "location",
+          !nationality && "nationality",
         ].filter(Boolean),
       });
     }
 
+    // Build update object
+    const updateData = {
+      fullName,
+      bio,
+      nativeLanguage,
+      learningLanguage,
+      location,
+      nationality,
+      isOnboarded: true,
+    };
+
+    // Add optional fields if provided
+    if (profession) updateData.profession = profession;
+    if (skills && Array.isArray(skills)) updateData.skills = skills;
+    if (profilePic) updateData.profilePic = profilePic;
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        ...req.body,
-        isOnboarded: true,
-      },
+      updateData,
       { new: true }
     );
 

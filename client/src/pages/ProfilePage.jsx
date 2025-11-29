@@ -44,6 +44,10 @@ const ProfilePage = () => {
           github: profileData.github || '',
           linkedin: profileData.linkedin || '',
           skills: profileData.skills || [],
+          nationality: profileData.nationality || authUser?.nationality || '',
+          profession: profileData.profession || authUser?.profession || '',
+          nativeLanguage: profileData.nativeLanguage || authUser?.nativeLanguage || '',
+          learningLanguage: profileData.learningLanguage || authUser?.learningLanguage || '',
         };
 
         setProfile(prev => ({ ...prev, ...profileUpdate }));
@@ -75,6 +79,10 @@ const ProfilePage = () => {
           github: '',
           linkedin: '',
           skills: [],
+          nationality: authUser?.nationality || '',
+          profession: authUser?.profession || '',
+          nativeLanguage: authUser?.nativeLanguage || '',
+          learningLanguage: authUser?.learningLanguage || '',
         };
         
         setProfile(prev => ({ ...prev, ...fallback }));
@@ -178,6 +186,21 @@ const ProfilePage = () => {
     }
 
     const toSave = draftRef.current || draft;
+
+     if (toSave.phone && toSave.phone.trim()) {
+      const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+      const digitCount = toSave.phone.replace(/\D/g, '').length;
+      
+      if (!phoneRegex.test(toSave.phone)) {
+        toast.error("Phone number can only contain digits, spaces, +, -, and ()");
+        return;
+      }
+      
+      if (digitCount < 10 || digitCount > 15) {
+        toast.error("Phone number must contain 10-15 digits");
+        return;
+      }
+    }
     
     try {
       setIsEditing(false);
@@ -470,64 +493,150 @@ const ProfilePage = () => {
                 <span>⚙️ Availability</span>
               </button>
             </div>
-
+{/* Profile Info Section */}
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-base-100 rounded-lg">
+  {profile.profession && (
+    <div className="flex flex-col">
+      <span className="text-sm text-base-content/60 mb-1">Profession</span>
+      <div className="flex items-center space-x-2">
+        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <span className="font-medium">{profile.profession}</span>
+      </div>
+    </div>
+  )}
+  
+  {profile.nationality && (
+    <div className="flex flex-col">
+      <span className="text-sm text-base-content/60 mb-1">Nationality</span>
+      <div className="flex items-center space-x-2">
+        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span className="font-medium capitalize">{profile.nationality}</span>
+      </div>
+    </div>
+  )}
+  
+  {profile.nativeLanguage && (
+    <div className="flex flex-col">
+      <span className="text-sm text-base-content/60 mb-1">Native Language</span>
+      <div className="flex items-center space-x-2">
+        <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+        </svg>
+        <span className="font-medium capitalize">{profile.nativeLanguage}</span>
+      </div>
+    </div>
+  )}
+  
+  {profile.learningLanguage && (
+    <div className="flex flex-col">
+      <span className="text-sm text-base-content/60 mb-1">Learning</span>
+      <div className="flex items-center space-x-2">
+        <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span className="font-medium capitalize">{profile.learningLanguage}</span>
+      </div>
+    </div>
+  )}
+</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    {isEditing ? (
-                      <input
-                        value={draft.phone}
-                        onChange={onFieldChange('phone')}
-                        className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    ) : (
-                      <span className="w-full">{profile.phone}</span>
-                    )}
-                  </div>
-                  {[
-                    { id: 'twitter', field: 'twitter', svg: (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M22.46 6c-.77.35-1.6.58-2.46.69a4.27 4.27 0 001.88-2.36 8.52 8.52 0 01-2.7 1.03 4.24 4.24 0 00-7.23 3.86A12.04 12.04 0 013 4.79a4.24 4.24 0 001.31 5.66 4.2 4.2 0 01-1.92-.53v.05c0 2.05 1.46 3.76 3.4 4.15a4.27 4.27 0 01-1.91.07 4.25 4.25 0 003.96 2.95A8.51 8.51 0 012 19.54 12.02 12.02 0 008.29 21c7.55 0 11.68-6.26 11.68-11.68 0-.18-.01-.36-.02-.53A8.36 8.36 0 0022.46 6z" />
-                      </svg>
-                    )},
-                    { id: 'pinterest', field: 'github', svg: (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M12 0C5.37 0 0 5.37 0 12c0 4.99 3.05 9.26 7.43 11.03-.1-.94-.19-2.39.04-3.42.21-.94 1.36-5.98 1.36-5.98s-.35-.7-.35-1.73c0-1.62.94-2.83 2.12-2.83 1 .07 1.53.75 1.53 1.65 0 1.01-.64 2.52-.97 3.92-.28 1.18.6 2.14 1.78 2.14 2.13 0 3.77-2.23 3.77-5.46 0-2.85-2.06-4.85-5-4.85-3.4 0-5.48 2.56-5.48 5.21 0 1.05.4 2.18.9 2.8.1.12.11.23.08.35-.09.4-.29 1.21-.32 1.38-.05.24-.17.29-.4.17-1.5-.7-2.44-2.89-2.44-4.66 0-3.79 2.76-7.29 8-7.29 4.2 0 7.3 3 7.3 6.99 0 4.28-2.69 7.71-6.42 7.71-1.25 0-2.43-.65-2.83-1.42l-.77 2.92C9.6 22.9 10.6 23 11.65 23 18.28 23 24 17.63 24 11 24 5.37 18.63 0 12 0z" />
-                      </svg>
-                    )},
-                    { id: 'linkedin', field: 'linkedin', svg: (
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065z" />
-                      </svg>
-                    )}
-                  ].map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full"
-                    >
-                      <span className="text-slate-300">{item.svg}</span>
-                      {isEditing ? (
-                        <input
-                          value={draft[item.field]}
-                          onChange={onFieldChange(item.field)}
-                          className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                      ) : (
-                        <span className="w-full">{profile[item.field]}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+  <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
+  <div className="space-y-2">
+    {(profile.phone || isEditing) && (
+      <div className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+        {isEditing ? (
+          <input
+            value={draft.phone}
+            onChange={onFieldChange('phone')}
+            className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        ) : (
+          <span className="w-full">{profile.phone}</span>
+        )}
+      </div>
+    )}
+    
+    {[
+      { id: 'twitter', field: 'twitter', svg: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M22.46 6c-.77.35-1.6.58-2.46.69a4.27 4.27 0 001.88-2.36 8.52 8.52 0 01-2.7 1.03a4.24 4.24 0 00-7.23 3.86A12.04 12.04 0 013 4.79a4.24 4.24 0 001.31 5.66 4.2 4.2 0 01-1.92-.53v.05c0 2.05 1.46 3.76 3.4 4.15a4.27 4.27 0 01-1.91.07 4.25 4.25 0 003.96 2.95A8.51 8.51 0 012 19.54 12.02 12.02 0 008.29 21c7.55 0 11.68-6.26 11.68-11.68 0-.18-.01-.36-.02-.53A8.36 8.36 0 0022.46 6z" />
+        </svg>
+      )},
+      { id: 'pinterest', field: 'github', svg: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 4.99 3.05 9.26 7.43 11.03-.1-.94-.19-2.39.04-3.42.21-.94 1.36-5.98 1.36-5.98s-.35-.7-.35-1.73c0-1.62.94-2.83 2.12-2.83 1 .07 1.53.75 1.53 1.65 0 1.01-.64 2.52-.97 3.92-.28 1.18.6 2.14 1.78 2.14 2.13 0 3.77-2.23 3.77-5.46 0-2.85-2.06-4.85-5-4.85-3.4 0-5.48 2.56-5.48 5.21 0 1.05.4 2.18.9 2.8.1.12.11.23.08.35-.09.4-.29 1.21-.32 1.38-.05.24-.17.29-.4.17-1.5-.7-2.44-2.89-2.44-4.66 0-3.79 2.76-7.29 8-7.29 4.2 0 7.3 3 7.3 6.99 0 4.28-2.69 7.71-6.42 7.71-1.25 0-2.43-.65-2.83-1.42l-.77 2.92C9.6 22.9 10.6 23 11.65 23 18.28 23 24 17.63 24 11 24 5.37 18.63 0 12 0z" />
+        </svg>
+      )},
+      { id: 'linkedin', field: 'linkedin', svg: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065z" />
+        </svg>
+      )}
+    ].filter((item) => profile[item.field] || isEditing).map((item) => (
+      <div
+        key={item.id}
+        className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full"
+      >
+        <span className="text-slate-300">{item.svg}</span>
+        {isEditing ? (
+          <input
+            value={draft[item.field]}
+            onChange={onFieldChange(item.field)}
+            className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        ) : (
+          <span className="w-full">{profile[item.field]}</span>
+        )}
+      </div>
+    ))}
 
+    {/* Empty state - NEW PART */}
+    {!profile.phone && !profile.twitter && !profile.github && !profile.linkedin && !isEditing && (
+      <div className="p-6 bg-base-100 rounded-lg text-center">
+        <svg className="w-12 h-12 mx-auto mb-3 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <p className="text-base-content/60 mb-2">No contact information available</p>
+        <button 
+          onClick={startEditing}
+          className="btn btn-sm btn-primary"
+        >
+          Add Contact Info
+        </button>
+      </div>
+    )}
+
+  </div>
+</div>
+
+              
               <div>
                 <h3 className="text-lg font-semibold mb-4">Skills & Interests</h3>
                 <div className="p-4 bg-base-100 rounded-lg">
+                  {/* Empty state when no skills/interests and not editing */}
+                  {!isEditing && (!skills || skills.length === 0) && (
+                    <div className="text-center py-6">
+                      <svg className="w-12 h-12 mx-auto mb-3 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <p className="text-base-content/60 mb-2">No skills or interests added yet</p>
+                      <button 
+                        onClick={startEditing}
+                        className="btn btn-sm btn-primary"
+                      >
+                        Add Skills & Interests
+                      </button>
+                    </div>
+                  )}
+                  
                   {isEditing ? (
                     <div>
                       {/* Skills box with dropdown mechanics */}
