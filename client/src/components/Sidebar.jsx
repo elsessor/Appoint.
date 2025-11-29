@@ -1,11 +1,7 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-<<<<<<< HEAD
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, FileText, MessageCircle } from "lucide-react"; // ✅ Add FileText and MessageCircle
-=======
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
->>>>>>> origin/main
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();

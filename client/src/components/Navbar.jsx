@@ -9,12 +9,8 @@ import { getFriendRequests } from "../lib/api";
 const Navbar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
-<<<<<<< HEAD
   const isChatPage = location.pathname?.startsWith("/chat/") && !location.pathname?.startsWith("/chats");
-=======
-  const isChatPage = location.pathname?.startsWith("/chat");
   const isOnboarded = authUser?.isOnboarded;
->>>>>>> origin/main
 
   const { logoutMutation } = useLogout();
 

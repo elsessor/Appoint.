@@ -14,7 +14,6 @@ import FriendsPage from "./pages/FriendsPage.jsx";
 import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
 import ChatsPage from "./pages/ChatsPage.jsx";
 import SettingPage from "./pages/SettingPage.jsx";
-import FriendsPage from "./pages/FriendsPage.jsx";
 
 import { Toaster } from "react-hot-toast";
 

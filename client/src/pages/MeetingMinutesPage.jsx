@@ -70,9 +70,6 @@ const MeetingMinutesPage = () => {
             <p className="text-gray-400 mb-6">
               Generate your first meeting minutes from a call
             </p>
-            <Link to="/homepage" className="btn btn-primary">
-              Go to Home
-            </Link>
           </div>
         ) : (
           <div className="grid gap-6">

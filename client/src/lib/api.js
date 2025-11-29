@@ -171,7 +171,6 @@ export const logout = async () => {
   return response.data;
 };
 
-<<<<<<< HEAD
 export const createMeetingMinutes = async (minutesData) => {
   const response = await axiosInstance.post("/meetings/minutes", minutesData);
   return response.data;
@@ -191,7 +190,6 @@ export const deleteMeetingMinutes = async (id) => {
   const response = await axiosInstance.delete(`/meetings/minutes/${id}`);
   return response.data;
 };
-=======
 export async function getMySettings() {
   const response = await axiosInstance.get("/users/me/settings");
   return response.data;
@@ -228,4 +226,3 @@ export async function updateMyProfile(payload) {
   return response.data;
 }
 
->>>>>>> origin/main
