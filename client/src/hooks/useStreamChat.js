@@ -7,42 +7,49 @@ import useAuthUser from "./useAuthUser";
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 let chatClientInstance = null;
+let isConnecting = false; // ✅ Prevent concurrent connections
 
 const useStreamChat = () => {
-  const [chatClient, setChatClient] = useState(null);
+  const [chatClient, setChatClient] = useState(chatClientInstance);
   const { authUser } = useAuthUser();
 
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
     enabled: !!authUser,
+    staleTime: 1000 * 60 * 60, // ✅ Cache token for 1 hour
   });
 
   useEffect(() => {
     const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
+      // ✅ Guard against multiple calls
+      if (!tokenData?.token || !authUser || isConnecting) {
+        return;
+      }
+
+      // ✅ If already connected to this user, reuse
+      if (chatClientInstance?.userID === authUser._id) {
+        setChatClient(chatClientInstance);
+        return;
+      }
 
       try {
-        // Reuse existing client if already connected
-        if (chatClientInstance && chatClientInstance.userID === authUser._id) {
-          setChatClient(chatClientInstance);
-          return;
-        }
-
-        // Disconnect old client if exists
-        if (chatClientInstance) {
-          await chatClientInstance.disconnectUser();
-        }
-
+        isConnecting = true;
         console.log("Initializing stream chat client...");
+
+        // ✅ Disconnect previous user if exists
+        if (chatClientInstance) {
+          console.log("Disconnecting previous user...");
+          await chatClientInstance.disconnectUser();
+          chatClientInstance = null;
+        }
 
         const client = StreamChat.getInstance(STREAM_API_KEY);
 
         await client.connectUser(
           {
-            id: authUser._id,
+            id: authUser._id.toString(), // ✅ Ensure string
             name: authUser.fullName,
-            image: authUser.profilePic,
           },
           tokenData.token
         );
@@ -52,11 +59,15 @@ const useStreamChat = () => {
         console.log("Stream chat connected successfully!");
       } catch (error) {
         console.error("Error initializing chat:", error);
+        chatClientInstance = null;
+        setChatClient(null);
+      } finally {
+        isConnecting = false; // ✅ Reset flag
       }
     };
 
     initChat();
-  }, [tokenData, authUser]);
+  }, [tokenData?.token, authUser?._id]); // ✅ Only depend on token and user ID
 
   return chatClient;
 };
