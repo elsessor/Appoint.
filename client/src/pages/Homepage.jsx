@@ -8,9 +8,7 @@ import {
 } from "../lib/api";
 import { Link } from "react-router";
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon } from "lucide-react";
-
 import { capitialize } from "../lib/utils";
-
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
@@ -48,19 +46,6 @@ const HomePage = () => {
     }
   }, [outgoingFriendReqs]);
 
-
-  const uniqueFriendsMap = new Map();
-  (friends || []).forEach((fr) => {
-    const key = fr._id || fr.fullName || JSON.stringify(fr);
-    if (!uniqueFriendsMap.has(key)) uniqueFriendsMap.set(key, fr);
-  });
-  const uniqueFriends = Array.from(uniqueFriendsMap.values());
-
-    const realFriends = uniqueFriends.filter((f) => Boolean(f.fullName));
-
-    const mainFriends = realFriends.slice(0, 3);
-    const otherFriends = realFriends.slice(3, 12);
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto space-y-10">
@@ -79,18 +64,9 @@ const HomePage = () => {
         ) : friends.length === 0 ? (
           <NoFriendsFound />
         ) : (
-          <div className="flex flex-wrap items-left justify-start gap-8">
-            {mainFriends.map((f) => (
-              <div key={f._id || f.fullName} className="flex flex-col items-center group">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary transition-all duration-300 transform hover:scale-105 shadow-sm">
-                  <img src={f.profilePic} alt={f.fullName || "friend avatar"} className="w-full h-full object-cover" />
-                </div>
-                {f.fullName ? (
-                  <div className="mt-3 text-base font-semibold text-white group-hover:text-primary transition-colors">{f.fullName}</div>
-                ) : (
-                  <div className="mt-3 text-base font-semibold text-transparent">&nbsp;</div>
-                )}
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {friends.map((friend) => (
+              <FriendCard key={friend._id} friend={friend} />
             ))}
           </div>
         )}
@@ -131,7 +107,13 @@ const HomePage = () => {
                     <div className="card-body p-5 space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
-                          <img src={user.profilePic} alt={user.fullName} />
+                          <img 
+                            src={user.profilePic || '/default-profile.svg'} 
+                            alt={user.fullName}
+                            onError={(e) => {
+                              e.target.src = '/default-profile.svg';
+                            }}
+                          />
                         </div>
 
                         <div>

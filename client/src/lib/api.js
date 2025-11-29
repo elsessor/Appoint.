@@ -16,7 +16,7 @@ const MOCK_USER_PAYLOAD = {
 
 export async function getMyFriends() {
   try {
-    const response = await axiosInstance.get("/user/friends");
+    const response = await axiosInstance.get("/users/friends");
     return response.data;
   } catch (error) {
     console.error("Error fetching friends:", error);
@@ -77,7 +77,8 @@ export const login = async (loginData) => {
 export const getAuthUser = async () => {
   try {
     const res = await axiosInstance.get("/auth/me");
-    return res.data;
+    // Handle both { user: {...} } and direct user object responses
+    return res.data.user || res.data;
   } catch (error) {
     console.log("Error in getAuthUser:", error);
     return null;
@@ -92,6 +93,21 @@ export const completeOnboarding = async (userData) => {
 
 export async function getFriendRequests() {
   const response = await axiosInstance.get("/users/friend-requests");
+  return response.data;
+}
+
+export async function markNotificationsRead() {
+  const response = await axiosInstance.put("/users/notifications/read");
+  return response.data;
+}
+
+export async function getNotifications() {
+  const response = await axiosInstance.get("/notifications");
+  return response.data;
+}
+
+export async function markNotificationAsRead(notificationId) {
+  const response = await axiosInstance.put(`/notifications/${notificationId}/read`);
   return response.data;
 }
 
@@ -114,6 +130,11 @@ export const getAppointments = async () => {
   const response = await axiosInstance.get('/appointments');
   return response.data;
 };
+
+export async function getUserAvailability(userId) {
+  const response = await axiosInstance.get(`/appointments/availability/${userId}`);
+  return response.data;
+}
 
 export async function acceptFriendRequest(requestId) {
   const response = await axiosInstance.put(`/users/friend-request/${requestId}/accept`);
@@ -150,6 +171,7 @@ export const logout = async () => {
   return response.data;
 };
 
+<<<<<<< HEAD
 export const createMeetingMinutes = async (minutesData) => {
   const response = await axiosInstance.post("/meetings/minutes", minutesData);
   return response.data;
@@ -169,3 +191,41 @@ export const deleteMeetingMinutes = async (id) => {
   const response = await axiosInstance.delete(`/meetings/minutes/${id}`);
   return response.data;
 };
+=======
+export async function getMySettings() {
+  const response = await axiosInstance.get("/users/me/settings");
+  return response.data;
+}
+
+export async function updateMySettings(settings) {
+  // settings: { notifications?, privacy?, videoAudio? }
+  const response = await axiosInstance.put("/users/me/settings", settings);
+  return response.data;
+}
+
+export async function changePassword(payload) {
+  const response = await axiosInstance.put("/users/me/password", payload);
+  return response.data;
+}
+
+export async function deleteMyAccount(payload) {
+  const response = await axiosInstance.delete("/users/me", { data: payload });
+  return response.data;
+}
+
+export async function updateProfilePicture(payload) {
+  const response = await axiosInstance.put("/users/me/profile-picture", payload);
+  return response.data;
+}
+
+export async function getMyProfile() {
+  const response = await axiosInstance.get("/users/me/profile");
+  return response.data;
+}
+
+export async function updateMyProfile(payload) {
+  const response = await axiosInstance.put("/users/me/profile", payload);
+  return response.data;
+}
+
+>>>>>>> origin/main

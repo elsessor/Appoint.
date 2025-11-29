@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import useAuthUser from "../hooks/useAuthUser";
+import { updateProfilePicture, getMyProfile, updateMyProfile } from "../lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-hot-toast";
+import AvailabilitySettings from "../components/AvailabilitySettings";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [showAvailabilitySettings, setShowAvailabilitySettings] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     location: 'Camarines Sur, Philippines',
@@ -18,40 +25,66 @@ const ProfilePage = () => {
   const draftRef = useRef(draft);
 
   useEffect(() => {
-    if (authUser) {
-      const authName = authUser?.fullName || authUser?.full_name || authUser?.name || authUser?.displayName || authUser?.full_name_text || '';
-      const authPic = authUser?.profilePic || authUser?.profile_pic || authUser?.profilePicture || authUser?.profilePicUrl || authUser?.profilePicURL || authUser?.avatar || authUser?.picture || '';
-  const authBio = authUser?.bio || authUser?.about || authUser?.description || authUser?.bioText || '';
-  const authLoc = authUser?.location || authUser?.place || authUser?.city || authUser?.address || '';
-      const key = `profile_${authUser._id}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          parsed.name = authName || parsed.name;
-          parsed.profilePicture = authPic || parsed.profilePicture;
-          if ((!parsed.about || parsed.about === '') && authBio) parsed.about = authBio;
-          if ((!parsed.location || parsed.location === '') && authLoc) parsed.location = authLoc;
-      setProfile(prev => ({ ...prev, ...parsed }));
-      setDraft(prev => ({ ...prev, ...parsed }));
+    if (!authUser) return;
+    
+    let cancelled = false;
+    
+    (async () => {
+      try {
+        const profileData = await getMyProfile();
+        if (cancelled) return;
 
-          try {
-            localStorage.setItem(key, JSON.stringify(parsed));
-          } catch (e) {
-          }
-        } catch (err) {
-          setProfile(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
-          setDraft(prev => ({ ...prev, name: authName || prev.name, profilePicture: authPic || prev.profilePicture, about: authBio || prev.about, location: authLoc || prev.location }));
+        const profileUpdate = {
+          name: profileData.fullName || authUser?.fullName || '',
+          profilePicture: profileData.profilePic || authUser?.profilePic || '',
+          about: profileData.bio || '',
+          location: profileData.location || '',
+          phone: profileData.phone || '',
+          twitter: profileData.twitter || '',
+          github: profileData.github || '',
+          linkedin: profileData.linkedin || '',
+          skills: profileData.skills || [],
+        };
+
+        setProfile(prev => ({ ...prev, ...profileUpdate }));
+        setDraft(prev => ({ ...prev, ...profileUpdate }));
+        if (Array.isArray(profileData.skills)) {
+          setSkills(profileData.skills);
         }
-      } else {
-      const seeded = { name: authName || '', profilePicture: authPic || '', about: authBio || profile.about, location: authLoc || profile.location };
-  setProfile(prev => ({ ...prev, ...seeded }));
-  setDraft(prev => ({ ...prev, ...seeded }));
+
         try {
-          localStorage.setItem(key, JSON.stringify(seeded));
-        } catch (e) {}
+          const key = `profile_${authUser._id}`;
+          localStorage.setItem(key, JSON.stringify(profileUpdate));
+        } catch (e) {
+          console.warn('Failed to cache profile in localStorage', e);
+        }
+      } catch (err) {
+        console.warn('Failed to load profile from server, using authUser data', err);
+        const authName = authUser?.fullName || '';
+        const authPic = authUser?.profilePic || '';
+        const authBio = authUser?.bio || '';
+        const authLoc = authUser?.location || '';
+        
+        const fallback = {
+          name: authName,
+          profilePicture: authPic,
+          about: authBio,
+          location: authLoc,
+          phone: '',
+          twitter: '',
+          github: '',
+          linkedin: '',
+          skills: [],
+        };
+        
+        setProfile(prev => ({ ...prev, ...fallback }));
+        setDraft(prev => ({ ...prev, ...fallback }));
       }
-    }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [authUser]);
   const [skills, setSkills] = useState(["Time Management", "Coordination", "Skills Management"]);
 
@@ -74,72 +107,59 @@ const ProfilePage = () => {
     "Project Management",
     "Public Speaking",
     "Data Analysis",
-    "Skills Management"
+    "Skills Management",
+    "Web Development",
+    "UI/UX Design",
+    "Data Analysis",
+    "Graphic Design",
+    "Copywriting"
   ];
+
+  const suggestedInterests = [
+    "Baking",
+    "Cooking",
+    "Photography",
+    "Video Editing",
+    "Writing",
+    "Content Creation",
+    "Social Media Management",
+    "Event Planning",
+    "Teaching",
+    "Tutoring",
+    "Travel",
+    "Gaming",
+    "Music",
+    "Sports",
+    "Reading",
+    "Blogging"
+  ];
+
   const [selectedSuggested, setSelectedSuggested] = useState(suggestedSkills[0]);
-  const [newSkillInput, setNewSkillInput] = useState("");
+  const [skillSearch, setSkillSearch] = useState("");
+  const [interestSearch, setInterestSearch] = useState("");
+  const [customSkillInput, setCustomSkillInput] = useState("");
 
-  useEffect(() => {
-    if (!authUser) return;
-    let cancelled = false;
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    fetch(`/api/users/${authUser._id}/profile`, { headers })
-      .then((res) => {
-        if (!res.ok) throw new Error('No combined profile endpoint');
-        return res.json();
+  const filteredSuggestions = skillSearch
+    ? suggestedSkills.filter((s) => {
+        const query = skillSearch.toLowerCase();
+        const inText = s.toLowerCase().includes(query);
+        const current = (draft.skills || skills || []);
+        const alreadyAdded = current.includes(s);
+        return inText && !alreadyAdded;
       })
-      .then((data) => {
-          if (cancelled) return;
-          if (Array.isArray(data.skills)) setSkills(data.skills);
-        })
-        .catch(() => {
-          fetch(`/api/users/${authUser._id}/skills`, { headers })
-            .then((r) => r.ok ? r.json() : null)
-            .then((skillsRes) => {
-              if (cancelled) return;
-              if (skillsRes && Array.isArray(skillsRes.skills)) setSkills(skillsRes.skills);
-              else if (skillsRes && Array.isArray(skillsRes)) setSkills(skillsRes);
-            })
-            .catch((err) => {
-                  console.warn('Could not load skills:', err);
-                });
-          });
+    : [];
 
-        return () => { cancelled = true; };
-  }, [authUser]);
+  const filteredInterestSuggestions = interestSearch
+    ? suggestedInterests.filter((s) => {
+        const query = interestSearch.toLowerCase();
+        const current = (draft.skills || skills || []);
+        const alreadyAdded = current.includes(s);
+        return s.toLowerCase().includes(query) && !alreadyAdded;
+      })
+    : [];
+
 
   const [stats, setStats] = useState({ friends: 107, appointments: 107, rating: 4.8 });
-  useEffect(() => {
-    if (!authUser) return;
-    let cancelled = false;
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-
-    fetch(`/api/users/${authUser._id}/stats`, { headers })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch stats');
-        return res.json();
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setStats((prev) => ({
-          friends: data.friends ?? prev.friends,
-          appointments: data.appointments ?? prev.appointments,
-          rating: data.rating ?? prev.rating,
-        }));
-      })
-      .catch((err) => {
-        console.warn('Could not load stats:', err);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authUser]);
 
   const startEditing = () => {
     setDraft(profile);
@@ -151,16 +171,47 @@ const ProfilePage = () => {
     setDraft(profile);
   };
 
-  const saveEditing = () => {
+  const saveEditing = async () => {
+    if (!authUser) {
+      toast.error("Please log in to save your profile");
+      return;
+    }
+
     const toSave = draftRef.current || draft;
-    setProfile(toSave);
-    setIsEditing(false);
+    
     try {
-      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
-      localStorage.setItem(key, JSON.stringify(toSave));
+      setIsEditing(false);
+      
+      const updatePayload = {
+        fullName: toSave.name || authUser.fullName,
+        bio: toSave.about || '',
+        location: toSave.location || '',
+        phone: toSave.phone || '',
+        twitter: toSave.twitter || '',
+        github: toSave.github || '',
+        linkedin: toSave.linkedin || '',
+        skills: Array.isArray(toSave.skills) ? toSave.skills : skills,
+      };
+
+      await updateMyProfile(updatePayload);
+      
+      setProfile(toSave);
       if (Array.isArray(toSave.skills)) setSkills(toSave.skills);
+      
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      
+      try {
+        const key = `profile_${authUser._id}`;
+        localStorage.setItem(key, JSON.stringify(toSave));
+      } catch (e) {
+        console.warn('Failed to cache profile in localStorage', e);
+      }
+      
+      toast.success("Profile updated successfully");
     } catch (err) {
-      console.error('Failed to save profile to localStorage', err);
+      console.error('Failed to save profile', err);
+      toast.error(err?.response?.data?.message || "Failed to update profile");
+      setIsEditing(true);
     }
   };
 
@@ -170,6 +221,7 @@ const ProfilePage = () => {
     setDraft(nextDraft);
     draftRef.current = nextDraft;
     setProfile(prev => ({ ...prev, [field]: value }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -177,46 +229,129 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...nextDraft };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist profile field change', err);
+      console.warn('Failed to cache profile field change', err);
     }
   };
 
   const fileInputRef = useRef(null);
 
-  const handleImageSelect = (e) => {
+  const compressImage = (file, maxWidth = 800, maxHeight = 800, quality = 0.8) => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        reject(new Error('File must be an image'));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Failed to compress image'));
+                return;
+              }
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            },
+            file.type,
+            quality
+          );
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageSelect = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-  setProfile(prev => ({ ...prev, profilePicture: dataUrl }));
-  const next = { ...draftRef.current, profilePicture: dataUrl };
-  setDraft(next);
-  draftRef.current = next;
-      try {
-        const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
-        const saved = localStorage.getItem(key);
-        const parsed = saved ? JSON.parse(saved) : {};
-        const merged = { ...parsed, profilePicture: dataUrl };
-        localStorage.setItem(key, JSON.stringify(merged));
-      } catch (err) {
-        console.error('Failed to save profile picture', err);
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+
+    if (!authUser) {
+      toast.error("Please log in to update your profile picture");
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error("Image size must be less than 5MB. The image will be compressed.");
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      
+      const compressedDataUrl = await compressImage(file);
+      
+      setProfile(prev => ({ ...prev, profilePicture: compressedDataUrl }));
+      const next = { ...draftRef.current, profilePicture: compressedDataUrl };
+      setDraft(next);
+      draftRef.current = next;
+
+      await updateProfilePicture({ profilePic: compressedDataUrl });
+      
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      
+      const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
+      const saved = localStorage.getItem(key);
+      const parsed = saved ? JSON.parse(saved) : {};
+      const merged = { ...parsed, profilePicture: compressedDataUrl };
+      localStorage.setItem(key, JSON.stringify(merged));
+      
+      toast.success("Profile picture updated successfully");
+    } catch (err) {
+      console.error('Failed to save profile picture', err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to update profile picture";
+      toast.error(errorMessage);
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = '';
+    }
   };
 
   const addSkillToDraft = (skill) => {
     if (!skill) return;
-    const current = Array.isArray(draft.skills) ? draft.skills.slice() : (Array.isArray(profile.skills) ? profile.skills.slice() : []);
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : (Array.isArray(profile.skills) ? profile.skills.slice() : skills.slice());
     if (current.includes(skill)) return;
     const updated = [...current, skill];
-  const next = { ...draftRef.current, skills: updated };
-  setDraft(next);
-  draftRef.current = next;
+    const next = { ...draftRef.current, skills: updated };
+    setDraft(next);
+    draftRef.current = next;
     setSkills(updated);
     setProfile(prev => ({ ...prev, skills: updated }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -224,18 +359,19 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...(draftRef.current || profile), skills: updated };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist skills to localStorage', err);
+      console.warn('Failed to cache skills in localStorage', err);
     }
   };
 
   const removeSkillFromDraft = (idx) => {
-    const current = Array.isArray(draft.skills) ? draft.skills.slice() : [];
+    const current = Array.isArray(draft.skills) ? draft.skills.slice() : skills.slice();
     current.splice(idx, 1);
-  const next = { ...draftRef.current, skills: current };
-  setDraft(next);
-  draftRef.current = next;
+    const next = { ...draftRef.current, skills: current };
+    setDraft(next);
+    draftRef.current = next;
     setSkills(current);
     setProfile(prev => ({ ...prev, skills: current }));
+    
     try {
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
@@ -243,7 +379,7 @@ const ProfilePage = () => {
       const merged = { ...parsed, ...(draftRef.current || profile), skills: current };
       localStorage.setItem(key, JSON.stringify(merged));
     } catch (err) {
-      console.error('Failed to persist skills to localStorage', err);
+      console.warn('Failed to cache skills in localStorage', err);
     }
   };
  
@@ -255,20 +391,24 @@ const ProfilePage = () => {
         <div className="flex items-start space-x-6">
           <div className="relative">
             <img
-              src={authUser?.profilePicture || profile.profilePicture || "/profile.jpg"}
-              alt={authUser?.name || profile.name}
+              src={authUser?.profilePic || profile.profilePicture || "/profile.jpg"}
+              alt={authUser?.fullName || profile.name}
               className="w-24 h-24 rounded-full object-cover"
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
             />
             <div className="mt-2 text-center">
               <button
                 type="button"
                 onClick={() => fileInputRef.current && fileInputRef.current.click()}
                 className="text-sm text-primary hover:underline"
+                disabled={isUploadingPhoto}
               >
-                Change photo
+                {isUploadingPhoto ? "Uploading..." : "Change photo"}
               </button>
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} disabled={isUploadingPhoto} />
           </div>
           <div className="flex-1">
             <div className="flex items-center space-x-4 mb-4">
@@ -320,13 +460,22 @@ const ProfilePage = () => {
                   <span>Cancel</span>
                 </button>
               )}
+              <button
+                onClick={() => setShowAvailabilitySettings(true)}
+                className="flex items-center space-x-2 bg-secondary hover:bg-secondary-focus text-white px-4 py-2 rounded-lg transition-colors ml-auto"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>⚙️ Availability</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold mb-4">Contact Information</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
@@ -337,7 +486,7 @@ const ProfilePage = () => {
                         className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     ) : (
-                      <span>{profile.phone}</span>
+                      <span className="w-full">{profile.phone}</span>
                     )}
                   </div>
                   {[
@@ -357,7 +506,10 @@ const ProfilePage = () => {
                       </svg>
                     )}
                   ].map((item) => (
-                    <div key={item.id} className="flex items-center space-x-3">
+                    <div
+                      key={item.id}
+                      className="flex items-center space-x-3 p-2 bg-base-100 rounded-lg shadow-sm w-full"
+                    >
                       <span className="text-slate-300">{item.svg}</span>
                       {isEditing ? (
                         <input
@@ -366,7 +518,7 @@ const ProfilePage = () => {
                           className="bg-base-300 rounded px-2 py-1 w-full max-w-sm focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       ) : (
-                        <span>{profile[item.field]}</span>
+                        <span className="w-full">{profile[item.field]}</span>
                       )}
                     </div>
                   ))}
@@ -378,34 +530,88 @@ const ProfilePage = () => {
                 <div className="p-4 bg-base-100 rounded-lg">
                   {isEditing ? (
                     <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <select
-                          value={selectedSuggested}
-                          onChange={(e) => setSelectedSuggested(e.target.value)}
-                          className="select select-bordered"
-                        >
-                          {suggestedSkills.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => addSkillToDraft(selectedSuggested)}
-                          className="btn btn-sm btn-primary"
-                        >
-                          Add
-                        </button>
+                      {/* Skills box with dropdown mechanics */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold mb-2">Skills</h4>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
+                          <div className="w-full max-w-xs">
+                            <input
+                              placeholder="Search skill (e.g. Programming) and click from dropdown"
+                              value={skillSearch}
+                              onChange={(e) => setSkillSearch(e.target.value)}
+                              className="input input-bordered w-full"
+                            />
+                            {filteredSuggestions.length > 0 && (
+                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                                {filteredSuggestions.map((s) => (
+                                  <button
+                                    type="button"
+                                    key={s}
+                                    onClick={() => { addSkillToDraft(s); setSkillSearch(''); }}
+                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm text-base-content/70">
+                            Start typing to see matching skills, then click to add.
+                          </span>
+                        </div>
+                      </div>
 
+                      {/* Interests box with its own dropdown */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold mb-2">Interests</h4>
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
+                          <div className="w-full max-w-xs">
+                            <input
+                              placeholder="Search interest (e.g. Baking) and click from dropdown"
+                              value={interestSearch}
+                              onChange={(e) => setInterestSearch(e.target.value)}
+                              className="input input-bordered w-full"
+                            />
+                            {filteredInterestSuggestions.length > 0 && (
+                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
+                                {filteredInterestSuggestions.map((s) => (
+                                  <button
+                                    type="button"
+                                    key={s}
+                                    onClick={() => { addSkillToDraft(s); setInterestSearch(''); }}
+                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-sm text-base-content/70">
+                            Start typing to see matching interests, then click to add.
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Separate box for custom skills/interests without dropdown */}
+                      <div className="flex flex-col md:flex-row items-start md:items-center gap-2 mb-4">
                         <input
-                          placeholder="Add custom skill"
-                          value={newSkillInput}
-                          onChange={(e) => setNewSkillInput(e.target.value)}
+                          placeholder="Add custom skill or interest"
+                          value={customSkillInput}
+                          onChange={(e) => setCustomSkillInput(e.target.value)}
                           className="input input-bordered w-full max-w-xs"
                         />
                         <button
                           type="button"
-                          onClick={() => { addSkillToDraft(newSkillInput.trim()); setNewSkillInput(''); }}
-                          className="btn btn-sm"
+                          onClick={() => {
+                            const trimmed = customSkillInput.trim();
+                            if (trimmed) {
+                              addSkillToDraft(trimmed);
+                              setCustomSkillInput('');
+                            }
+                          }}
+                          className="btn btn-sm btn-primary"
                         >
                           Add
                         </button>
@@ -458,6 +664,13 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Availability Settings Modal */}
+      <AvailabilitySettings
+        isOpen={showAvailabilitySettings}
+        onClose={() => setShowAvailabilitySettings(false)}
+        currentUser={authUser}
+      />
     </div>
   );
 };

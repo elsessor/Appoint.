@@ -1,6 +1,11 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
+<<<<<<< HEAD
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, FileText, MessageCircle } from "lucide-react"; // ✅ Add FileText and MessageCircle
+=======
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
+import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
+>>>>>>> origin/main
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -40,13 +45,34 @@ const Sidebar = () => {
         </Link>
 
         <Link
-          to="/notifications"
+          to="/appointments"
           className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/notifications" ? "btn-active" : ""
+            currentPath === "/appointments" ? "btn-active" : ""
           }`}
         >
-          <BellIcon className="size-5 text-base-content opacity-70" />
-          <span>Notifications</span>
+          <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
+          <span>Appointments</span>
+        </Link> 
+
+        <Link
+          to="/booking"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/booking" ? "btn-active" : ""
+          }`}
+        >
+          <CalendarIcon className="size-5 text-base-content opacity-70" />
+          <span>Book Appointment</span>
+        </Link>
+
+
+        <Link
+          to="/settings"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/settings" ? "btn-active" : ""
+          }`}
+        >
+          <SettingsIcon className="size-5 text-base-content opacity-70" />
+          <span>Settings</span>
         </Link>
 
         <Link
@@ -69,16 +95,25 @@ const Sidebar = () => {
         <div className="flex items-center gap-3">
           <Link to="/profile" className="avatar">
             <div className="w-10 rounded-full cursor-pointer">
-              <img src={authUser?.profilePic} alt="User Avatar" />
+              <img 
+                src={authUser?.profilePic || '/default-profile.svg'} 
+                alt="User Avatar"
+                onError={(e) => {
+                  e.target.src = '/default-profile.svg';
+                }}
+              />
             </div>
           </Link>
-          <div className="flex-1">
-            <p className="font-semibold text-sm">{authUser?.fullName}</p>
-            <p className="text-xs text-success flex items-center gap-1">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate">{authUser?.fullName}</p>
+            <p className="text-xs text-success flex items-center gap-1 mt-1">
               <span className="size-2 rounded-full bg-success inline-block" />
               Online
             </p>
           </div>
+          
+          {/* Availability Status Toggle */}
+          <AvailabilityStatusToggle currentUser={authUser} />
         </div>
       </div>
     </aside>

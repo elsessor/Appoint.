@@ -7,10 +7,14 @@ import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
+import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx"; 
 import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
 import ChatsPage from "./pages/ChatsPage.jsx";
+import SettingPage from "./pages/SettingPage.jsx";
+import FriendsPage from "./pages/FriendsPage.jsx";
 
 import { Toaster } from "react-hot-toast";
 
@@ -18,6 +22,7 @@ import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
+import useRealtimeNotifications from "./hooks/useRealtimeNotifications.js";
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -25,6 +30,8 @@ const App = () => {
 
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnboarded;
+
+  useRealtimeNotifications(isAuthenticated && isOnboarded);
 
   if (isLoading) return <PageLoader />;
 
@@ -107,6 +114,33 @@ const App = () => {
   }
 />
 
+
+        <Route
+          path="/booking"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <AppointmentBookingPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
+        <Route
+          path="/appointments"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <AppointmentsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
         <Route
           path="/onboarding"
           element={
@@ -140,6 +174,18 @@ const App = () => {
             isAuthenticated && isOnboarded ? (
               <Layout showSidebar>
                 <MeetingMinutesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <SettingPage />
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />

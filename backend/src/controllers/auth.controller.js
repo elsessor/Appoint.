@@ -33,6 +33,22 @@ export async function signup(req, res) {
       fullName,
       password,
       profilePic: randomAvatar,
+      availability: {
+        days: [1, 2, 3, 4, 5],
+        start: "09:00",
+        end: "17:00",
+        slotDuration: 30,
+        buffer: 15,
+        maxPerDay: 5,
+        breakTimes: [],
+        minLeadTime: 0,
+        cancelNotice: 0,
+        appointmentDuration: {
+          min: 15,
+          max: 120,
+        },
+      },
+      availabilityStatus: "available",
     });
 
     try {
@@ -78,6 +94,29 @@ export async function login(req, res) {
     const isPasswordCorrect = await user.matchPassword(password);
     if (!isPasswordCorrect) return res.status(401).json({ message: "Invalid email or password" });
 
+    // Handle pending deletion / grace period
+    const now = new Date();
+    let deletionCancellation = null;
+
+    if (user.isDeletionPending && user.deletionScheduledFor) {
+      if (user.deletionScheduledFor <= now) {
+        // Grace period is over – account should have been deleted
+        return res.status(410).json({ message: "This account has been permanently deleted." });
+      } else {
+        // Still in grace period – cancel deletion
+        user.isDeletionPending = false;
+        user.deletionRequestedAt = null;
+        user.deletionScheduledFor = null;
+        await user.save();
+
+        deletionCancellation = {
+          cancelled: true,
+          message:
+            "You have prevented the deletion of your account. Your account is active again.",
+        };
+      }
+    }
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "7d",
     });
@@ -89,7 +128,7 @@ export async function login(req, res) {
       secure: process.env.NODE_ENV === "production",
     });
 
-    res.status(200).json({ success: true, user });
+    res.status(200).json({ success: true, user, deletionCancellation });
   } catch (error) {
     console.log("Error in login controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
