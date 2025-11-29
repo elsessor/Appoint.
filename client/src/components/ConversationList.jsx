@@ -74,7 +74,17 @@ const ConversationItem = ({ friend, isActive, chatClient }) => {
   const [lastMessageTime, setLastMessageTime] = useState("");
 
   useEffect(() => {
-    if (!chatClient) return;
+    // ✅ Guard: Check if chatClient and user are ready
+    if (!chatClient || !chatClient.user || !chatClient.user.id) {
+      console.log("Chat client not ready yet");
+      return;
+    }
+
+    // ✅ Add delay to prevent rate limiting
+    const timeoutId = setTimeout(() => {
+      checkOnlineStatus();
+      getLastMessage();
+    }, Math.random() * 1000); // Random delay 0-1 second
 
     const checkOnlineStatus = async () => {
       try {
@@ -89,6 +99,12 @@ const ConversationItem = ({ friend, isActive, chatClient }) => {
 
     const getLastMessage = async () => {
       try {
+        // ✅ Ensure user is connected before accessing user.id
+        if (!chatClient.user || !chatClient.user.id) {
+          console.log("User not connected yet");
+          return;
+        }
+
         // Get channel ID (same logic as in ChatsPage)
         const currentUserId = chatClient.user.id;
         const channelId = [currentUserId, friend._id].sort().join("-");
@@ -156,9 +172,10 @@ const ConversationItem = ({ friend, isActive, chatClient }) => {
     chatClient.on('user.presence.changed', handleEvent);
 
     return () => {
+      clearTimeout(timeoutId); // ✅ Clear timeout on unmount
       chatClient.off('user.presence.changed', handleEvent);
     };
-  }, [chatClient, friend._id]);
+  }, [chatClient, chatClient?.user?.id, friend._id]); // ✅ Add user.id as dependency
 
   const unreadCount = 0; // You can implement unread count later
 

@@ -191,6 +191,17 @@ const App = () => {
             )
           }
         />
+
+        <Route
+          path="/call/:channelId"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <CallPage />
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
         
       </Routes>
 

@@ -1,6 +1,6 @@
+// backend/src/controllers/meeting.controller.js
 import MeetingMinutes from "../models/MeetingMinutes.js";
 import { generateMeetingMinutes } from "../lib/gemini.js";
-
 
 export async function createMeetingMinutes(req, res) {
   try {
@@ -10,7 +10,8 @@ export async function createMeetingMinutes(req, res) {
       transcript,
       startTime,
       endTime,
-      duration 
+      duration,
+      title
     } = req.body;
     
     const currentUserId = req.user._id;
@@ -20,13 +21,13 @@ export async function createMeetingMinutes(req, res) {
     }
 
     // Generate AI summary
-    console.log("Generating meeting minutes with AI...");
     const aiResult = await generateMeetingMinutes(transcript);
     
     // Create meeting minutes
     const minutes = await MeetingMinutes.create({
       callId,
       participants: [currentUserId, targetUserId],
+      title: title || "Meeting Summary",
       startTime,
       endTime,
       duration,
@@ -40,11 +41,10 @@ export async function createMeetingMinutes(req, res) {
     
     await minutes.populate('participants', 'fullName profilePic email');
     
-    console.log("Meeting minutes created successfully");
     res.status(201).json(minutes);
   } catch (error) {
     console.error("Error creating meeting minutes:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
   }
 }
 
@@ -102,7 +102,6 @@ export async function deleteMeetingMinutes(req, res) {
     
     await MeetingMinutes.findByIdAndDelete(id);
     
-    console.log(`Meeting minutes ${id} deleted by user ${userId}`);
     res.status(200).json({ message: "Meeting minutes deleted successfully" });
   } catch (error) {
     console.error("Error deleting meeting minutes:", error);

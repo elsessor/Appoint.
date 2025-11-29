@@ -61,7 +61,7 @@ const FriendRow = ({ friend }) => {
           <div className="mt-3 flex items-center gap-2">
             <div className="flex-1">
               <Link
-                to={`/chat/${friend._id || friend.id}`}
+                to={`/chats/${friend._id || friend.id}`}
                 className="flex items-center input input-bordered input-sm bg-base-200 text-sm"
               >
                 Message

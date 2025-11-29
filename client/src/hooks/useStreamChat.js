@@ -6,68 +6,85 @@ import useAuthUser from "./useAuthUser";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
-let chatClientInstance = null;
-let isConnecting = false; // ✅ Prevent concurrent connections
-
 const useStreamChat = () => {
-  const [chatClient, setChatClient] = useState(chatClientInstance);
+  const [chatClient, setChatClient] = useState(null);
   const { authUser } = useAuthUser();
 
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
+  const { data: tokenData, isLoading: tokenLoading } = useQuery({
+    queryKey: ["streamToken", authUser?._id], // ✅ Invalidate on user change
     queryFn: getStreamToken,
     enabled: !!authUser,
-    staleTime: 1000 * 60 * 60, // ✅ Cache token for 1 hour
+    staleTime: 1000 * 60 * 5, // ✅ Shorter cache - 5 min
+    retry: 2,
   });
 
   useEffect(() => {
+    let mounted = true;
+    let client = null;
+
     const initChat = async () => {
-      // ✅ Guard against multiple calls
-      if (!tokenData?.token || !authUser || isConnecting) {
+      if (!tokenData?.token || !authUser?._id || tokenLoading) {
+        console.log("⏳ Waiting for token and auth user...");
         return;
       }
 
-      // ✅ If already connected to this user, reuse
-      if (chatClientInstance?.userID === authUser._id) {
-        setChatClient(chatClientInstance);
-        return;
-      }
+      const userId = authUser._id.toString();
 
       try {
-        isConnecting = true;
-        console.log("Initializing stream chat client...");
+        console.log("🔄 Initializing fresh Stream chat for:", userId);
 
-        // ✅ Disconnect previous user if exists
-        if (chatClientInstance) {
-          console.log("Disconnecting previous user...");
-          await chatClientInstance.disconnectUser();
-          chatClientInstance = null;
-        }
+        // ✅ ALWAYS create a brand new client - no caching, no getInstance
+        client = new StreamChat(STREAM_API_KEY, {
+          timeout: 10000,
+          enableInsights: false,
+          enableWSFallback: true, // ✅ Use HTTP fallback if WebSocket fails
+        });
 
-        const client = StreamChat.getInstance(STREAM_API_KEY);
-
+        console.log("🔌 Connecting user...");
+        
         await client.connectUser(
           {
-            id: authUser._id.toString(), // ✅ Ensure string
+            id: userId,
             name: authUser.fullName,
+            // DON'T send image - it's too large and causes connection failures
+            // image: authUser.profilePic || undefined,
           },
           tokenData.token
         );
 
-        chatClientInstance = client;
-        setChatClient(client);
-        console.log("Stream chat connected successfully!");
+        if (mounted) {
+          console.log("✅ Stream chat connected successfully!");
+          setChatClient(client);
+        }
       } catch (error) {
-        console.error("Error initializing chat:", error);
-        chatClientInstance = null;
-        setChatClient(null);
-      } finally {
-        isConnecting = false; // ✅ Reset flag
+        console.error("❌ Error initializing chat:", error);
+        
+        // ✅ Clean up failed connection
+        if (client) {
+          try {
+            await client.disconnectUser();
+          } catch (e) {
+            // Ignore disconnect errors
+          }
+        }
+        
+        if (mounted) {
+          setChatClient(null);
+        }
       }
     };
 
     initChat();
-  }, [tokenData?.token, authUser?._id]); // ✅ Only depend on token and user ID
+
+    // ✅ Cleanup on unmount or dependency change
+    return () => {
+      mounted = false;
+      if (client) {
+        console.log("🧹 Cleaning up Stream client");
+        client.disconnectUser().catch(() => {});
+      }
+    };
+  }, [tokenData?.token, authUser?._id, tokenLoading]);
 
   return chatClient;
 };

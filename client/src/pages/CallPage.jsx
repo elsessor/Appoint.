@@ -18,12 +18,14 @@ import {
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import toast from "react-hot-toast";
 import PageLoader from "../components/PageLoader";
-import { Mic, MicOff, FileText } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 const CallPage = () => {
-  const { id: callId } = useParams();
+  const params = useParams();
+  const callId = params.id || params.channelId || params.callId;
+  
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
   const [isConnecting, setIsConnecting] = useState(true);
@@ -110,9 +112,10 @@ const CallContent = ({ callId, authUser }) => {
   const createMinutesMutation = useMutation({
     mutationFn: createMeetingMinutes,
     onSuccess: () => {
-      toast.success("Meeting minutes generated successfully!");
+      toast.success("Meeting minutes generated successfully! Check the Meeting Minutes page.");
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error creating minutes:", error);
       toast.error("Failed to generate meeting minutes");
     },
   });
@@ -256,7 +259,33 @@ const CallContent = ({ callId, authUser }) => {
         console.log("Recognition already stopped");
       }
     }
-    return navigate("/");
+    
+    // Show option to create meeting minutes after call
+    return (
+      <div className="h-screen flex items-center justify-center bg-base-100">
+        <div className="card bg-base-200 shadow-xl max-w-md">
+          <div className="card-body">
+            <h2 className="card-title">Call Ended</h2>
+            <p>Would you like to create meeting minutes for this call?</p>
+            
+            <div className="card-actions justify-end mt-4">
+              <button 
+                onClick={() => navigate("/")} 
+                className="btn btn-ghost"
+              >
+                No, Go Home
+              </button>
+              <button 
+                onClick={() => navigate(`/create-minutes/${callId}`)} 
+                className="btn btn-primary"
+              >
+                Create Meeting Minutes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -290,7 +319,7 @@ const CallContent = ({ callId, authUser }) => {
             <div className="card bg-base-200 shadow-lg max-w-xs max-h-40 overflow-y-auto">
               <div className="card-body p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-4 h-4" />
+                  <Mic className="w-4 h-4" />
                   <span className="text-xs font-semibold">Live Transcript</span>
                 </div>
                 <p className="text-xs text-gray-300 whitespace-pre-wrap">{transcript}</p>
