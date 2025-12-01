@@ -101,6 +101,16 @@ export async function markNotificationsRead() {
   return response.data;
 }
 
+export async function getNotifications() {
+  const response = await axiosInstance.get("/notifications");
+  return response.data;
+}
+
+export async function markNotificationAsRead(notificationId) {
+  const response = await axiosInstance.put(`/notifications/${notificationId}/read`);
+  return response.data;
+}
+
 export const createAppointment = async (appointmentData) => {
   const response = await axiosInstance.post('/appointments', appointmentData);
   return response.data;
@@ -120,6 +130,11 @@ export const getAppointments = async () => {
   const response = await axiosInstance.get('/appointments');
   return response.data;
 };
+
+export async function getUserAvailability(userId) {
+  const response = await axiosInstance.get(`/appointments/availability/${userId}`);
+  return response.data;
+}
 
 export const getFriendAppointments = async (friendId) => {
   const response = await axiosInstance.get(`/appointments/friend/${friendId}`);
@@ -166,33 +181,43 @@ export const logout = async () => {
   return response.data;
 };
 
-export const getNotifications = async () => {
-  const response = await axiosInstance.get("/notifications");
+export async function getMySettings() {
+  const response = await axiosInstance.get("/users/me/settings");
   return response.data;
-};
+}
 
-export const markNotificationAsRead = async (id) => {
-  const response = await axiosInstance.put(`/notifications/${id}/read`);
+export async function updateMySettings(settings) {
+  // settings: { notifications?, privacy?, videoAudio? }
+  const response = await axiosInstance.put("/users/me/settings", settings);
   return response.data;
-};
+}
 
-export const markAllNotificationsAsRead = async () => {
-  const response = await axiosInstance.put("/notifications/read-all");
+export async function changePassword(payload) {
+  const response = await axiosInstance.put("/users/me/password", payload);
   return response.data;
-};
+}
 
-// Availability endpoints
-export const saveAvailability = async (availabilityData) => {
-  const response = await axiosInstance.post("/appointments/availability", availabilityData);
+export async function deleteMyAccount(payload) {
+  const response = await axiosInstance.delete("/users/me", { data: payload });
   return response.data;
-};
+}
 
-export const getUserAvailability = async (userId) => {
-  const response = await axiosInstance.get(`/appointments/availability/${userId}`);
+export async function updateProfilePicture(payload) {
+  const response = await axiosInstance.put("/users/me/profile-picture", payload);
   return response.data;
-};
+}
+
+export async function getMyProfile() {
+  const response = await axiosInstance.get("/users/me/profile");
+  return response.data;
+}
+
+export async function updateMyProfile(payload) {
+  const response = await axiosInstance.put("/users/me/profile", payload);
+  return response.data;
+}
 
 export async function getFriendProfile(friendId) {
   const response = await axiosInstance.get(`/users/${friendId}`);
   return response.data;
-}
+};

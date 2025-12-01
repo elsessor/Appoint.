@@ -66,11 +66,17 @@ const Calendar = ({
     return friend?.name || friend?.fullName || 'Friend';
   };
 
-  // Get owner ID for appointment
-  const getAppointmentOwnerId = (appointment) => {
+  // Get owner IDs for appointment (both participants in multi-calendar mode)
+  const getAppointmentOwnerIds = (appointment) => {
     const userId = appointment.userId?._id || appointment.userId;
     const friendId = appointment.friendId?._id || appointment.friendId;
-    return userId || friendId;
+    return [userId, friendId].filter(id => id); // Return both participant IDs
+  };
+
+  // Get primary owner ID for coloring
+  const getAppointmentOwnerId = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    return userId; // Return the person who booked it
   };
 
   // Check if friend is visible
@@ -450,7 +456,14 @@ const Calendar = ({
                   {hasAppts && (
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
-                        .filter(appt => isFriendVisible(getAppointmentOwnerId(appt)))
+                        .filter(appt => {
+                          // In multi-calendar mode, show appointment if any participant is visible
+                          if (isMultiCalendarMode) {
+                            return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                          }
+                          // In single calendar mode, show all appointments
+                          return true;
+                        })
                         .slice(0, 2)
                         .map((appt) => {
                           const ownerId = getAppointmentOwnerId(appt);
@@ -478,9 +491,19 @@ const Calendar = ({
                           );
                         })}
                       
-                      {getAppointmentsForDate(day).filter(appt => isFriendVisible(getAppointmentOwnerId(appt))).length > 2 && (
+                      {getAppointmentsForDate(day).filter(appt => {
+                        if (isMultiCalendarMode) {
+                          return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                        }
+                        return true;
+                      }).length > 2 && (
                         <div className="text-xs text-gray-400 text-center">
-                          +{getAppointmentsForDate(day).filter(appt => isFriendVisible(getAppointmentOwnerId(appt))).length - 2} more
+                          +{getAppointmentsForDate(day).filter(appt => {
+                            if (isMultiCalendarMode) {
+                              return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                            }
+                            return true;
+                          }).length - 2} more
                         </div>
                       )}
                     </div>
@@ -498,9 +521,13 @@ const Calendar = ({
           date={selectedDate}
           appointments={getAppointmentsForDate(selectedDate)}
           onClose={() => setSelectedDate(null)}
-          onCreateAppointment={handleCreateAppointment}
+          onCreateAppointment={onAppointmentCreate}
           isHoliday={getHolidayName(selectedDate, phHolidays)}
           currentUser={currentUser}
+          friends={friends}
+          availability={availability}
+          friendsAvailability={friendsAvailability}
+          viewingFriendId={viewingFriendId}
         />
       )}
 
@@ -521,6 +548,7 @@ const Calendar = ({
           currentUser={currentUser}
           availability={availability}
           friendsAvailability={friendsAvailability}
+          currentUserStatus={currentUser?.availabilityStatus || 'available'}
         />
       )}
     </div>

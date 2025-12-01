@@ -95,8 +95,8 @@ const CalendarSidebar = ({
 
         {/* Day Headers */}
         <div className="grid grid-cols-7 gap-0.5 mb-1">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-            <div key={day} className="text-center text-xs font-medium text-base-content/60 py-1">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+            <div key={`day-header-${index}`} className="text-center text-xs font-medium text-base-content/60 py-1">
               {day}
             </div>
           ))}

@@ -229,6 +229,21 @@ const AppointmentsPage = () => {
     }
   };
 
+  // Helper: Get the other user in the appointment (not the current user)
+  const getOtherUser = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const appointmentUserId = appointment.userId?._id || appointment.userId;
+    // If current user created the appointment, show the friend
+    // Otherwise show the user who created it
+    return appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
+  };
+
+  // Helper: Get other user's profile picture with fallback
+  const getOtherUserProfilePic = (appointment) => {
+    const otherUser = getOtherUser(appointment);
+    return (otherUser?.profilePic?.trim()) ? otherUser.profilePic : '/default-profile.svg';
+  };
+
   if (isLoading) {
     return <PageLoader />;
   }
@@ -324,17 +339,14 @@ const AppointmentsPage = () => {
                     >
                       <div className="flex items-start gap-3 mb-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                          {requester?.profilePic ? (
-                            <img
-                              src={requester.profilePic}
-                              alt={requester.fullName}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm">
-                              {(requester?.fullName || 'U')[0].toUpperCase()}
-                            </div>
-                          )}
+                          <img
+                            src={requester?.profilePic || '/default-profile.svg'}
+                            alt={requester.fullName}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = '/default-profile.svg';
+                            }}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-base-content truncate">

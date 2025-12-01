@@ -10,6 +10,13 @@ import {
   markNotificationsRead,
   sendFriendRequest,
   unfriend,
+  getMySettings,
+  updateMySettings,
+  changePassword,
+  deleteMyAccount,
+  updateProfilePicture,
+  getMyProfile,
+  updateMyProfile,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -24,6 +31,17 @@ router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
 router.delete("/friend/:id", unfriend);
 router.put("/notifications/read", markNotificationsRead);
+
+// Settings
+router.get("/me/settings", getMySettings);
+router.put("/me/settings", updateMySettings);
+router.put("/me/password", changePassword);
+router.put("/me/profile-picture", updateProfilePicture);
+router.delete("/me", deleteMyAccount);
+
+// Profile
+router.get("/me/profile", getMyProfile);
+router.put("/me/profile", updateMyProfile);
 
 router.get("/", getRecommendedUsers);
 router.get("/:id", getUserById);

@@ -492,30 +492,40 @@ export async function getUserAvailability(req, res) {
 
     const user = await User.findById(userId);
 
-    if (!user || !user.availability) {
+    // Default availability for users who haven't customized their settings
+    const defaultAvailability = {
+      days: [1, 2, 3, 4, 5],
+      start: "09:00",
+      end: "17:00",
+      slotDuration: 30,
+      buffer: 15,
+      maxPerDay: 5,
+      breakTimes: [],
+      minLeadTime: 0,
+      cancelNotice: 0,
+      appointmentDuration: {
+        min: 15,
+        max: 120,
+      },
+    };
+
+    // If user doesn't exist or has no availability settings, return defaults with 'available' status
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if availability exists and has the required fields
+    if (!user.availability || !user.availability.days || !user.availability.start || !user.availability.end) {
       return res.status(200).json({
-        availability: {
-          days: [1, 2, 3, 4, 5],
-          start: "09:00",
-          end: "17:00",
-          slotDuration: 30,
-          buffer: 15,
-          maxPerDay: 5,
-          breakTimes: [],
-          minLeadTime: 0,
-          cancelNotice: 0,
-          appointmentDuration: {
-            min: 15,
-            max: 120,
-          },
-        },
-        availabilityStatus: "available",
+        availability: defaultAvailability,
+        availabilityStatus: user.availabilityStatus || "available",
       });
     }
 
+    // User has custom availability settings
     res.status(200).json({
       availability: user.availability,
-      availabilityStatus: user.availabilityStatus,
+      availabilityStatus: user.availabilityStatus || "available",
     });
   } catch (error) {
     console.error("Error in getUserAvailability controller", error.message);

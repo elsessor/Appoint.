@@ -70,9 +70,21 @@ const AppointmentDetails = ({
               >
                 <ArrowLeft className="w-5 h-5 text-base-content/70" />
               </button>
+              {professional && (
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                  <img
+                    src={(professional.profilePic && professional.profilePic.trim()) ? professional.profilePic : '/default-profile.svg'}
+                    alt={professional.fullName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/default-profile.svg';
+                    }}
+                  />
+                </div>
+              )}
               <div>
-                <h1 className="text-2xl font-bold text-base-content">Appointment Details</h1>
-                <p className="text-sm text-base-content/60 mt-1">View and manage your appointment</p>
+                <h1 className="text-2xl font-bold text-base-content">{appointment.title || 'Appointment'}</h1>
+                <p className="text-sm text-base-content/60 mt-1">{appointmentDateStr} at {appointmentTime}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -158,7 +170,7 @@ const AppointmentDetails = ({
                   <Clock className="w-10 h-10 text-primary" />
                   <div>
                     <p className="text-base-content/60 text-sm">Duration</p>
-                    <p className="text-base-content font-medium">30 minutes</p>
+                    <p className="text-base-content font-medium">{appointment.duration || 30} minutes</p>
                   </div>
                 </div>
               </div>
@@ -239,11 +251,11 @@ const AppointmentDetails = ({
                 <div className="flex flex-col items-center text-center mb-6">
                   <div className="w-20 h-20 rounded-full overflow-hidden mb-3">
                     <img
-                      src={(professional.profilePic && professional.profilePic.trim()) ? professional.profilePic : '/default-profile.png'}
+                      src={(professional.profilePic && professional.profilePic.trim()) ? professional.profilePic : '/default-profile.svg'}
                       alt={professional.fullName}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = '/default-profile.png';
+                        e.target.src = '/default-profile.svg';
                       }}
                     />
                   </div>
@@ -326,7 +338,13 @@ const AppointmentDetails = ({
                 )}
                 <div>
                   <p className="text-base-content/60 mb-1">Reminder</p>
-                  <p className="text-base-content">15 minutes before</p>
+                  <p className="text-base-content">
+                    {appointment.reminder === 1440 ? '1 day before' :
+                     appointment.reminder === 120 ? '2 hours before' :
+                     appointment.reminder === 60 ? '1 hour before' :
+                     appointment.reminder ? `${appointment.reminder} minutes before` :
+                     'No reminder'}
+                  </p>
                 </div>
               </div>
             </div>

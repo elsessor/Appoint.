@@ -215,7 +215,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
   const [showSchedule, setShowSchedule] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
-  const avatar = friend.profilePic || friend.avatar || "/default-profile.png";
+  const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
   const native = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
   const status = (friend.availabilityStatus || "available").toLowerCase();
