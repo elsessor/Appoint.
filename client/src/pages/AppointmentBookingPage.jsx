@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, memo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router';
 import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
@@ -21,7 +22,9 @@ const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
   const queryClient = useQueryClient();
   const searchBarRef = useRef(null);
-  const [viewingFriendId, setViewingFriendId] = useState(null);
+  const [searchParams] = useSearchParams();
+  const friendIdParam = searchParams.get('friendId');
+  const [viewingFriendId, setViewingFriendId] = useState(friendIdParam || null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);

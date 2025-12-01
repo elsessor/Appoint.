@@ -38,6 +38,36 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["pending", "scheduled", "confirmed", "completed", "cancelled", "declined"],
       default: "pending",
     },
+    // List of users who actually attended/joined the appointment
+    attendedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    // Ratings and feedback left by participants after completion
+    ratings: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        rating: {
+          type: Number,
+          min: 1,
+          max: 5,
+        },
+        feedback: {
+          type: String,
+          default: "",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     declinedReason: {
       type: String,
       default: "",

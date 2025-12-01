@@ -38,7 +38,7 @@ const NotificationsPage = () => {
 
   // Filter appointment notifications from the notifications array
   const appointmentNotifications = useMemo(() => {
-    return notifications.filter((notification) => notification.type === 'appointment');
+    return notifications.filter((notification) => notification.type === 'appointment' || notification.type === 'rating');
   }, [notifications]);
 
   const { mutate: markAsRead } = useMutation({

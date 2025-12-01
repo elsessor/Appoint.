@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
@@ -6,7 +6,13 @@ import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
+
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    navigate("/homepage");
+  };
 
   return (
     <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
@@ -20,15 +26,15 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        <Link
-          to="/"
+        <button
+          onClick={handleHomeClick}
           className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/" ? "btn-active" : ""
+            currentPath === "/homepage" ? "btn-active" : ""
           }`}
         >
           <HomeIcon className="size-5 text-base-content opacity-70" />
           <span>Home</span>
-        </Link>
+        </button>
 
         <Link
           to="/friends"

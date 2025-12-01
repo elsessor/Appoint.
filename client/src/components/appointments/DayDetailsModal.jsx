@@ -81,6 +81,17 @@ const DayDetailsModal = ({
     return appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
   };
 
+  const getAttendanceBadge = (appointment) => {
+    if (!appointment || appointment.status !== 'completed') return null;
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${attended ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
+        {attended ? 'Joined' : 'Missed'}
+      </span>
+    );
+  };
+
   const handleCreateAppointment = () => {
     setShowAppointmentModal(true);
   };

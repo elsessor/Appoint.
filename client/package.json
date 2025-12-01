@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --open /landing",
+    "dev": "vite --open /",
     "dev:signup": "vite --open /signup",
     "build": "vite build",
     "lint": "eslint .",
