@@ -717,27 +717,62 @@ const AppointmentModal = ({
                             </div>
                           </div>
                           
-                          {/* Appointments on selected date */}
+                          {/* Max Appointments & Current Count */}
                           {(() => {
+                            const selectedFriend = friends.find(f => f._id === formData.friendId);
+                            const friendAvail = friendsAvailability[formData.friendId];
+                            const maxPerDay = friendAvail?.maxPerDay || selectedFriend?.availability?.maxPerDay || 5;
                             const appts = getAppointmentsForDate(parseISO(formData.startTime));
-                            if (appts.length === 0) return null;
+                            const isFull = appts.length >= maxPerDay;
                             
                             return (
-                              <div className="pt-3 border-t border-primary/20">
-                                <p className="text-xs text-base-content/70 font-medium mb-2 uppercase">Appointments on this date: {appts.length}</p>
-                                <div className="space-y-1">
-                                  {appts.map((appt, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
-                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                        appt.status === 'confirmed' ? 'bg-success' :
-                                        appt.status === 'pending' ? 'bg-warning' :
-                                        appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
-                                      }`}></div>
-                                      <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
-                                      <span className="text-base-content/60 flex-shrink-0">{typeof appt.startTime === 'string' ? format(parseISO(appt.startTime), 'h:mm a') : format(new Date(appt.startTime), 'h:mm a')}</span>
-                                    </div>
-                                  ))}
+                              <div className="pt-3 border-t border-primary/20 space-y-2">
+                                {/* Max appointments capacity bar */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                      isFull 
+                                        ? 'bg-error/20 text-error' 
+                                        : 'bg-success/20 text-success'
+                                    }`}>
+                                      {appts.length} / {maxPerDay}
+                                    </span>
+                                  </div>
+                                  {/* Capacity bar */}
+                                  <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all ${
+                                        appts.length === 0 ? 'bg-success' :
+                                        isFull ? 'bg-error' : 'bg-warning'
+                                      }`}
+                                      style={{ width: `${Math.min((appts.length / maxPerDay) * 100, 100)}%` }}
+                                    ></div>
+                                  </div>
+                                  {isFull && (
+                                    <p className="text-xs text-error font-medium">❌ This day is fully booked. Please select another date.</p>
+                                  )}
                                 </div>
+
+                                {/* Appointments on selected date */}
+                                {appts.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Appointments</p>
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                      {appts.map((appt, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
+                                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                            appt.status === 'confirmed' ? 'bg-success' :
+                                            appt.status === 'pending' ? 'bg-warning' :
+                                            appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
+                                          }`}></div>
+                                          <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
+                                          <span className="text-base-content/60 flex-shrink-0">{typeof appt.startTime === 'string' ? format(parseISO(appt.startTime), 'h:mm a') : format(new Date(appt.startTime), 'h:mm a')}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })()}

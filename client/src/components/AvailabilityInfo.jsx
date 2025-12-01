@@ -121,6 +121,16 @@ const AvailabilityInfo = ({ availability = {}, availabilityStatus = 'available' 
             </span>
           </div>
         )}
+
+        {/* Max Appointments Per Day */}
+        {availability.maxPerDay && (
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📊</span>
+            <span className="text-xs font-medium">
+              Max {availability.maxPerDay} appointment{availability.maxPerDay !== 1 ? 's' : ''} per day
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
