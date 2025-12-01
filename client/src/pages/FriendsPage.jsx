@@ -268,7 +268,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
 
           <div className="card-actions justify-between gap-2 mt-4">
             <Link
-              to={`/chat/${friend._id || friend.id}`}
+              to={`/chats/${friend._id || friend.id}`}
               className="btn btn-sm btn-primary flex-1"
             >
               <MessageCircle className="w-4 h-4" />

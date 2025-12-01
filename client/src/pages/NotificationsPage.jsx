@@ -1,9 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead } from "../lib/api";
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon } from "lucide-react";
+import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead, deleteNotification } from "../lib/api";
+import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon, TrashIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 import { format } from "date-fns";
+import { CheckCircle2 } from "lucide-react";
+
+
+const AllCaughtUpState = () => {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4">
+      <div className="relative">
+        <CheckCircle2 className="h-24 w-24 text-success animate-bounce" />
+        <div className="absolute -top-2 -right-2">
+
+        </div>
+      </div>
+      <h3 className="text-2xl font-bold mt-6 mb-2">You're All Caught Up!</h3>
+      <p className="text-base-content/70 text-center max-w-md">
+        No unread notifications. You're on top of everything!
+      </p>
+      <div className="mt-6 flex gap-2">
+        <div className="badge badge-success gap-2">
+          <CheckCircle2 className="h-3 w-3" />
+          Inbox Zero
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
@@ -29,6 +54,13 @@ const NotificationsPage = () => {
 
   const { mutate: markAsReadMutation } = useMutation({
     mutationFn: markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const { mutate: deleteNotificationMutation } = useMutation({
+    mutationFn: deleteNotification,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -167,16 +199,18 @@ const NotificationsPage = () => {
                   {filteredAppointments.map((notification) => (
                     <div
                       key={notification._id}
-                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        if (!notification.isRead) {
-                          markAsReadMutation(notification._id);
-                        }
-                      }}
+                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
                     >
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
+                          <div 
+                            className="avatar mt-1 size-10 rounded-full cursor-pointer flex-shrink-0"
+                            onClick={() => {
+                              if (!notification.isRead) {
+                                markAsReadMutation(notification._id);
+                              }
+                            }}
+                          >
                             <img
                               src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
                               alt={notification.senderId?.fullName || 'User'}
@@ -185,7 +219,14 @@ const NotificationsPage = () => {
                               }}
                             />
                           </div>
-                          <div className="flex-1">
+                          <div 
+                            className="flex-1 cursor-pointer"
+                            onClick={() => {
+                              if (!notification.isRead) {
+                                markAsReadMutation(notification._id);
+                              }
+                            }}
+                          >
                             <h3 className="font-semibold">{notification.title}</h3>
                             <p className="text-sm my-1">{notification.message}</p>
                             <p className="text-xs flex items-center opacity-70">
@@ -193,9 +234,28 @@ const NotificationsPage = () => {
                               {format(new Date(notification.createdAt), "MMM d, yyyy 'at' h:mm a")}
                             </p>
                           </div>
-                          {!notification.isRead && (
-                            <div className="badge badge-primary">New</div>
-                          )}
+                          <div className="flex items-center gap-2 self-center">
+  {!notification.isRead && (
+    <div className="badge badge-primary">New</div>
+  )}
+  <button
+    className="btn btn-ghost btn-sm p-2 text-error hover:bg-error/10 hover:scale-110 transition-all group relative"
+    onClick={(e) => {
+      e.stopPropagation();
+      if (confirm("Are you sure you want to delete this notification?")) {
+        deleteNotificationMutation(notification._id);
+      }
+    }}
+    aria-label="Delete notification"
+  >
+    <TrashIcon className="h-5 w-5" />
+    {/* Tooltip on hover */}
+    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-base-300 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+      Delete
+    </span>
+  </button>
+</div>
+
                         </div>
                       </div>
                     </div>
@@ -302,8 +362,12 @@ const NotificationsPage = () => {
             )}
 
             {hasNoNotifications && (
-              <NoNotificationsFound />
-            )}
+  activeFilter === "unread" ? (
+    <AllCaughtUpState />
+  ) : (
+    <NoNotificationsFound />
+  )
+)}
           </>
         )}
       </div>

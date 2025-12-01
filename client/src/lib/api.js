@@ -240,3 +240,14 @@ export async function getFriendProfile(friendId) {
   const response = await axiosInstance.get(`/users/${friendId}`);
   return response.data;
 };
+
+export const deleteNotification = async (notificationId) => {
+  const res = await fetch(`/api/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to delete notification");
+  }
+  return data;
+};
