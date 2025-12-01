@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getAdminDashboardStats,
   getAdminUsers,
-  updateAdminUserRole,
   deleteAdminUser,
   getAdminAppointments,
   deleteAdminAppointment,
@@ -53,17 +52,6 @@ const AdminDashboard = () => {
       }),
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }) => updateAdminUserRole(userId, role),
-    onSuccess: () => {
-      toast.success("User role updated");
-      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
-      queryClient.invalidateQueries({ queryKey: ["adminDashboard"] });
-    },
-    onError: (error) => {
-      toast.error(error.response?.data?.message || "Failed to update role");
-    },
-  });
 
   const deleteUserMutation = useMutation({
     mutationFn: deleteAdminUser,
@@ -89,10 +77,9 @@ const AdminDashboard = () => {
     },
   });
 
-  const handleRoleToggle = (userId, currentRole) => {
-    const nextRole = currentRole === "admin" ? "user" : "admin";
-    updateRoleMutation.mutate({ userId, role: nextRole });
-  };
+  // Note: Admin role changes are intentionally disabled in the UI.
+  // There can be only one admin. Role management must be performed
+  // by an authoritative process outside this dashboard.
 
   const stats = dashboardData?.stats || {};
 
@@ -210,25 +197,19 @@ const AdminDashboard = () => {
                               </div>
 
                               <div className="flex items-center gap-2">
-                                <span
-                                  className={`badge ${user.role === "admin" ? "badge-warning" : "badge-secondary"}`}
-                                >
-                                  {user.role || "user"}
-                                </span>
-                                <span
-                                  className={`badge ${user.isOnboarded ? "badge-success" : "badge-ghost"}`}
-                                >
-                                  {user.isOnboarded ? "Onboarded" : "Pending"}
-                                </span>
-                              </div>
+                                <div className="flex items-center gap-2 h-8">
+                                  <span
+                                    className={`badge ${user.role === "admin" ? "badge-warning" : "badge-secondary"} h-6 px-3 text-sm flex items-center`}
+                                  >
+                                    {user.role || "user"}
+                                  </span>
+                                  <span
+                                    className={`badge ${user.isOnboarded ? "badge-success" : "badge-ghost"} h-6 px-3 text-sm flex items-center`}
+                                  >
+                                    {user.isOnboarded ? "Onboarded" : "Pending"}
+                                  </span>
+                                </div>
 
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="btn btn-sm btn-outline"
-                                  onClick={() => handleRoleToggle(user._id, user.role)}
-                                >
-                                  {user.role === "admin" ? "Remove Admin" : "Make Admin"}
-                                </button>
                                 <button
                                   className="btn btn-sm btn-error btn-outline"
                                   onClick={() => deleteUserMutation.mutate(user._id)}
