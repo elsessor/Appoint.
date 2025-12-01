@@ -17,6 +17,7 @@ import {
   updateProfilePicture,
   getMyProfile,
   updateMyProfile,
+  updatePrivacyPreferences,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -38,6 +39,9 @@ router.put("/me/settings", updateMySettings);
 router.put("/me/password", changePassword);
 router.put("/me/profile-picture", updateProfilePicture);
 router.delete("/me", deleteMyAccount);
+
+// Preferences
+router.put("/preferences/privacy", updatePrivacyPreferences);
 
 // Profile
 router.get("/me/profile", getMyProfile);

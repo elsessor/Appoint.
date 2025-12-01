@@ -9,14 +9,25 @@ export async function getRecommendedUsers(req, res) {
     const currentUserId = req.user.id;
     const currentUser = req.user;
 
-    const recommendedUsers = await User.find({
+    // Get all users who are not the current user, not already friends, onboarded, and not pending deletion
+    let recommendedUsers = await User.find({
       $and: [
         { _id: { $ne: currentUserId } },
         { _id: { $nin: currentUser.friends } },
         { isOnboarded: true },
         { isDeletionPending: { $ne: true } },
       ],
+    }).lean();
+
+    // Filter out users with profileVisibility: 'private' unless the viewer is a friend
+    recommendedUsers = recommendedUsers.filter(user => {
+      if (user.preferences?.privacy?.profileVisibility === "private") {
+        // Only show if current user is a friend
+        return user.friends?.map(f => f.toString()).includes(currentUserId.toString());
+      }
+      return true; // public profiles
     });
+
     res.status(200).json(recommendedUsers);
   } catch (error) {
     console.error("Error in getRecommendedUsers controller", error.message);
@@ -27,12 +38,19 @@ export async function getRecommendedUsers(req, res) {
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
+    const viewerId = req.user?._id?.toString() || req.user?.id?.toString();
     const user = await User.findById(id).select("-password -email");
-    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+    // Privacy enforcement
+    if (user.preferences?.privacy?.profileVisibility === "private") {
+      const isFriend = user.friends?.map(f => f.toString()).includes(viewerId);
+      const isSelf = viewerId === user._id.toString();
+      if (!isFriend && !isSelf) {
+        return res.status(403).json({ message: "This profile is private." });
+      }
+    }
     res.status(200).json(user);
   } catch (error) {
     console.error("Error in getUserById controller", error.message);
@@ -230,6 +248,51 @@ export async function updateMySettings(req, res) {
     res.status(200).json(user.settings);
   } catch (error) {
     console.error("Error in updateMySettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updatePrivacyPreferences(req, res) {
+  try {
+    const userId = req.user.id;
+    const { appointmentRequestsFrom, showAvailability, profileVisibility } = req.body;
+
+    const validAppointmentRequestsFrom = ["everyone", "friends"];
+    const validShowAvailability = ["everyone", "friends", "nobody"];
+    const validProfileVisibility = ["public", "private"];
+
+    if (appointmentRequestsFrom && !validAppointmentRequestsFrom.includes(appointmentRequestsFrom)) {
+      return res.status(400).json({ message: "Invalid appointmentRequestsFrom value" });
+    }
+
+    if (showAvailability && !validShowAvailability.includes(showAvailability)) {
+      return res.status(400).json({ message: "Invalid showAvailability value" });
+    }
+
+    if (profileVisibility && !validProfileVisibility.includes(profileVisibility)) {
+      return res.status(400).json({ message: "Invalid profileVisibility value" });
+    }
+
+    // Use upsert-style update to ensure preferences object exists
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          "preferences.privacy.appointmentRequestsFrom": appointmentRequestsFrom || "everyone",
+          "preferences.privacy.showAvailability": showAvailability || "everyone",
+          "preferences.privacy.profileVisibility": profileVisibility || "public",
+        },
+      },
+      { new: true, upsert: false }
+    ).select("preferences");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ privacy: user.preferences?.privacy });
+  } catch (error) {
+    console.error("Error in updatePrivacyPreferences controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
