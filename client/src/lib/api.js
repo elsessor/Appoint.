@@ -181,6 +181,25 @@ export const logout = async () => {
   return response.data;
 };
 
+export const createMeetingMinutes = async (minutesData) => {
+  const response = await axiosInstance.post("/meetings/minutes", minutesData);
+  return response.data;
+};
+
+export const getUserMeetingMinutes = async () => {
+  const response = await axiosInstance.get("/meetings/my-minutes");
+  return response.data;
+};
+
+export const getMeetingMinutesById = async (id) => {
+  const response = await axiosInstance.get(`/meetings/minutes/${id}`);
+  return response.data;
+};
+
+export const deleteMeetingMinutes = async (id) => {
+  const response = await axiosInstance.delete(`/meetings/minutes/${id}`);
+  return response.data;
+};
 export async function getMySettings() {
   const response = await axiosInstance.get("/users/me/settings");
   return response.data;

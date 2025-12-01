@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
@@ -76,6 +76,21 @@ const Sidebar = () => {
           <SettingsIcon className="size-5 text-base-content opacity-70" />
           <span>Settings</span>
         </Link>
+
+        <Link
+         to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
+        <FileText className="size-5 text-base-content opacity-70" />
+        <span className="font-medium">Meeting Log</span>
+        </Link>
+        <Link
+  to="/chats"
+  className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+    currentPath.startsWith("/chats") ? "btn-active" : ""  // ✅ Highlight if on /chats
+  }`}
+>
+  <MessageCircle className="size-5 text-base-content opacity-70" />
+  <span>Messages</span>
+</Link>
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto">

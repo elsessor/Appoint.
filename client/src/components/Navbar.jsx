@@ -10,7 +10,7 @@ const Navbar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
   const navigate = useNavigate();
-  const isChatPage = location.pathname?.startsWith("/chat");
+  const isChatPage = location.pathname?.startsWith("/chat/") && !location.pathname?.startsWith("/chats");
   const isOnboarded = authUser?.isOnboarded;
 
   const { logoutMutation } = useLogout();
