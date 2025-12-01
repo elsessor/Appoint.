@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router';
 import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
+import TodaysAppointmentsModal from '../components/appointments/TodaysAppointmentsModal';
 
 // Memoize components for performance
 const MemoizedCalendar = memo(Calendar);
@@ -36,6 +37,7 @@ const AppointmentBookingPage = () => {
   const [showDesktopSidebar, setShowDesktopSidebar] = useState(true);
   const [expandTodayAppointments, setExpandTodayAppointments] = useState(true);
   const [expandSearchResults, setExpandSearchResults] = useState(false);
+  const [showTodaysAppointmentsModal, setShowTodaysAppointmentsModal] = useState(false);
   const [friendsAvailability, setFriendsAvailability] = useState({});
 
   // Get current user
@@ -243,10 +245,7 @@ const AppointmentBookingPage = () => {
   }, [updateAppointmentMutation]);
 
   const handleDeleteAppointment = useCallback((appointmentId, reason) => {
-    deleteAppointmentMutation.mutate({ 
-      id: appointmentId, 
-      cancellationReason: reason 
-    });
+    deleteAppointmentMutation.mutate(appointmentId);
   }, [deleteAppointmentMutation]);
 
   const handleAcceptAppointment = useCallback((appointmentId) => {
@@ -720,17 +719,17 @@ const AppointmentBookingPage = () => {
                 return (
                   <div 
                     key={appointment._id || appointment.id} 
-                    className={`p-4 border-2 rounded-lg transition-all ${
+                    className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${
                       isPending 
-                        ? 'bg-warning/20 border-warning hover:shadow-lg cursor-pointer' 
-                        : 'bg-base-200 border-base-300 hover:shadow-lg cursor-pointer'
+                        ? 'bg-warning/20 border-warning hover:shadow-lg' 
+                        : 'bg-base-200 border-base-300 hover:shadow-lg'
                     }`}
                     onClick={() => {
                       if (isPending) {
                         setSelectedRequest(appointment);
                         setShowRequestModal(true);
                       } else {
-                        setSelectedAppointmentDetail(appointment);
+                        setShowTodaysAppointmentsModal(true);
                       }
                     }}
                   >
@@ -829,6 +828,22 @@ const AppointmentBookingPage = () => {
           }}
         />
       )}
+
+      {/* Today's Appointments Modal */}
+      <TodaysAppointmentsModal
+        isOpen={showTodaysAppointmentsModal}
+        onClose={() => setShowTodaysAppointmentsModal(false)}
+        appointments={appointments}
+        currentUser={currentUser}
+        onEditAppointment={(appointment) => {
+          setShowTodaysAppointmentsModal(false);
+          console.log('Edit appointment:', appointment._id);
+        }}
+        onDeleteAppointment={(appointmentId) => {
+          handleDeleteAppointment(appointmentId);
+          setShowTodaysAppointmentsModal(false);
+        }}
+      />
     </div>
   );
 };

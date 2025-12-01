@@ -102,13 +102,23 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
       console.log('✅ Save successful, server returned:', {
         days: data.availability.days,
         start: data.availability.start,
+        status: data.availabilityStatus,
       });
+      
+      // Update local state
+      setAvailability(data.availability);
+      setAvailabilityStatus(data.availabilityStatus);
       
       // Update React Query cache with the server response
       queryClient.setQueryData(['userAvailability', currentUser._id], {
         availability: data.availability,
         availabilityStatus: data.availabilityStatus,
       });
+      
+      // Invalidate all availability-related queries to ensure UI updates everywhere
+      queryClient.invalidateQueries({ queryKey: ['availabilityStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['userAvailability'] });
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
       
       toast.success('Availability saved successfully!');
       
@@ -473,19 +483,27 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
 
               <div>
                 <label className="label">
-                  <span className="label-text font-medium">Max Per Day</span>
+                  <span className="label-text font-medium">Max Appointments Per Day</span>
+                  <span className="label-text-alt text-info text-xs">(1-20)</span>
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={availability.maxPerDay}
-                  onChange={(e) => setAvailability(prev => ({
-                    ...prev,
-                    maxPerDay: parseInt(e.target.value),
-                  }))}
-                  className="input input-bordered w-full"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={availability.maxPerDay}
+                    onChange={(e) => {
+                      const value = Math.max(1, Math.min(20, parseInt(e.target.value) || 5));
+                      setAvailability(prev => ({
+                        ...prev,
+                        maxPerDay: value,
+                      }));
+                    }}
+                    className="input input-bordered w-full"
+                  />
+                  <span className="text-xs text-base-content/60 whitespace-nowrap">{availability.maxPerDay} per day</span>
+                </div>
+                <p className="text-xs text-base-content/60 mt-1">Limit the number of appointments you can have on any single day</p>
               </div>
 
               <div>
@@ -697,6 +715,7 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
                 <li><strong>Break Times:</strong> Daily recurring breaks (e.g., lunch)</li>
                 <li><strong>Lead Time:</strong> Minimum hours before booking</li>
                 <li><strong>Cancel Notice:</strong> Hours required to cancel</li>
+                <li><strong>Max Per Day:</strong> Maximum appointments per day (1-20)</li>
               </ul>
             </div>
           </div>
