@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, AlertCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { axiosInstance } from '../lib/axios';
 
 const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {

@@ -37,6 +37,26 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    phone: {
+      type: String,
+      default: "",
+    },
+    twitter: {
+      type: String,
+      default: "",
+    },
+    github: {
+      type: String,
+      default: "",
+    },
+    linkedin: {
+      type: String,
+      default: "",
+    },
+    skills: {
+      type: [String],
+      default: [],
+    },
     isOnboarded: {
       type: Boolean,
       default: false,
@@ -47,42 +67,40 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
-    availabilityStatus: {
-      type: String,
-      enum: ["available", "limited", "away"],
-      default: "available",
+    settings: {
+      notifications: {
+        appointmentReminders: { type: Boolean, default: true },
+        newMessages: { type: Boolean, default: true },
+        appointmentRequests: { type: Boolean, default: true },
+        emailNotifications: { type: Boolean, default: true },
+        smsNotifications: { type: Boolean, default: false },
+        reminderTiming: { type: String, default: "15 minutes before" },
+      },
+      privacy: {
+        profileVisible: { type: Boolean, default: true },
+        onlineStatus: { type: Boolean, default: true },
+        readReceipts: { type: Boolean, default: true },
+      },
+      videoAudio: {
+        camera: { type: String, default: "Default Camera" },
+        microphone: { type: String, default: "Default Microphone" },
+        speaker: { type: String, default: "Default Speaker" },
+        hdVideo: { type: Boolean, default: false },
+        noiseCancellation: { type: Boolean, default: false },
+        autoStartVideo: { type: Boolean, default: false },
+        mirrorVideo: { type: Boolean, default: false },
+      },
     },
-    availability: {
-      days: [Number],
-      start: String,
-      end: String,
-      slotDuration: Number,
-      buffer: Number,
-      maxPerDay: Number,
-      breakTimes: [
-        {
-          start: String,
-          end: String,
-        },
-      ],
-      minLeadTime: {
-        type: Number,
-        default: 0, // hours before booking
-      },
-      cancelNotice: {
-        type: Number,
-        default: 0, // hours before appointment to cancel
-      },
-      appointmentDuration: {
-        min: {
-          type: Number,
-          default: 15, // minutes
-        },
-        max: {
-          type: Number,
-          default: 120, // minutes
-        },
-      },
+    // Soft delete / scheduled deletion
+    isDeletionPending: {
+      type: Boolean,
+      default: false,
+    },
+    deletionRequestedAt: {
+      type: Date,
+    },
+    deletionScheduledFor: {
+      type: Date,
     },
   },
   { timestamps: true }

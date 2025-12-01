@@ -177,9 +177,64 @@ export async function getAppointments(req, res) {
       .populate("friendId", "fullName profilePic email")
       .sort({ startTime: 1 });
 
+    // Auto-mark past appointments as completed (if not already completed/cancelled/declined)
+    try {
+      const now = new Date();
+      const updates = appointments.map(async (apt) => {
+        if (
+          apt.endTime &&
+          new Date(apt.endTime) < now &&
+          !["completed", "cancelled", "declined"].includes(apt.status)
+        ) {
+          apt.status = "completed";
+          await apt.save();
+        }
+      });
+      await Promise.all(updates);
+    } catch (err) {
+      console.warn("Failed to auto-complete appointments:", err?.message || err);
+    }
+
     res.status(200).json(appointments);
   } catch (error) {
     console.error("Error in getAppointments controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getFriendAppointments(req, res) {
+  try {
+    const { friendId } = req.params;
+
+    // Get ALL appointments for a specific friend (show their complete availability)
+    const appointments = await Appointment.find({
+      $or: [{ userId: friendId }, { friendId: friendId }],
+    })
+      .populate("userId", "fullName profilePic email")
+      .populate("friendId", "fullName profilePic email")
+      .sort({ startTime: 1 });
+
+    // Auto-mark past appointments as completed
+    try {
+      const now = new Date();
+      const updates = appointments.map(async (apt) => {
+        if (
+          apt.endTime &&
+          new Date(apt.endTime) < now &&
+          !["completed", "cancelled", "declined"].includes(apt.status)
+        ) {
+          apt.status = "completed";
+          await apt.save();
+        }
+      });
+      await Promise.all(updates);
+    } catch (err) {
+      console.warn("Failed to auto-complete friend appointments:", err?.message || err);
+    }
+
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error("Error in getFriendAppointments controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -195,6 +250,20 @@ export async function getAppointmentById(req, res) {
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Auto-mark single appointment as completed if its endTime has passed
+    try {
+      if (
+        appointment.endTime &&
+        new Date(appointment.endTime) < new Date() &&
+        !["completed", "cancelled", "declined"].includes(appointment.status)
+      ) {
+        appointment.status = "completed";
+        await appointment.save();
+      }
+    } catch (err) {
+      console.warn("Failed to auto-complete appointment:", err?.message || err);
     }
 
     // Check if user has access to this appointment
@@ -251,6 +320,34 @@ export async function updateAppointment(req, res) {
     if (description) appointment.description = description;
     if (meetingType) appointment.meetingType = meetingType;
     if (status) appointment.status = status;
+    // If client indicates they joined the meeting, add them to attendedBy
+    if (req.body.join === true) {
+      const already = appointment.attendedBy?.map(String).includes(userId);
+      if (!already) {
+        appointment.attendedBy = appointment.attendedBy || [];
+        appointment.attendedBy.push(userId);
+      }
+    }
+    // Handle rating + feedback (rating is number 1-5, feedback is string)
+    if (typeof req.body.rating !== 'undefined') {
+      const ratingValue = Number(req.body.rating);
+      const feedbackText = typeof req.body.feedback === 'string' ? req.body.feedback : '';
+
+      // ensure ratings array exists
+      appointment.ratings = appointment.ratings || [];
+
+      // check if current user already rated
+      const existingIndex = appointment.ratings.findIndex(r => (r.userId && r.userId.toString()) === userId);
+      if (existingIndex >= 0) {
+        // update existing
+        appointment.ratings[existingIndex].rating = ratingValue;
+        appointment.ratings[existingIndex].feedback = feedbackText;
+        appointment.ratings[existingIndex].createdAt = new Date();
+      } else {
+        // push new rating
+        appointment.ratings.push({ userId, rating: ratingValue, feedback: feedbackText, createdAt: new Date() });
+      }
+    }
     if (declinedReason) appointment.declinedReason = declinedReason;
     if (bookedBy) appointment.bookedBy = { ...appointment.bookedBy, ...bookedBy };
 
@@ -341,6 +438,42 @@ export async function updateAppointment(req, res) {
     }
 
     await appointment.populate(["userId", "friendId"]);
+
+    // If rating was provided in this update, create a notification for the other participant
+    try {
+      if (typeof req.body.rating !== 'undefined') {
+        const ratingValue = Number(req.body.rating);
+        const feedbackText = typeof req.body.feedback === 'string' ? req.body.feedback : '';
+
+        // Determine recipient (the other participant)
+        const apptUserId = (appointment.userId && appointment.userId._id) ? appointment.userId._id.toString() : (appointment.userId ? appointment.userId.toString() : null);
+        const apptFriendId = (appointment.friendId && appointment.friendId._id) ? appointment.friendId._id.toString() : (appointment.friendId ? appointment.friendId.toString() : null);
+        const currentUserId = userId;
+        let recipientId = null;
+        if (apptUserId && apptFriendId) {
+          recipientId = apptUserId === currentUserId ? apptFriendId : apptUserId;
+        }
+
+        if (recipientId) {
+          const sender = await User.findById(userId).select('fullName');
+          const shortFeedback = feedbackText ? (feedbackText.length > 120 ? feedbackText.slice(0, 117) + '...' : feedbackText) : '';
+          const message = shortFeedback
+            ? `${sender.fullName} rated the meeting ${ratingValue}⭐ — "${shortFeedback}"`
+            : `${sender.fullName} rated the meeting ${ratingValue}⭐`;
+
+          await createNotification({
+            recipientId,
+            senderId: userId,
+            type: 'rating',
+            title: 'New meeting rating',
+            message,
+            appointmentId: appointment._id,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to create rating notification:', err?.message || err);
+    }
 
     res.status(200).json(appointment);
   } catch (error) {
