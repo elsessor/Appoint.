@@ -3,6 +3,7 @@ import "dotenv/config";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { createServer } from "http";
+import path from "path";
 
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
@@ -16,6 +17,7 @@ import { initSocket } from "./lib/socket.js";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+const __dirname = path.resolve();
 const CLIENT_ORIGIN = process.env.CLIENT_URL || "http://localhost:5173";
 
 app.use(
@@ -35,6 +37,14 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../client/dist")));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../client", "dist", "index.html"));
+  });
+}
 
 const server = createServer(app);
 initSocket(server, CLIENT_ORIGIN);
