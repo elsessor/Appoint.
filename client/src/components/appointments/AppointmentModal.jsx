@@ -33,6 +33,7 @@ const AppointmentModal = ({
   onDelete = null,
   friendsAvailability = {},
   currentUserStatus = 'available',
+  currentUser = null,
   appointments = [],
   selectedDate = null,
 }) => {
@@ -187,6 +188,33 @@ const AppointmentModal = ({
     }
   }, [formData.friendId, friends]);
 
+  // ✅ Get appointments for the selected date AND selected friend (MUST be before generateTimeSlots)
+  const selectedDateAppointments = useMemo(() => {
+    if (!formData.startTime || !formData.friendId || appointments.length === 0) return [];
+    
+    try {
+      const selectedDateStr = formData.startTime.split('T')[0];
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        // Match date
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        
+        if (apptDateStr !== selectedDateStr) return false;
+        
+        // Match friend - check if this appointment involves the selected friend
+        const apptUserId = appt.userId?._id || appt.userId;
+        const apptFriendId = appt.friendId?._id || appt.friendId;
+        
+        return apptFriendId === formData.friendId || apptUserId === formData.friendId;
+      });
+    } catch (e) {
+      return [];
+    }
+  }, [formData.startTime, formData.friendId, appointments]);
+
   const generateTimeSlots = useMemo(() => {
     const slots = [];
     
@@ -264,14 +292,34 @@ const AppointmentModal = ({
           break;
         }
       }
+
+      // ✅ NEW: Check if this time slot is booked
+      let isBooked = false;
+      if (formData.friendId && selectedDateAppointments.length > 0) {
+        isBooked = selectedDateAppointments.some(appt => {
+          const apptStart = typeof appt.startTime === 'string' 
+            ? parseISO(appt.startTime)
+            : new Date(appt.startTime);
+          const apptEnd = typeof appt.endTime === 'string'
+            ? parseISO(appt.endTime)
+            : new Date(appt.endTime);
+          
+          const slotStart = new Date(current);
+          const slotEnd = addMinutes(slotStart, appointmentDuration);
+          
+          // Check if slot overlaps with existing appointment
+          return isBefore(slotStart, apptEnd) && isAfter(slotEnd, apptStart);
+        });
+      }
       
-      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime;
+      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked;
       
       let disabledReason = '';
       if (isPast) disabledReason = '(Past)';
       else if (!fitsInAvailableTime) disabledReason = '(Too late)';
       else if (!meetsLeadTime) disabledReason = `(Need ${minLeadTime}h notice)`;
       else if (isInBreakTime) disabledReason = '(Break time)';
+      else if (isBooked) disabledReason = '(Booked)';
       
       slots.push({ 
         time: slotTime24, 
@@ -283,27 +331,9 @@ const AppointmentModal = ({
     }
 
     return slots;
-  }, [availability, formData.startTime, initialDate, selectedFriendAvailability, formData.duration]);
+  }, [availability, formData.startTime, initialDate, selectedFriendAvailability, formData.duration, formData.friendId, selectedDateAppointments]);
 
   const timeSlots = generateTimeSlots;
-
-  // Get appointments for the selected date
-  const selectedDateAppointments = useMemo(() => {
-    if (!formData.startTime || appointments.length === 0) return [];
-    
-    try {
-      const selectedDateStr = formData.startTime.split('T')[0];
-      return appointments.filter(appt => {
-        if (!appt.startTime) return false;
-        const apptDateStr = typeof appt.startTime === 'string' 
-          ? appt.startTime.split('T')[0]
-          : format(new Date(appt.startTime), 'yyyy-MM-dd');
-        return apptDateStr === selectedDateStr;
-      });
-    } catch (e) {
-      return [];
-    }
-  }, [formData.startTime, appointments]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -342,6 +372,9 @@ const AppointmentModal = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Get current user ID for conflict checking
+    const currentUserId = currentUser?._id || currentUser?.id;
     
     // Check if current user is away
     if (currentUserStatus === 'away') {
@@ -459,6 +492,67 @@ const AppointmentModal = ({
       }
     }
 
+    // ✅ DOUBLE-BOOKING PREVENTION: Check for appointment time conflicts
+    // Check conflicts with selected friend's appointments
+    const friendConflict = selectedDateAppointments.some(existingAppt => {
+      const existingStart = typeof existingAppt.startTime === 'string' 
+        ? parseISO(existingAppt.startTime)
+        : new Date(existingAppt.startTime);
+      const existingEnd = typeof existingAppt.endTime === 'string'
+        ? parseISO(existingAppt.endTime)
+        : new Date(existingAppt.endTime);
+      
+      // Skip declined/cancelled appointments
+      if (['declined', 'cancelled'].includes(existingAppt.status)) return false;
+      
+      // Check if new appointment overlaps with existing appointment
+      // Overlap occurs if: new start < existing end AND new end > existing start
+      return isBefore(startDateTime, existingEnd) && isAfter(endDateTime, existingStart);
+    });
+
+    if (friendConflict) {
+      toast.error('This time slot is already booked by this friend. Please choose a different time.');
+      return;
+    }
+
+    // Also check current user's appointments on the same day to prevent double-booking themselves
+    const currentUserConflict = appointments.some(existingAppt => {
+      // Skip if this is an appointment between these two users (update scenario)
+      const apptUserId = existingAppt.userId?._id || existingAppt.userId;
+      const apptFriendId = existingAppt.friendId?._id || existingAppt.friendId;
+      if ((apptUserId === currentUserId && apptFriendId === formData.friendId) ||
+          (apptUserId === formData.friendId && apptFriendId === currentUserId)) {
+        return false; // Skip - this is the appointment being edited
+      }
+
+      // Only check current user's appointments
+      if (apptUserId !== currentUserId && apptFriendId !== currentUserId) return false;
+      
+      // Skip declined/cancelled appointments
+      if (['declined', 'cancelled'].includes(existingAppt.status)) return false;
+
+      if (!existingAppt.startTime) return false;
+      
+      try {
+        const existingStart = typeof existingAppt.startTime === 'string' 
+          ? parseISO(existingAppt.startTime)
+          : new Date(existingAppt.startTime);
+        const existingEnd = typeof existingAppt.endTime === 'string'
+          ? parseISO(existingAppt.endTime)
+          : new Date(existingAppt.endTime);
+        
+        // Check overlap
+        return isBefore(startDateTime, existingEnd) && isAfter(endDateTime, existingStart);
+      } catch (e) {
+        return false;
+      }
+    });
+
+    if (currentUserConflict) {
+      toast.error('You already have another appointment at this time. Please choose a different time.');
+      return;
+    }
+
     // All validations passed, move to summary step
     setStep(2);
   };
@@ -536,41 +630,41 @@ const AppointmentModal = ({
       <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
         <div className="w-screen max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 z-40 bg-gradient-to-r from-base-100 via-base-100 to-base-200/50 border-b-2 border-base-300/60 px-8 py-7 flex items-center justify-between backdrop-blur-sm">
+          <div className="sticky top-0 z-40 bg-gradient-to-r from-base-100 via-base-100 to-base-200/30 border-b border-base-300/40 px-8 py-6 flex items-center justify-between backdrop-blur-md shadow-sm">
             <div className="flex-1">
-              <div className="flex items-center gap-5 mb-3">
-                <h2 className="text-4xl font-black text-base-content">
+              <div className="flex items-center gap-4 mb-2">
+                <h2 className="text-3xl font-bold text-base-content">
                   {showCancellation 
                     ? 'Cancel Appointment' 
                     : showDeclineForm 
                     ? 'Decline Appointment' 
                     : appointment ? 'Edit Appointment' : 'New Appointment'}
                 </h2>
-                {!showCancellation && !showDeclineForm && (
-                  <div className="flex items-center gap-3 ml-6 px-4 py-2 bg-primary/5 rounded-full border border-primary/20">
-                    <div className={`flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs transition-all ${step === 1 ? 'bg-primary text-white shadow-lg' : 'bg-base-300 text-base-content/50'}`}>
-                      1
-                    </div>
-                    <span className={`text-xs font-semibold transition-colors ${step === 1 ? 'text-primary' : 'text-base-content/40'}`}>Details</span>
-                    <span className={`transition-colors ${step === 1 ? 'text-primary/50' : 'text-base-content/20'}`}>→</span>
-                    <div className={`flex items-center justify-center w-7 h-7 rounded-full font-bold text-xs transition-all ${step === 2 ? 'bg-primary text-white shadow-lg' : 'bg-base-300 text-base-content/50'}`}>
-                      2
-                    </div>
-                    <span className={`text-xs font-semibold transition-colors ${step === 2 ? 'text-primary' : 'text-base-content/40'}`}>Review</span>
-                  </div>
-                )}
               </div>
-              {appointment && !showCancellation && !showDeclineForm && (
-                <p className="text-xs text-base-content/40 mt-2 font-mono tracking-wide">
-                  ID: {appointment._id?.slice(-8) || 'N/A'}
-                </p>
+              
+              {!showCancellation && !showDeclineForm && (
+                <div className="flex items-center gap-2 mt-3">
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${step === 1 ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-base-200/50 text-base-content/60 border border-base-300/30'}`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold ${step === 1 ? 'bg-primary text-white' : 'bg-base-300 text-base-content/40'}`}>
+                      1
+                    </span>
+                    Details
+                  </div>
+                  <div className={`text-xs ${step === 1 ? 'text-primary/40' : 'text-base-content/20'}`}>→</div>
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${step === 2 ? 'bg-primary/15 text-primary border border-primary/30' : 'bg-base-200/50 text-base-content/60 border border-base-300/30'}`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold ${step === 2 ? 'bg-primary text-white' : 'bg-base-300 text-base-content/40'}`}>
+                      2
+                    </span>
+                    Review
+                  </div>
+                </div>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2.5 hover:bg-base-300/80 rounded-lg transition-all text-base-content/50 hover:text-base-content hover:shadow-sm ml-4"
+              className="p-2 hover:bg-base-300/60 rounded-lg transition-all text-base-content/60 hover:text-base-content hover:shadow-sm ml-4 flex-shrink-0"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
@@ -581,24 +675,21 @@ const AppointmentModal = ({
             <form onSubmit={handleSubmit} className="p-8 space-y-8">
               {/* Away Status Warning */}
               {currentUserStatus === 'away' && (
-                <div className="p-5 bg-gradient-to-r from-error/15 to-error/10 border-2 border-error/30 rounded-xl shadow-sm">
-                  <p className="text-error font-bold flex items-start gap-3">
-                    <span className="text-2xl flex-shrink-0">✕</span>
+                <div className="p-4 bg-error/10 border-l-4 border-error rounded-lg shadow-sm">
+                  <p className="text-error font-semibold text-sm flex items-start gap-3">
+                    <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
                     <span>
-                      <div className="font-bold mb-1">You Are Currently Away</div>
-                      <div className="text-sm font-semibold">
-                        You cannot schedule appointments while your status is "Away". Please update your availability status to create appointments.
-                      </div>
+                      You are currently away and cannot schedule appointments. Please update your status to continue.
                     </span>
                   </p>
                 </div>
               )}
 
               {/* Title */}
-              <div>
-                <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                  Appointment Title <span className="text-error ml-1">*</span>
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-base-content uppercase tracking-wide flex items-center gap-2.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Appointment Title
                 </label>
                 <input
                   type="text"
@@ -606,21 +697,21 @@ const AppointmentModal = ({
                   value={formData.title}
                   onChange={handleChange}
                   placeholder="e.g., Project Discussion, Language Lesson"
-                  className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content placeholder-base-content/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-base-300/80"
+                  className="w-full px-4 py-3 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                 />
               </div>
 
               {/* Friend Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-base-content uppercase tracking-wide flex items-center gap-2.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Schedule With <span className="text-error">*</span>
+                  Schedule With
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="Search or select a friend..."
-                    className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                     onChange={(e) => {
                       setFormData(prev => ({...prev, friendSearch: e.target.value}));
                     }}
@@ -630,7 +721,7 @@ const AppointmentModal = ({
                     value={formData.friendSearch || ''}
                   />
                   {formData.showFriendDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border-2 border-base-300 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300/50 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
                       {friends.filter(f => {
                         const search = (formData.friendSearch || '').toLowerCase();
                         return (f.fullName || f.name || '').toLowerCase().includes(search) ||
@@ -664,43 +755,41 @@ const AppointmentModal = ({
                             type="button"
                             disabled={isAway}
                             onClick={() => {
-                              if (!isAway) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  friendId: friend._id,
-                                  friendSearch: friend.fullName || friend.name,
-                                  showFriendDropdown: false
-                                }));
-                              }
+                              setFormData(prev => ({
+                                ...prev,
+                                friendId: friend._id,
+                                friendSearch: '',
+                                showFriendDropdown: false,
+                              }));
                             }}
-                            className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-base-200 last:border-b-0 transition ${
+                            className={`w-full px-4 py-2.5 text-left flex items-center gap-3 border-b border-base-200 last:border-b-0 transition text-sm ${
                               isAway
-                                ? 'opacity-60 cursor-not-allowed bg-error/5 hover:bg-error/5'
+                                ? 'opacity-50 cursor-not-allowed bg-base-200/30 hover:bg-base-200/30'
                                 : formData.friendId === friend._id
-                                ? 'bg-primary/10 hover:bg-primary/20 cursor-pointer'
-                                : 'hover:bg-base-200 cursor-pointer'
+                                ? 'bg-primary/10 hover:bg-primary/15 cursor-pointer'
+                                : 'hover:bg-base-200/50 cursor-pointer'
                             }`}
                           >
                             {friend.profilePic ? (
                               <img
                                 src={friend.profilePic}
                                 alt={friend.fullName}
-                                className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-base-300"
+                                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
                                 {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-base-content truncate">
+                              <p className="font-medium text-base-content text-xs truncate">
                                 {friend.fullName || friend.name}
                               </p>
                               <p className="text-xs text-base-content/50 truncate">
                                 {friend.email}
                               </p>
                             </div>
-                            <span className={`badge ${config.badge} gap-1 text-xs flex-shrink-0`}>
+                            <span className={`badge badge-xs ${config.badge} gap-0.5 flex-shrink-0`}>
                               {config.icon} {config.label}
                             </span>
                           </button>
@@ -712,7 +801,7 @@ const AppointmentModal = ({
 
                 {/* Selected Friend Card */}
                 {formData.friendId && (
-                  <div className="mt-5 space-y-4">
+                  <div className="space-y-3 pt-2">
                     {/* Away Status Warning */}
                     {(() => {
                       const selectedFriend = friends.find(f => f._id === formData.friendId);
@@ -720,15 +809,10 @@ const AppointmentModal = ({
                       
                       if (friendStatus === 'away') {
                         return (
-                          <div className="p-4 bg-gradient-to-r from-error/15 to-error/10 border-2 border-error/30 rounded-xl shadow-sm">
-                            <p className="text-error font-bold flex items-start gap-3">
-                              <span className="text-xl flex-shrink-0">✕</span>
-                              <span>
-                                <div className="font-bold mb-1">Unable to Schedule</div>
-                                <div className="text-sm font-semibold">
-                                  This friend is currently away and not accepting new appointments. Please try again when they become available.
-                                </div>
-                              </span>
+                          <div className="p-4 bg-error/10 border-l-4 border-error rounded-lg shadow-sm">
+                            <p className="text-error font-semibold text-sm flex items-start gap-3">
+                              <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
+                              <span>This friend is currently away and not accepting appointments.</span>
                             </p>
                           </div>
                         );
@@ -737,28 +821,16 @@ const AppointmentModal = ({
                     })()}
 
                     {/* Friend Profile Card */}
-                    <div className="p-5 bg-gradient-to-br from-primary/8 to-primary/3 rounded-xl border-2 border-primary/25 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="p-4 bg-base-100/50 rounded-lg border border-primary/20 flex items-center gap-3">
                       {(() => {
                         const selectedFriend = friends.find(f => f._id === formData.friendId);
                         if (!selectedFriend) return null;
                         
                         const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
                         const statusConfig = {
-                          available: {
-                            badge: 'badge-success',
-                            label: 'Available',
-                            icon: '✓'
-                          },
-                          limited: {
-                            badge: 'badge-warning',
-                            label: 'Limited',
-                            icon: '⚠'
-                          },
-                          away: {
-                            badge: 'badge-error',
-                            label: 'Away',
-                            icon: '✕'
-                          }
+                          available: { badge: 'badge-success', label: 'Available', icon: '✓' },
+                          limited: { badge: 'badge-warning', label: 'Limited', icon: '⚠' },
+                          away: { badge: 'badge-error', label: 'Away', icon: '✕' }
                         };
                         const config = statusConfig[friendStatus];
 
@@ -768,18 +840,18 @@ const AppointmentModal = ({
                               <img
                                 src={selectedFriend.profilePic}
                                 alt={selectedFriend.fullName}
-                                className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-2 ring-primary"
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold flex-shrink-0 text-sm">
                                 {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
                               </div>
                             )}
-                            <div className="flex-1">
-                              <p className="font-semibold text-base-content">{selectedFriend.fullName || selectedFriend.name}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-base-content text-sm">{selectedFriend.fullName || selectedFriend.name}</p>
                               <p className="text-xs text-base-content/60">{selectedFriend.email}</p>
                             </div>
-                            <span className={`badge ${config.badge} gap-1`}>
+                            <span className={`badge badge-sm ${config.badge} gap-0.5 flex-shrink-0`}>
                               {config.icon} {config.label}
                             </span>
                           </>
@@ -792,13 +864,12 @@ const AppointmentModal = ({
                       const selectedFriend = friends.find(f => f._id === formData.friendId);
                       if (!selectedFriend) return null;
 
-                      // Use the fetched availability data
                       const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
 
                       if (loadingFriendAvailability) {
                         return (
-                          <div className="p-4 bg-base-200/50 rounded-xl animate-pulse">
-                            <div className="h-20 bg-base-300 rounded"></div>
+                          <div className="p-4 bg-base-200/30 rounded-lg animate-pulse">
+                            <div className="h-16 bg-base-300 rounded"></div>
                           </div>
                         );
                       }
@@ -814,22 +885,17 @@ const AppointmentModal = ({
                 )}
               </div>
 
-              {/* Date and Time Section */}
-              <div className="bg-gradient-to-br from-primary/4 via-base-100 to-base-100/80 rounded-2xl p-7 border-2 border-primary/15 shadow-sm">
-                <h3 className="text-lg font-bold text-base-content mb-7 flex items-center gap-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Calendar className="w-5 h-5 text-primary" />
-                  </div>
-                  Schedule Details
-                </h3>
+              {/* SECTION 3: Schedule Details */}
+              <div className="space-y-5 p-5 bg-base-100/40 rounded-lg border border-base-300/30">
+                <div className="flex items-center gap-3 pb-3 border-b border-base-300/40">
+                  <Calendar className="w-5 h-5 text-primary flex-shrink-0" />
+                  <h3 className="text-sm font-bold text-base-content uppercase tracking-wide">Schedule Details</h3>
+                </div>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {/* Date Picker */}
                   <div>
-                    <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                      Date <span className="text-error ml-1">*</span>
-                    </label>
+                    <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Date</label>
                     <input
                       type="date"
                       value={formData.startTime.split('T')[0] || ''}
@@ -842,19 +908,15 @@ const AppointmentModal = ({
                           endTime: format(addMinutes(parseISO(`${newDate}T${time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
                         }));
                       }}
-                      className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-base-300/80"
+                      className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                     />
-                    <p className="text-xs text-base-content/50 mt-2.5 font-medium">Choose your preferred date</p>
                   </div>
 
                   {/* Time Picker */}
                   <div>
-                    <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                      Time <span className="text-error ml-1">*</span>
-                    </label>
-                    <div className="space-y-3">
-                      {/* Custom Time Button at Top */}
+                    <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Time</label>
+                    <div className="space-y-2">
+                      {/* Custom Time Button */}
                       <button
                         type="button"
                         onClick={() => {
@@ -864,17 +926,17 @@ const AppointmentModal = ({
                             startTime: `${date}Tcustom`,
                           }));
                         }}
-                        className={`w-full px-5 py-3.5 rounded-xl font-bold transition-all border-2 shadow-sm ${
+                        className={`w-full px-4 py-2.5 rounded-lg font-semibold text-sm transition-all border ${
                           formData.startTime.split('T')[1] === 'custom'
-                            ? 'bg-gradient-to-r from-primary to-primary/80 text-white border-primary shadow-lg'
-                            : 'bg-base-50 text-base-content border-base-300/60 hover:border-primary/40 hover:bg-base-100'
+                            ? 'bg-primary text-white border-primary shadow-sm'
+                            : 'bg-base-100 text-base-content border-base-300/50 hover:border-primary/40 hover:bg-base-100/80'
                         }`}
                       >
                         ⚙ Enter Custom Time
                       </button>
 
                       {/* Suggested Times Grid - 2 columns */}
-                      <div className="grid grid-cols-2 gap-2.5">
+                      <div className="grid grid-cols-2 gap-2">
                         {timeSlots.map(slot => (
                           <button
                             key={slot.time}
@@ -888,26 +950,24 @@ const AppointmentModal = ({
                                 endTime: format(addMinutes(parseISO(`${date}T${slot.time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
                               }));
                             }}
-                            className={`px-3.5 py-3 rounded-lg font-semibold text-sm transition-all border-2 shadow-sm ${
+                            className={`px-3 py-2.5 rounded-lg font-semibold text-xs transition-all border ${
                               formData.startTime.split('T')[1] === slot.time
-                                ? 'bg-gradient-to-r from-primary to-primary/80 text-white border-primary shadow-md'
+                                ? 'bg-primary text-white border-primary shadow-sm'
                                 : slot.disabled
-                                ? 'bg-base-200/60 text-base-content/35 border-base-300/50 cursor-not-allowed'
-                                : 'bg-base-50 text-base-content border-base-300/60 hover:border-primary/40 hover:bg-base-100 hover:shadow-md'
+                                ? 'bg-base-200/50 text-base-content/40 border-base-300/40 cursor-not-allowed'
+                                : 'bg-base-100 text-base-content border-base-300/50 hover:border-primary/40 hover:bg-base-100/80'
                             }`}
                           >
-                            <div className="text-xs font-bold">{slot.display}</div>
-                            {slot.reason && <div className="text-xs opacity-60 font-medium">{slot.reason}</div>}
+                            <div className="font-semibold">{slot.display}</div>
+                            {slot.reason && <div className="text-xs opacity-60">{slot.reason}</div>}
                           </button>
                         ))}
                       </div>
 
-                      {/* Custom Time Input - Only show if "custom" is selected */}
+                      {/* Custom Time Input */}
                       {formData.startTime.split('T')[1] === 'custom' && (
-                        <div className="border-t border-base-300 pt-3 space-y-3">
-                          <label className="text-xs font-semibold text-base-content/70 mb-2 block">
-                            Enter your preferred time:
-                          </label>
+                        <div className="border-t border-base-300/40 pt-3 space-y-3 mt-3">
+                          <label className="text-xs font-semibold text-base-content/70">Preferred Time:</label>
                           <input
                             type="time"
                             value={formData.startTime.split('T')[2] || '09:00'}
@@ -915,7 +975,6 @@ const AppointmentModal = ({
                               const customTime = e.target.value;
                               const date = formData.startTime.split('T')[0] || format(new Date(), 'yyyy-MM-dd');
                               
-                              // Validate custom time is within available hours
                               const effectiveAvailability = selectedFriendAvailability?.availability || availability;
                               if (effectiveAvailability && effectiveAvailability.start && effectiveAvailability.end) {
                                 const [availStartHour, availStartMin] = effectiveAvailability.start.split(':').map(Number);
@@ -933,11 +992,11 @@ const AppointmentModal = ({
                                     endTime: format(addMinutes(parseISO(`${date}T${customTime}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
                                   }));
                                 } else {
-                                  toast.error(`Time must be between ${effectiveAvailability.start} and ${effectiveAvailability.end}`);
+                                  toast.error('Time outside available hours');
                                 }
                               }
                             }}
-                            className="w-full px-4 py-3 bg-base-100 border-2 border-primary/30 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                            className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                           />
                           <p className="text-xs text-base-content/50">
                             Available: {(selectedFriendAvailability?.availability || availability)?.start || '09:00'} - {(selectedFriendAvailability?.availability || availability)?.end || '17:00'}
@@ -951,30 +1010,27 @@ const AppointmentModal = ({
                                 startTime: `${date}T`,
                               }));
                             }}
-                            className="w-full px-4 py-3 bg-base-200 text-base-content border-2 border-base-300 rounded-xl font-semibold hover:bg-base-300 transition-all"
+                            className="w-full px-4 py-2 bg-base-200/50 text-base-content border border-base-300/40 rounded-lg font-semibold text-sm hover:bg-base-200 transition-all"
                           >
-                            ← Back to Suggested Times
+                            ← Back to Suggested
                           </button>
                         </div>
                       )}
                     </div>
                     {isToday(parseISO(formData.startTime || format(new Date(), 'yyyy-MM-dd'))) && (
-                      <p className="text-xs text-base-content/60 mt-3 bg-warning/10 border border-warning/30 rounded-lg p-2">
-                        ⏰ Some times may be disabled due to: past times, break times, or minimum lead time requirement
+                      <p className="text-xs text-base-content/60 mt-2.5 bg-warning/5 border border-warning/20 rounded-lg p-2">
+                        ⏰ Some times may be disabled due to past times, breaks, or lead time requirements
                       </p>
                     )}
                   </div>
 
                   {/* Duration */}
                   <div>
-                    <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                      Duration <span className="text-error ml-1">*</span>
-                    </label>
+                    <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Duration</label>
                     <select
                       value={formData.duration}
                       onChange={handleDurationChange}
-                      className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all appearance-none shadow-sm hover:border-base-300/80"
+                      className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all appearance-none text-sm"
                     >
                       {durationOptions.map(duration => (
                         <option key={duration} value={duration}>
@@ -986,25 +1042,22 @@ const AppointmentModal = ({
 
                   {/* End Time Display */}
                   {formData.startTime && formData.endTime && (
-                    <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-4">
-                      <p className="text-xs text-base-content/60 mb-2 font-medium uppercase tracking-wide">End Time</p>
-                      <p className="text-lg font-bold text-base-content">
-                        {format(parseISO(formData.endTime), 'h:mm a')}
-                      </p>
-                      <p className="text-xs text-base-content/50 mt-1">
-                        {format(parseISO(formData.endTime), 'MMM d, yyyy')}
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                      <p className="text-xs text-base-content/60 mb-1 font-semibold uppercase tracking-wide">End Time</p>
+                      <p className="text-base font-bold text-base-content">
+                        {format(parseISO(formData.endTime), 'h:mm a')} • {format(parseISO(formData.endTime), 'MMM d')}
                       </p>
                     </div>
                   )}
 
                   {/* Existing Appointments on Selected Date */}
                   {selectedDateAppointments.length > 0 && formData.startTime && (
-                    <div className="bg-gradient-to-r from-info/10 to-info/5 border-2 border-info/20 rounded-xl p-5 space-y-3">
+                    <div className="bg-info/5 border border-info/20 rounded-lg p-4 space-y-3">
                       <p className="text-xs font-semibold text-info uppercase tracking-wide flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        Existing Appointments on This Date
+                        <Calendar className="w-3.5 h-3.5" />
+                        Existing Appointments This Date
                       </p>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
                         {selectedDateAppointments.map(appt => {
                           const apptStart = typeof appt.startTime === 'string' 
                             ? parseISO(appt.startTime)
@@ -1019,23 +1072,17 @@ const AppointmentModal = ({
                           const friend = Array.isArray(friends) ? friends.find(f => f._id === apptFriendId) : null;
 
                           return (
-                            <div key={appt._id || appt.id} className="bg-base-100/60 rounded-lg p-3 border border-info/20">
+                            <div key={appt._id || appt.id} className="bg-base-100/50 rounded-lg p-3 border border-info/15 text-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <p className="text-sm font-semibold text-base-content">{appt.title || 'Appointment'}</p>
+                                  <p className="font-semibold text-base-content text-xs">{appt.title || 'Appointment'}</p>
                                   <p className="text-xs text-base-content/60 mt-1">
                                     <Clock className="w-3 h-3 inline mr-1" />
                                     {format(apptStart, 'h:mm a')}
                                     {apptEnd && ` - ${format(apptEnd, 'h:mm a')}`}
                                   </p>
-                                  {friend && (
-                                    <p className="text-xs text-base-content/60 mt-1">
-                                      <User className="w-3 h-3 inline mr-1" />
-                                      with {friend.fullName || friend.name}
-                                    </p>
-                                  )}
                                 </div>
-                                <span className={`badge badge-sm ${
+                                <span className={`badge badge-xs ${
                                   appt.status === 'confirmed' ? 'badge-success' :
                                   appt.status === 'pending' ? 'badge-warning' :
                                   appt.status === 'declined' ? 'badge-error' :
@@ -1053,107 +1100,99 @@ const AppointmentModal = ({
                 </div>
               </div>
 
-              {/* Meeting Type */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Meeting Type
-                </label>
-                <select
-                  name="meetingType"
-                  value={formData.meetingType}
-                  onChange={handleChange}
-                  className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-base-300/80"
-                >
-                  <option>Video Call</option>
-                  <option>Phone Call</option>
-                  <option>In Person</option>
-                </select>
-              </div>
+              {/* SECTION 4: Additional Details */}
+              <div className="space-y-5 p-5 bg-base-100/40 rounded-lg border border-base-300/30">
+                <div className="flex items-center gap-3 pb-3 border-b border-base-300/40">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
+                  <h3 className="text-sm font-bold text-base-content uppercase tracking-wide">Meeting Details</h3>
+                </div>
 
-              {/* Location - Only show for In Person meetings */}
-              {formData.meetingType === 'In Person' && (
+                {/* Meeting Type */}
                 <div>
-                  <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                    <span className="w-2 h-2 rounded-full bg-error"></span>
-                    Meeting Location <span className="text-error ml-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
+                  <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Type</label>
+                  <select
+                    name="meetingType"
+                    value={formData.meetingType}
                     onChange={handleChange}
-                    placeholder="e.g., Coffee Shop, Library, Park"
-                    className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content placeholder-base-content/35 focus:outline-none focus:border-error focus:ring-2 focus:ring-error/10 transition-all shadow-sm hover:border-base-300/80"
+                    className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all appearance-none text-sm"
+                  >
+                    <option>Video Call</option>
+                    <option>Phone Call</option>
+                    <option>In Person</option>
+                  </select>
+                </div>
+
+                {/* Location - Only show for In Person meetings */}
+                {formData.meetingType === 'In Person' && (
+                  <div>
+                    <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Location</label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={formData.location}
+                      onChange={handleChange}
+                      placeholder="e.g., Coffee Shop, Library"
+                      className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                    />
+                  </div>
+                )}
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Notes</label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Add any additional details..."
+                    rows="3"
+                    className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none text-sm"
                   />
                 </div>
-              )}
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                  Notes & Details
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Add any additional information about this appointment..."
-                  rows="4"
-                  className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content placeholder-base-content/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none shadow-sm hover:border-base-300/80"
-                />
+                {/* Reminder */}
+                <div>
+                  <label className="block text-xs font-bold text-base-content mb-2.5 uppercase tracking-wide">Reminder</label>
+                  <select
+                    name="reminder"
+                    value={formData.reminder}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all appearance-none text-sm"
+                  >
+                    <option value={5}>5 minutes before</option>
+                    <option value={10}>10 minutes before</option>
+                    <option value={15}>15 minutes before</option>
+                    <option value={30}>30 minutes before</option>
+                    <option value={60}>1 hour before</option>
+                    <option value={120}>2 hours before</option>
+                    <option value={1440}>1 day before</option>
+                  </select>
+                </div>
               </div>
 
-              {/* Reminder */}
-              <div>
-                <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-                  <span className="w-2 h-2 rounded-full bg-gradient-to-r from-primary to-primary/70"></span>
-                  Reminder Notification
-                </label>
-                <select
-                  name="reminder"
-                  value={formData.reminder}
-                  onChange={handleChange}
-                  className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-base-300/80"
-                >
-                  <option value={5}>5 minutes before</option>
-                  <option value={10}>10 minutes before</option>
-                  <option value={15}>15 minutes before</option>
-                  <option value={30}>30 minutes before</option>
-                  <option value={60}>1 hour before</option>
-                  <option value={120}>2 hours before</option>
-                  <option value={1440}>1 day before</option>
-                </select>
-                <p className="text-xs text-base-content/50 mt-2.5 font-medium">
-                  Get notified before your appointment
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-4 pt-7 border-t-2 border-base-300">
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-base-300/40">
                 {appointment && onDelete && (
                   <button
                     type="button"
                     onClick={() => setShowCancellation(true)}
-                    className="px-6 py-3 bg-error/10 hover:bg-error/20 text-error font-bold rounded-xl transition-all border-2 border-error/30 shadow-sm"
+                    className="px-4 py-2.5 bg-error/10 hover:bg-error/15 text-error font-semibold rounded-lg transition-all border border-error/20 text-sm"
                   >
-                    Cancel Appointment
+                    Cancel
                   </button>
                 )}
                 <div className="flex-1 flex gap-3 justify-end">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-6 py-3 bg-base-200/70 hover:bg-base-300 text-base-content font-bold rounded-xl transition-all shadow-sm"
+                    className="px-5 py-2.5 bg-base-200/60 hover:bg-base-200 text-base-content font-semibold rounded-lg transition-all text-sm"
                   >
                     Close
                   </button>
                   <button
                     type="submit"
                     disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away')}
-                    className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-primary disabled:hover:to-primary/80"
-                    title={currentUserStatus === 'away' ? 'You are away and cannot schedule appointments' : (formData.friendId && friendsAvailability[formData.friendId] === 'away' ? 'Cannot schedule with someone who is away' : '')}
+                    className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
                   >
                     Next →
                   </button>
@@ -1162,77 +1201,71 @@ const AppointmentModal = ({
             </form>
             ) : (
               // STEP 2: Review/Summary
-              <div className="p-8 space-y-8">
-                <div className="bg-gradient-to-br from-success/10 via-base-200/50 to-success/5 border-2 border-success/30 rounded-2xl p-6">
-                  <h4 className="text-lg font-bold text-base-content mb-7 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-success to-success/60 flex items-center justify-center text-white font-bold">
-                      ✓
-                    </div>
-                    Appointment Details
+              <div className="p-8 space-y-7">
+                <div className="bg-gradient-to-br from-success/8 to-base-100/40 border border-success/20 rounded-lg p-6 space-y-5">
+                  <h4 className="text-lg font-bold text-base-content flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-success flex items-center justify-center text-white font-bold text-sm">✓</div>
+                    Review Your Appointment
                   </h4>
+                  
                   <div className="space-y-4">
                     {/* Title */}
                     {formData.title && (
-                      <div className="pb-4 border-b-2 border-success/20">
-                        <p className="text-xs text-base-content/50 font-bold uppercase mb-2 tracking-wider">📋 Appointment Title</p>
-                        <p className="text-xl font-bold text-base-content">{formData.title}</p>
+                      <div className="pb-4 border-b border-base-300/40">
+                        <p className="text-xs text-base-content/50 font-bold uppercase mb-2 tracking-wide">Title</p>
+                        <p className="text-base font-bold text-base-content">{formData.title}</p>
                       </div>
                     )}
 
                     {/* Date & Time Info */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">📅 Date</p>
-                        <p className="text-lg font-bold text-base-content">{format(parseISO(formData.startTime), 'MMM d, yyyy')}</p>
-                        <p className="text-xs text-base-content/60 mt-2 font-semibold">{format(parseISO(formData.startTime), 'EEEE')}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-base-100/60 rounded-lg p-4 border border-base-300/40">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Date</p>
+                        <p className="text-base font-bold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
+                        <p className="text-xs text-base-content/60 mt-1">{format(parseISO(formData.startTime), 'EEEE')}</p>
                       </div>
-                      <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">⏰ Time</p>
-                        <p className="text-lg font-bold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')} - {format(parseISO(formData.endTime), 'h:mm a')}</p>
+                      <div className="bg-base-100/60 rounded-lg p-4 border border-base-300/40">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Time</p>
+                        <p className="text-base font-bold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
+                        <p className="text-xs text-base-content/60 mt-1">{formData.duration}m duration</p>
                       </div>
-                    </div>
-
-                    {/* Duration */}
-                    <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                      <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wider">⌛ Duration</p>
-                      <p className="text-lg font-bold text-base-content">{formData.duration} minute{formData.duration !== 1 ? 's' : ''}</p>
                     </div>
 
                     {/* Meeting Type & Location */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">📞 Type</p>
-                        <p className="text-lg font-bold text-base-content">{formData.meetingType}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-base-100/60 rounded-lg p-4 border border-base-300/40">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Type</p>
+                        <p className="text-base font-bold text-base-content">{formData.meetingType}</p>
                       </div>
                       {formData.meetingType === 'In Person' && formData.location && (
-                        <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                          <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">📍 Location</p>
-                          <p className="text-lg font-bold text-base-content truncate">{formData.location}</p>
+                        <div className="bg-base-100/60 rounded-lg p-4 border border-base-300/40">
+                          <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Location</p>
+                          <p className="text-base font-bold text-base-content truncate">{formData.location}</p>
                         </div>
                       )}
                     </div>
 
                     {/* With Whom */}
                     {formData.friendId && (
-                      <div className="bg-gradient-to-r from-primary/8 to-primary/3 rounded-lg p-5 border-2 border-primary/20 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">👥 Scheduled With</p>
-                        <p className="text-lg font-bold text-base-content">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
+                      <div className="bg-primary/5 rounded-lg p-4 border border-primary/20">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Scheduled With</p>
+                        <p className="text-base font-bold text-base-content">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
                       </div>
                     )}
 
                     {/* Notes */}
                     {formData.description && (
-                      <div className="bg-gradient-to-br from-base-100 to-base-100/70 rounded-lg p-5 border-2 border-primary/15 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">📝 Notes</p>
+                      <div className="bg-base-100/60 rounded-lg p-4 border border-base-300/40">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Notes</p>
                         <p className="text-sm text-base-content leading-relaxed whitespace-pre-wrap">{formData.description}</p>
                       </div>
                     )}
 
                     {/* Reminder */}
                     {formData.reminder > 0 && (
-                      <div className="bg-gradient-to-r from-warning/10 to-warning/5 rounded-lg p-5 border-2 border-warning/25 shadow-sm">
-                        <p className="text-xs text-base-content/50 font-bold mb-3 uppercase tracking-wider">🔔 Reminder</p>
-                        <p className="text-lg font-bold text-base-content">
+                      <div className="bg-warning/5 rounded-lg p-4 border border-warning/20">
+                        <p className="text-xs text-base-content/50 font-bold mb-2 uppercase tracking-wide">Reminder</p>
+                        <p className="text-base font-bold text-base-content">
                           {formData.reminder === 1440 ? '1 day before' :
                            formData.reminder === 120 ? '2 hours before' :
                            formData.reminder === 60 ? '1 hour before' :
@@ -1244,18 +1277,18 @@ const AppointmentModal = ({
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4 pt-7 border-t-2 border-base-300">
+                <div className="flex gap-3 pt-4 border-t border-base-300/40">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="flex-1 px-6 py-3 bg-base-200/70 hover:bg-base-300 text-base-content font-bold rounded-xl transition-all shadow-sm"
+                    className="flex-1 px-5 py-2.5 bg-base-200/60 hover:bg-base-200 text-base-content font-semibold rounded-lg transition-all text-sm"
                   >
                     ← Back to Edit
                   </button>
                   <button
                     type="button"
                     onClick={handleConfirmAppointment}
-                    className="flex-1 px-8 py-3 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
+                    className="flex-1 px-6 py-2.5 bg-success hover:bg-success/90 text-white font-semibold rounded-lg transition-all text-sm shadow-sm"
                   >
                     ✓ Confirm & Create
                   </button>
@@ -1294,31 +1327,31 @@ const CancellationForm = ({
   onCancel, 
   onSubmit 
 }) => (
-  <div className="p-8 space-y-8">
-    <div className="bg-gradient-to-br from-error/10 to-error/5 border-2 border-error/25 rounded-2xl p-6 shadow-sm">
-      <p className="text-base-content text-sm font-semibold flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">⚠️</span>
+  <div className="p-8 space-y-6">
+    <div className="bg-error/10 border-l-4 border-error rounded-lg p-4">
+      <p className="text-error font-semibold text-sm flex items-start gap-3">
+        <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
         <span>Cancelling this appointment will notify the other person. Please select a reason for cancellation.</span>
       </p>
     </div>
 
-    <div>
-      <label className="block text-sm font-bold text-base-content mb-4 flex items-center gap-2.5">
-        <span className="w-2 h-2 rounded-full bg-error"></span>
-        Cancellation Reason <span className="text-error ml-1">*</span>
+    <div className="space-y-3">
+      <label className="block text-xs font-bold text-base-content uppercase tracking-wide flex items-center gap-2.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+        Cancellation Reason
       </label>
-      <div className="space-y-2.5">
+      <div className="space-y-2">
         {CANCELLATION_REASONS.map((reason) => (
-          <label key={reason} className="flex items-center gap-3 p-4 rounded-xl hover:bg-base-100 cursor-pointer transition group border-2 border-transparent hover:border-error/20 shadow-sm">
+          <label key={reason} className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-100 cursor-pointer transition border border-base-300/40 hover:border-error/30">
             <input
               type="radio"
               name="cancellation"
               value={reason}
               checked={cancellationReason === reason}
               onChange={(e) => setCancellationReason(e.target.value)}
-              className="radio radio-error"
+              className="radio radio-error radio-sm"
             />
-            <span className="text-sm font-semibold text-base-content group-hover:text-error transition">
+            <span className="text-sm font-medium text-base-content">
               {reason}
             </span>
           </label>
@@ -1327,32 +1360,32 @@ const CancellationForm = ({
     </div>
 
     {cancellationReason === 'Other (Please specify)' && (
-      <div>
-        <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-          <span className="w-2 h-2 rounded-full bg-primary"></span>
+      <div className="space-y-3">
+        <label className="block text-xs font-bold text-base-content uppercase tracking-wide flex items-center gap-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
           Explain Your Reason
         </label>
         <textarea
           value={customReason}
           onChange={(e) => setCustomReason(e.target.value)}
           placeholder="Enter your cancellation reason..."
-          rows="4"
-          className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content placeholder-base-content/35 focus:outline-none focus:border-error focus:ring-2 focus:ring-error/10 transition-all resize-none shadow-sm hover:border-base-300/80"
+          rows="3"
+          className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all resize-none text-sm"
         />
       </div>
     )}
-    <div className="flex gap-4 pt-7 border-t-2 border-base-300">
+    <div className="flex gap-3 pt-4 border-t border-base-300/40">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-base-200/70 hover:bg-base-300 text-base-content font-bold rounded-xl transition-all shadow-sm"
+        className="flex-1 px-5 py-2.5 bg-base-200/60 hover:bg-base-200 text-base-content font-semibold rounded-lg transition-all text-sm"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-gradient-to-r from-error to-error/80 hover:from-error/90 hover:to-error/70 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
+        className="flex-1 px-5 py-2.5 bg-error hover:bg-error/90 text-white font-semibold rounded-lg transition-all text-sm shadow-sm"
       >
         Confirm Cancellation
       </button>
@@ -1362,40 +1395,40 @@ const CancellationForm = ({
 
 // Decline Form Component
 const DeclineForm = ({ declineMessage, setDeclineMessage, onCancel, onSubmit }) => (
-  <div className="p-8 space-y-8">
-    <div className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/25 rounded-2xl p-6 shadow-sm">
-      <p className="text-base-content text-sm font-semibold flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">ℹ️</span>
+  <div className="p-8 space-y-6">
+    <div className="bg-warning/10 border-l-4 border-warning rounded-lg p-4">
+      <p className="text-warning font-semibold text-sm flex items-start gap-3">
+        <span className="text-lg flex-shrink-0 mt-0.5">ℹ️</span>
         <span>Declining this appointment will notify the requester. Please provide a clear reason in your message.</span>
       </p>
     </div>
 
-    <div>
-      <label className="block text-sm font-bold text-base-content mb-3 flex items-center gap-2.5">
-        <span className="w-2 h-2 rounded-full bg-warning"></span>
-        Your Message <span className="text-error ml-1">*</span>
+    <div className="space-y-3">
+      <label className="block text-xs font-bold text-base-content uppercase tracking-wide flex items-center gap-2.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-warning"></span>
+        Your Message
       </label>
       <textarea
         value={declineMessage}
         onChange={(e) => setDeclineMessage(e.target.value)}
         placeholder="Explain why you're declining this appointment..."
-        rows="6"
-        className="w-full px-5 py-3.5 bg-base-50 border-2 border-base-300/60 rounded-xl text-base-content placeholder-base-content/35 focus:outline-none focus:border-warning focus:ring-2 focus:ring-warning/10 transition-all resize-none shadow-sm hover:border-base-300/80"
+        rows="4"
+        className="w-full px-4 py-2.5 bg-base-100 border border-base-300/50 rounded-lg text-base-content placeholder-base-content/35 focus:outline-none focus:border-warning focus:ring-2 focus:ring-warning/10 transition-all resize-none text-sm"
       />
     </div>
 
-    <div className="flex gap-4 pt-7 border-t-2 border-base-300">
+    <div className="flex gap-3 pt-4 border-t border-base-300/40">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-base-200/70 hover:bg-base-300 text-base-content font-bold rounded-xl transition-all shadow-sm"
+        className="flex-1 px-5 py-2.5 bg-base-200/60 hover:bg-base-200 text-base-content font-semibold rounded-lg transition-all text-sm"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-gradient-to-r from-warning to-warning/80 hover:from-warning/90 hover:to-warning/70 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
+        className="flex-1 px-5 py-2.5 bg-warning hover:bg-warning/90 text-white font-semibold rounded-lg transition-all text-sm shadow-sm"
       >
         Decline Appointment
       </button>

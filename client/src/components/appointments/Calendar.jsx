@@ -435,8 +435,8 @@ const Calendar = ({
                     <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
                   )}
                   
-                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
-                    <span className="text-xs font-semibold text-error">✕</span>
+                  {dayHoliday && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
                   )}
                 </div>
                 

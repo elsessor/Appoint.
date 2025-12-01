@@ -120,6 +120,71 @@ export async function createAppointment(req, res) {
       });
     }
 
+    // ⚠️ CRITICAL: Check for overlapping/double-booking appointments
+    // This prevents both users from having conflicting appointments
+    const overlappingAppointments = await Appointment.find({
+      $or: [
+        // Check if friend already has appointments at this time
+        {
+          $or: [
+            { userId: friendId },
+            { friendId: friendId }
+          ]
+        },
+        // Check if current user already has appointments at this time
+        {
+          $or: [
+            { userId: userId },
+            { friendId: userId }
+          ]
+        }
+      ],
+      // Only check non-cancelled appointments
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      // Time overlap check: appointment starts before new one ends AND ends after new one starts
+      startTime: { $lt: end },
+      endTime: { $gt: start }
+    });
+
+    // Filter to only relevant conflicts (not with each other already)
+    const hasConflict = overlappingAppointments.some(existingAppt => {
+      const existingUserId = (existingAppt.userId._id || existingAppt.userId).toString();
+      const existingFriendId = (existingAppt.friendId._id || existingAppt.friendId).toString();
+      
+      // Skip if this is an appointment between these two users (update scenario)
+      if ((existingUserId === userId && existingFriendId === friendId) ||
+          (existingUserId === friendId && existingFriendId === userId)) {
+        return false;
+      }
+      
+      // Conflict if:
+      // - Friend has other appointments that conflict
+      // - Current user has other appointments that conflict
+      return (existingUserId === friendId || existingFriendId === friendId) ||
+             (existingUserId === userId || existingFriendId === userId);
+    });
+
+    if (hasConflict) {
+      const conflictingAppt = overlappingAppointments.find(appt => {
+        const existingUserId = (appt.userId._id || appt.userId).toString();
+        const existingFriendId = (appt.friendId._id || appt.friendId).toString();
+        return ((existingUserId === friendId || existingFriendId === friendId) ||
+                (existingUserId === userId || existingFriendId === userId));
+      });
+      
+      const conflictTime = new Date(conflictingAppt.startTime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return res.status(409).json({
+        message: `This time slot conflicts with an existing appointment at ${conflictTime}. Please choose a different time.`,
+        conflictingAppointmentId: conflictingAppt._id,
+        conflictTime: conflictingAppt.startTime
+      });
+    }
+
     const appointment = new Appointment({
       userId,
       friendId,
