@@ -64,6 +64,17 @@ const AppointmentModal = ({
 
   useEffect(() => {
     if (isOpen) {
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = 'auto';
+    }
+    return () => {
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
       if (appointment) {
         const startTime = typeof appointment.startTime === 'string' 
           ? appointment.startTime 
@@ -185,8 +196,9 @@ const AppointmentModal = ({
       const slotTime24 = format(current, 'HH:mm');
       const slotTime12 = format(current, 'h:mm a');
       
-      const slotEndTime = addMinutes(current, appointmentDuration);
-      const fitsInAvailableTime = slotEndTime <= end;
+      const slotStart = new Date(current);
+      const slotEnd = addMinutes(slotStart, appointmentDuration);
+      const fitsInAvailableTime = slotEnd <= end;
       const isPast = isSelectedToday && isBefore(current, now);
       
       let meetsLeadTime = true;
@@ -204,13 +216,21 @@ const AppointmentModal = ({
         const breakEnd = new Date(selectedDate);
         breakEnd.setHours(bEndHour, bEndMin, 0, 0);
         
-        if (current >= breakStart && current < breakEnd) {
+        // Check if the appointment overlaps with break time
+        // Break blocks appointment if: slotStart < breakEnd AND slotEnd > breakStart
+        const overlapsWithBreak = slotStart < breakEnd && slotEnd > breakStart;
+        
+        if (overlapsWithBreak) {
           isInBreakTime = true;
           break;
         }
       }
 
       let isBooked = false;
+      let nextApptStart = null;
+      let bufferViolation = false;
+      const buffer = effectiveAvailability?.buffer || 0;
+      
       if (formData.friendId && selectedDateAppointments.length > 0) {
         isBooked = selectedDateAppointments.some(appt => {
           const apptStart = typeof appt.startTime === 'string' 
@@ -220,20 +240,34 @@ const AppointmentModal = ({
             ? parseISO(appt.endTime)
             : new Date(appt.endTime);
           
-          const slotStart = new Date(current);
-          const slotEnd = addMinutes(slotStart, appointmentDuration);
+          // More precise overlap check: appointment blocks slot if they overlap
+          // Slots are blocked only if there's a true time conflict
+          // Two times conflict if: slotStart < apptEnd AND slotEnd > apptStart
+          const hasConflict = slotStart < apptEnd && slotEnd > apptStart;
           
-          return isBefore(slotStart, apptEnd) && isAfter(slotEnd, apptStart);
+          // Check buffer time: if appointment ends, next appointment can't start within buffer minutes
+          const bufferEnd = addMinutes(apptEnd, buffer);
+          if (slotStart < bufferEnd && slotStart >= apptEnd && buffer > 0) {
+            bufferViolation = true;
+          }
+          
+          // Track the next appointment start time for better UX
+          if (slotStart < apptStart && !nextApptStart) {
+            nextApptStart = apptStart;
+          }
+          
+          return hasConflict;
         });
       }
       
-      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked;
+      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked || bufferViolation;
       
       let disabledReason = '';
       if (isPast) disabledReason = '(Past)';
       else if (!fitsInAvailableTime) disabledReason = '(Too late)';
       else if (!meetsLeadTime) disabledReason = `(${minLeadTime}h notice)`;
       else if (isInBreakTime) disabledReason = '(Break time)';
+      else if (bufferViolation) disabledReason = `(${buffer}min buffer)`;
       else if (isBooked) disabledReason = '(Booked)';
       
       slots.push({ 
@@ -307,12 +341,18 @@ const AppointmentModal = ({
   };
 
   const getAppointmentsForDate = (date) => {
-    if (!date || !formData.friendId || appointments.length === 0) return [];
+    const friendId = appointment?.friendId?._id || appointment?.friendId || formData.friendId;
+    if (!date || !friendId || appointments.length === 0) return [];
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      const friendIdStr = String(friendId); // Ensure it's a string for comparison
+      
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
+        
+        // Exclude declined and cancelled appointments from capacity calculation
+        if (['declined', 'cancelled'].includes(appt.status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -320,10 +360,34 @@ const AppointmentModal = ({
         
         if (apptDateStr !== dateStr) return false;
         
-        const apptUserId = appt.userId?._id || appt.userId;
-        const apptFriendId = appt.friendId?._id || appt.friendId;
+        const apptUserId = String(appt.userId?._id || appt.userId);
+        const apptFriendId = String(appt.friendId?._id || appt.friendId);
         
-        return apptFriendId === formData.friendId || apptUserId === formData.friendId;
+        return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+      });
+    } catch (e) {
+      console.error('Error in getAppointmentsForDate:', e);
+      return [];
+    }
+  };
+
+  // Get ALL appointments on a date (regardless of friend) for maxPerDay validation
+  const getAllAppointmentsForDate = (date) => {
+    if (!date || appointments.length === 0) return [];
+    
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        // Exclude declined and cancelled appointments from capacity calculation
+        if (['declined', 'cancelled'].includes(appt.status)) return false;
+        
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        
+        return apptDateStr === dateStr;
       });
     } catch (e) {
       return [];
@@ -530,7 +594,8 @@ const AppointmentModal = ({
                   />
                 </div>
 
-                {/* Friend Selection */}
+                {/* Friend Selection - Only show when creating new appointment */}
+                {!appointment && (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-base-content">Schedule With *</label>
                   <div className="relative">
@@ -684,6 +749,7 @@ const AppointmentModal = ({
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Schedule Details */}
                 <div className="space-y-4 p-5 bg-base-200 rounded-lg border border-base-300">
@@ -720,33 +786,34 @@ const AppointmentModal = ({
                           {/* Max Appointments & Current Count */}
                           {(() => {
                             const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            const friendAvail = friendsAvailability[formData.friendId];
-                            const maxPerDay = friendAvail?.maxPerDay || selectedFriend?.availability?.maxPerDay || 5;
-                            const appts = getAppointmentsForDate(parseISO(formData.startTime));
-                            const isFull = appts.length >= maxPerDay;
+                            // Use CURRENT USER's maxAppointmentsPerDay setting
+                            const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
+                            // Use ALL appointments for maxPerDay validation (not filtered by friend)
+                            const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
+                            const isFull = allApptsOnDate.length >= maxPerDay;
                             
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">
                                 {/* Max appointments capacity bar */}
                                 <div className="space-y-1.5">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity (Total)</p>
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
                                       isFull 
                                         ? 'bg-error/20 text-error' 
                                         : 'bg-success/20 text-success'
                                     }`}>
-                                      {appts.length} / {maxPerDay}
+                                      {allApptsOnDate.length} / {maxPerDay}
                                     </span>
                                   </div>
                                   {/* Capacity bar */}
                                   <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
                                     <div 
                                       className={`h-full transition-all ${
-                                        appts.length === 0 ? 'bg-success' :
+                                        allApptsOnDate.length === 0 ? 'bg-success' :
                                         isFull ? 'bg-error' : 'bg-warning'
                                       }`}
-                                      style={{ width: `${Math.min((appts.length / maxPerDay) * 100, 100)}%` }}
+                                      style={{ width: `${Math.min((allApptsOnDate.length / maxPerDay) * 100, 100)}%` }}
                                     ></div>
                                   </div>
                                   {isFull && (
@@ -754,25 +821,39 @@ const AppointmentModal = ({
                                   )}
                                 </div>
 
-                                {/* Appointments on selected date */}
-                                {appts.length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-xs text-base-content/70 font-medium uppercase">Appointments</p>
-                                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                                      {appts.map((appt, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
-                                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                            appt.status === 'confirmed' ? 'bg-success' :
-                                            appt.status === 'pending' ? 'bg-warning' :
-                                            appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
-                                          }`}></div>
-                                          <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
-                                          <span className="text-base-content/60 flex-shrink-0">{typeof appt.startTime === 'string' ? format(parseISO(appt.startTime), 'h:mm a') : format(new Date(appt.startTime), 'h:mm a')}</span>
-                                        </div>
-                                      ))}
+                                {/* Appointments on selected date (filtered by friend for reference) */}
+                                {(() => {
+                                  const friendAppts = getAppointmentsForDate(parseISO(formData.startTime));
+                                  return friendAppts.length > 0 ? (
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-base-content/70 font-medium uppercase">Your appointments with this friend</p>
+                                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                                        {friendAppts.map((appt, idx) => {
+                                          const startTime = typeof appt.startTime === 'string' ? parseISO(appt.startTime) : new Date(appt.startTime);
+                                          const endTime = typeof appt.endTime === 'string' ? parseISO(appt.endTime) : new Date(appt.endTime);
+                                          const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+                                          const durationDisplay = durationMinutes < 60 
+                                            ? `${durationMinutes}m` 
+                                            : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+                                          
+                                          return (
+                                            <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
+                                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                appt.status === 'confirmed' ? 'bg-success' :
+                                                appt.status === 'pending' ? 'bg-warning' :
+                                                appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
+                                              }`}></div>
+                                              <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
+                                              <span className="text-base-content/60 flex-shrink-0 whitespace-nowrap">
+                                                {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')} ({durationDisplay})
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  ) : null;
+                                })()}
                               </div>
                             );
                           })()}
@@ -863,7 +944,7 @@ const AppointmentModal = ({
                     {/* Time Picker */}
                     <div>
                       <label className="block text-sm font-medium text-base-content mb-2">Time *</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-2">
                         {timeSlots.map(slot => (
                           <button
                             key={slot.time}
@@ -989,7 +1070,12 @@ const AppointmentModal = ({
                     </button>
                     <button
                       type="submit"
-                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away')}
+                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away') || (() => {
+                        if (!formData.startTime || !formData.friendId) return false;
+                        const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
+                        const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
+                        return allApptsOnDate.length >= maxPerDay;
+                      })()}
                       className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-content font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
                     >
                       Next →

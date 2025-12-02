@@ -132,6 +132,9 @@ const Calendar = ({
     const map = new Map();
     
     appointments.forEach(appointment => {
+      // Skip declined and cancelled appointments from capacity calculation
+      if (['declined', 'cancelled'].includes(appointment.status)) return;
+      
       if (!appointment.startTime) return;
       
       try {

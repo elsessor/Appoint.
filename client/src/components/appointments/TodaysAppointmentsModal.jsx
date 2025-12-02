@@ -25,6 +25,7 @@ const TodaysAppointmentsModal = ({
   currentUser,
   onEditAppointment,
   onDeleteAppointment,
+  onNewAppointment,
 }) => {
   const { theme } = useThemeStore();
   const navigate = useNavigate();
@@ -451,13 +452,21 @@ const TodaysAppointmentsModal = ({
           </div>
 
           {/* Footer */}
-          <div className="bg-base-100 border-t border-base-300 px-8 py-4 flex justify-end">
+          <div className="bg-base-100 border-t border-base-300 px-8 py-4 flex items-center justify-between">
             <button
               onClick={onClose}
               className="px-6 py-2 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-lg transition"
             >
               Close
             </button>
+            {onNewAppointment && (
+              <button
+                onClick={onNewAppointment}
+                className="px-6 py-2.5 bg-green-400 hover:bg-green-500 text-green-950 font-semibold rounded-lg transition"
+              >
+                New Appointment
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -472,6 +481,7 @@ TodaysAppointmentsModal.propTypes = {
   currentUser: PropTypes.object,
   onEditAppointment: PropTypes.func,
   onDeleteAppointment: PropTypes.func,
+  onNewAppointment: PropTypes.func,
 };
 
 export default TodaysAppointmentsModal;

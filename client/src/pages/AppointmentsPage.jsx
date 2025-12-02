@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { format, parseISO, isToday } from 'date-fns';
 import { Calendar, Clock, Video, Phone, MapPin, Trash2, Edit, Bell, Clock3, CheckCircle, CheckCircle2, XCircle, ListIcon, Star } from "lucide-react";
 import { getAppointments, deleteAppointment, updateAppointment, getAuthUser } from '../lib/api';
@@ -15,6 +16,7 @@ import { useThemeStore } from '../store/useThemeStore';
 const AppointmentsPage = () => {
   const { theme } = useThemeStore();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [filterStatus, setFilterStatus] = useState('scheduled'); 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -66,6 +68,27 @@ const AppointmentsPage = () => {
     }
   });
 
+
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: (data) => updateAppointment({ 
+      id: data.appointmentId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      title: data.title,
+      description: data.description,
+      meetingType: data.meetingType,
+      location: data.location,
+      duration: data.duration,
+    }),
+    onSuccess: () => {
+      toast.success('Appointment rescheduled successfully!');
+      queryClient.invalidateQueries(['appointments']);
+      setSelectedAppointment(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to reschedule appointment');
+    }
+  });
 
   const declineAppointmentMutation = useMutation({
     mutationFn: (data) => updateAppointment({ 
@@ -128,6 +151,17 @@ const AppointmentsPage = () => {
       console.log('Incoming requests:', incomingRequests.length);
     }
   }, [appointments, currentUser, incomingRequests]);
+
+  // Check for view parameter in URL and display that appointment
+  useEffect(() => {
+    const appointmentId = searchParams.get('view');
+    if (appointmentId && appointments.length > 0) {
+      const foundAppointment = appointments.find(apt => apt._id === appointmentId);
+      if (foundAppointment) {
+        setSelectedAppointment(foundAppointment);
+      }
+    }
+  }, [searchParams, appointments]);
 
   
   const filteredAppointments = filterStatus === 'all'
@@ -261,6 +295,16 @@ const AppointmentsPage = () => {
           }}
           onSendMessage={() => {
             console.log('Send message');
+          }}
+          friends={currentUser?.friends || []}
+          availability={currentUser?.availability || {}}
+          friendsAvailability={{}}
+          appointments={appointments}
+          onUpdateAppointment={(formData) => {
+            rescheduleAppointmentMutation.mutate({
+              appointmentId: selectedAppointment._id,
+              ...formData
+            });
           }}
         />
       ) : (
