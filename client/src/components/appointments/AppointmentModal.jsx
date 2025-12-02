@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
-import { format, parseISO, isBefore, isToday, addMinutes } from 'date-fns';
-import { X, Clock, User, MessageSquare, Calendar, ChevronDown } from 'lucide-react';
+import { X, Calendar, Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, parseISO, isToday, isBefore, isAfter, addMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
+import { toast } from 'react-hot-toast';
+import { getUserAvailability } from '../../lib/api';
+import AvailabilityInfo from '../AvailabilityInfo';
+import { useThemeStore } from '../../store/useThemeStore';
 
 const CANCELLATION_REASONS = [
   'Schedule Conflict',
@@ -18,6 +22,7 @@ const AppointmentModal = ({
   onSubmit,
   initialDate,
   initialTime,
+  initialFriendId = null,
   friends = [],
   availability = {
     days: [1, 2, 3, 4, 5],
@@ -28,6 +33,10 @@ const AppointmentModal = ({
   appointment = null,
   onDelete = null,
   friendsAvailability = {},
+  currentUserStatus = 'available',
+  currentUser = null,
+  appointments = [],
+  selectedDate = null,
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -40,7 +49,6 @@ const AppointmentModal = ({
     meetingType: 'Video Call',
     duration: 30,
     location: '',
-    reminder: 15, // minutes before appointment
   });
 
   const [showCancellation, setShowCancellation] = useState(false);
@@ -48,6 +56,11 @@ const AppointmentModal = ({
   const [customReason, setCustomReason] = useState('');
   const [declineMessage, setDeclineMessage] = useState('');
   const [showDeclineForm, setShowDeclineForm] = useState(false);
+  const [selectedFriendAvailability, setSelectedFriendAvailability] = useState(null);
+  const [loadingFriendAvailability, setLoadingFriendAvailability] = useState(false);
+  const [step, setStep] = useState(1);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const { theme } = useThemeStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -73,51 +86,167 @@ const AppointmentModal = ({
           reminder: appointment.reminder || 15,
         });
       } else if (initialDate) {
-        const dateStr = format(initialDate, 'yyyy-MM-dd');
-        const timeStr = initialTime ? format(initialTime, 'HH:mm') : '09:00';
-        setFormData({
-          title: '',
-          description: '',
-          startTime: `${dateStr}T${timeStr}`,
-          endTime: `${dateStr}T${timeStr}`,
-          friendId: '',
-          friendSearch: '',
-          showFriendDropdown: false,
-          meetingType: 'Video Call',
-          duration: 30,
-          location: '',
-          reminder: 15,
-        });
+        const date = format(initialDate, 'yyyy-MM-dd');
+        const time = initialTime ? format(initialTime, 'HH:mm') : '09:00';
+        const startTime = `${date}T${time}`;
+        const endTime = format(addMinutes(parseISO(startTime), 30), 'yyyy-MM-dd\'T\'HH:mm');
+        
+        setFormData(prev => ({
+          ...prev,
+          startTime,
+          endTime,
+          friendId: initialFriendId || '',
+        }));
       }
     }
-  }, [appointment, initialDate, initialTime, isOpen]);
+  }, [appointment, initialDate, initialTime, initialFriendId, isOpen, friends]);
+
+  useEffect(() => {
+    if (formData.friendId) {
+      setLoadingFriendAvailability(true);
+      const selectedFriend = friends.find(f => f._id === formData.friendId);
+      
+      if (selectedFriend) {
+        getUserAvailability(selectedFriend._id)
+          .then(data => {
+            setSelectedFriendAvailability(data);
+            setLoadingFriendAvailability(false);
+          })
+          .catch(error => {
+            console.error('Error fetching friend availability:', error);
+            setLoadingFriendAvailability(false);
+          });
+      }
+    } else {
+      setSelectedFriendAvailability(null);
+    }
+  }, [formData.friendId, friends]);
+
+  const selectedDateAppointments = useMemo(() => {
+    if (!formData.startTime || !formData.friendId || appointments.length === 0) return [];
+    
+    try {
+      const selectedDateStr = formData.startTime.split('T')[0];
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        
+        if (apptDateStr !== selectedDateStr) return false;
+        
+        const apptUserId = appt.userId?._id || appt.userId;
+        const apptFriendId = appt.friendId?._id || appt.friendId;
+        
+        return apptFriendId === formData.friendId || apptUserId === formData.friendId;
+      });
+    } catch (e) {
+      return [];
+    }
+  }, [formData.startTime, formData.friendId, appointments]);
 
   const generateTimeSlots = useMemo(() => {
     const slots = [];
-    const [startHour, startMin] = availability.start.split(':').map(Number);
-    const [endHour, endMin] = availability.end.split(':').map(Number);
-    const duration = availability.slotDuration || 30;
+    const effectiveAvailability = selectedFriendAvailability?.availability || availability;
+    
+    if (!effectiveAvailability || !effectiveAvailability.start || !effectiveAvailability.end) {
+      return slots;
+    }
+    
+    const [startHour, startMin] = effectiveAvailability.start.split(':').map(Number);
+    const [endHour, endMin] = effectiveAvailability.end.split(':').map(Number);
+    const duration = effectiveAvailability.slotDuration || 30;
+    const appointmentDuration = formData.duration || 30;
+    const minLeadTime = effectiveAvailability.minLeadTime || 0;
+    const breakTimes = effectiveAvailability.breakTimes || [];
     const now = new Date();
 
-    let current = new Date();
-    current.setHours(startHour, startMin, 0, 0);
-    const end = new Date();
-    end.setHours(endHour, endMin, 0, 0);
+    let selectedDate = new Date();
+    if (formData.startTime) {
+      try {
+        selectedDate = parseISO(formData.startTime);
+      } catch (e) {
+        selectedDate = initialDate ? new Date(initialDate) : new Date();
+      }
+    } else if (initialDate) {
+      selectedDate = new Date(initialDate);
+    }
 
-    // If the initial date is today, only show future slots
-    const selectedDate = initialDate ? new Date(initialDate) : new Date();
     const isSelectedToday = isToday(selectedDate);
 
+    let current = new Date(selectedDate);
+    current.setHours(startHour, startMin, 0, 0);
+    
+    let end = new Date(selectedDate);
+    end.setHours(endHour, endMin, 0, 0);
+
     while (current < end) {
-      const slotTime = format(current, 'HH:mm');
-      // Disable past time slots if booking for today
-      const isDisabled = isSelectedToday && isBefore(current, now);
-      slots.push({ time: slotTime, disabled: isDisabled });
+      const slotTime24 = format(current, 'HH:mm');
+      const slotTime12 = format(current, 'h:mm a');
+      
+      const slotEndTime = addMinutes(current, appointmentDuration);
+      const fitsInAvailableTime = slotEndTime <= end;
+      const isPast = isSelectedToday && isBefore(current, now);
+      
+      let meetsLeadTime = true;
+      if (minLeadTime > 0 && isSelectedToday) {
+        const leadTimeDeadline = addMinutes(now, minLeadTime * 60);
+        meetsLeadTime = !isBefore(current, leadTimeDeadline);
+      }
+      
+      let isInBreakTime = false;
+      for (const breakTime of breakTimes) {
+        const [bStartHour, bStartMin] = breakTime.start.split(':').map(Number);
+        const [bEndHour, bEndMin] = breakTime.end.split(':').map(Number);
+        const breakStart = new Date(selectedDate);
+        breakStart.setHours(bStartHour, bStartMin, 0, 0);
+        const breakEnd = new Date(selectedDate);
+        breakEnd.setHours(bEndHour, bEndMin, 0, 0);
+        
+        if (current >= breakStart && current < breakEnd) {
+          isInBreakTime = true;
+          break;
+        }
+      }
+
+      let isBooked = false;
+      if (formData.friendId && selectedDateAppointments.length > 0) {
+        isBooked = selectedDateAppointments.some(appt => {
+          const apptStart = typeof appt.startTime === 'string' 
+            ? parseISO(appt.startTime)
+            : new Date(appt.startTime);
+          const apptEnd = typeof appt.endTime === 'string'
+            ? parseISO(appt.endTime)
+            : new Date(appt.endTime);
+          
+          const slotStart = new Date(current);
+          const slotEnd = addMinutes(slotStart, appointmentDuration);
+          
+          return isBefore(slotStart, apptEnd) && isAfter(slotEnd, apptStart);
+        });
+      }
+      
+      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked;
+      
+      let disabledReason = '';
+      if (isPast) disabledReason = '(Past)';
+      else if (!fitsInAvailableTime) disabledReason = '(Too late)';
+      else if (!meetsLeadTime) disabledReason = `(${minLeadTime}h notice)`;
+      else if (isInBreakTime) disabledReason = '(Break time)';
+      else if (isBooked) disabledReason = '(Booked)';
+      
+      slots.push({ 
+        time: slotTime24, 
+        display: slotTime12, 
+        disabled: isDisabled,
+        reason: disabledReason
+      });
       current = addMinutes(current, duration);
     }
 
     return slots;
-  }, [availability, initialDate]);
+  }, [availability, formData.startTime, initialDate, selectedFriendAvailability, formData.duration, formData.friendId, selectedDateAppointments]);
 
   const timeSlots = generateTimeSlots;
 
@@ -141,7 +270,6 @@ const AppointmentModal = ({
     setFormData(prev => ({
       ...prev,
       startTime: newStartTime,
-      // Auto-calculate end time based on duration
       endTime: newStartTime ? format(addMinutes(parseISO(newStartTime), formData.duration), 'yyyy-MM-dd\'T\'HH:mm') : '',
     }));
   };
@@ -151,43 +279,136 @@ const AppointmentModal = ({
     setFormData(prev => ({
       ...prev,
       duration: newDuration,
-      // Recalculate end time with new duration
       endTime: prev.startTime ? format(addMinutes(parseISO(prev.startTime), newDuration), 'yyyy-MM-dd\'T\'HH:mm') : '',
     }));
+  };
+
+  const handleDateSelect = (day) => {
+    const selectedDate = new Date(calendarMonth);
+    selectedDate.setDate(day);
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const time = formData.startTime.split('T')[1] || '09:00';
+    setFormData(prev => ({
+      ...prev,
+      startTime: `${dateStr}T${time}`,
+      endTime: format(addMinutes(parseISO(`${dateStr}T${time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
+    }));
+  };
+
+  const getCalendarDays = () => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    const startDate = monthStart.getDay();
+    const padding = Array(startDate).fill(null);
+    
+    return [...padding, ...days];
+  };
+
+  const getAppointmentsForDate = (date) => {
+    if (!date || !formData.friendId || appointments.length === 0) return [];
+    
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        
+        if (apptDateStr !== dateStr) return false;
+        
+        const apptUserId = appt.userId?._id || appt.userId;
+        const apptFriendId = appt.friendId?._id || appt.friendId;
+        
+        return apptFriendId === formData.friendId || apptUserId === formData.friendId;
+      });
+    } catch (e) {
+      return [];
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const currentUserId = currentUser?._id || currentUser?.id;
+    
+    if (currentUserStatus === 'away') {
+      toast.error('You are currently away. Please update your status.');
+      return;
+    }
+    
     if (!formData.title.trim()) {
-      alert('Please enter an appointment title');
+      toast.error('Please enter an appointment title');
       return;
     }
 
     if (!formData.startTime) {
-      alert('Please select a start time');
+      toast.error('Please select a start time');
       return;
     }
 
     if (!formData.friendId) {
-      alert('Please select a friend');
+      toast.error('Please select a friend');
       return;
     }
 
-    // Validate location for in-person appointments
+    const selectedFriend = friends.find(f => f._id === formData.friendId);
+    const friendStatus = friendsAvailability[selectedFriend?._id] || 'available';
+    
+    if (friendStatus === 'away') {
+      toast.error('This friend is currently away');
+      return;
+    }
+
+    const friendAvail = selectedFriendAvailability?.availability;
+    
     if (formData.meetingType === 'In Person' && !formData.location.trim()) {
-      alert('Please enter a location for in-person appointments');
+      toast.error('Please enter a location for in-person appointments');
       return;
     }
 
-    // Validate that the appointment is not in the past
     const startDateTime = parseISO(formData.startTime);
+    const endDateTime = parseISO(formData.endTime);
     const now = new Date();
+    
     if (isBefore(startDateTime, now)) {
-      alert('Cannot schedule an appointment in the past');
+      toast.error('Cannot schedule an appointment in the past');
       return;
     }
 
+    if (friendAvail && friendAvail.minLeadTime > 0) {
+      const leadTimeDeadline = addMinutes(now, friendAvail.minLeadTime * 60);
+      if (isBefore(startDateTime, leadTimeDeadline)) {
+        toast.error(`This friend requires ${friendAvail.minLeadTime} hour${friendAvail.minLeadTime > 1 ? 's' : ''} advance notice`);
+        return;
+      }
+    }
+
+    const friendConflict = selectedDateAppointments.some(existingAppt => {
+      const existingStart = typeof existingAppt.startTime === 'string' 
+        ? parseISO(existingAppt.startTime)
+        : new Date(existingAppt.startTime);
+      const existingEnd = typeof existingAppt.endTime === 'string'
+        ? parseISO(existingAppt.endTime)
+        : new Date(existingAppt.endTime);
+      
+      if (['declined', 'cancelled'].includes(existingAppt.status)) return false;
+      
+      return isBefore(startDateTime, existingEnd) && isAfter(endDateTime, existingStart);
+    });
+
+    if (friendConflict) {
+      toast.error('This time slot is already booked. Please choose another time.');
+      return;
+    }
+
+    setStep(2);
+  };
+
+  const handleConfirmAppointment = () => {
     onSubmit(formData);
     setFormData({
       title: '',
@@ -201,11 +422,13 @@ const AppointmentModal = ({
       duration: 30,
       location: '',
     });
+    setStep(1);
+    onClose();
   };
 
   const handleCancelAppointment = () => {
     if (!cancellationReason) {
-      alert('Please select a cancellation reason');
+      toast.error('Please select a cancellation reason');
       return;
     }
 
@@ -214,7 +437,7 @@ const AppointmentModal = ({
       : cancellationReason;
 
     if (!finalReason.trim()) {
-      alert('Please provide a reason');
+      toast.error('Please provide a reason');
       return;
     }
 
@@ -227,20 +450,6 @@ const AppointmentModal = ({
     }
   };
 
-  const handleDeclineAppointment = () => {
-    if (!declineMessage.trim()) {
-      alert('Please provide a reason for declining');
-      return;
-    }
-
-    if (onDecline) {
-      onDecline(declineMessage);
-      setShowDeclineForm(false);
-      setDeclineMessage('');
-      onClose();
-    }
-  };
-
   const durationOptions = [15, 30, 45, 60, 90, 120];
 
   if (!isOpen) return null;
@@ -249,7 +458,7 @@ const AppointmentModal = ({
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       ></div>
 
@@ -257,415 +466,618 @@ const AppointmentModal = ({
       <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
         <div className="w-screen max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-br from-base-100 to-base-200 border-b border-base-300 px-8 py-6 flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-base-content">
+          <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-8 py-5 flex items-center justify-between">
+            <div className="flex-1">
+              <h2 className="text-2xl font-semibold text-base-content">
                 {showCancellation 
                   ? 'Cancel Appointment' 
                   : showDeclineForm 
                   ? 'Decline Appointment' 
-                  : appointment ? 'Edit Appointment' : 'Create Appointment'}
+                  : appointment ? 'Edit Appointment' : 'New Appointment'}
               </h2>
-              {appointment && !showCancellation && !showDeclineForm && (
-                <p className="text-xs text-base-content/50 mt-2 font-mono">
-                  {appointment._id?.slice(-8) || 'N/A'}
-                </p>
+              
+              {!showCancellation && !showDeclineForm && (
+                <div className="flex items-center gap-3 mt-3">
+                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 1 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                      1
+                    </span>
+                    Details
+                  </div>
+                  <div className={`text-xs ${step === 1 ? 'text-primary/50' : 'text-base-300'}`}>→</div>
+                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 2 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                      2
+                    </span>
+                    Review
+                  </div>
+                </div>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-base-300 rounded-lg transition-colors text-base-content/60 hover:text-base-content"
+              className="p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-4 flex-shrink-0"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Content */}
           {!showCancellation && !showDeclineForm ? (
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Appointment Title <span className="text-error">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="e.g., Project Discussion, Language Lesson"
-                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                />
-              </div>
+            step === 1 ? (
+              // STEP 1: Form Entry
+              <form onSubmit={handleSubmit} className="p-8 space-y-7">
+                {/* Away Status Warning */}
+                {currentUserStatus === 'away' && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 font-medium text-sm flex items-start gap-3">
+                      <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
+                      <span>You are currently away. Please update your status to schedule appointments.</span>
+                    </p>
+                  </div>
+                )}
 
-              {/* Friend Selection */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Schedule With <span className="text-error">*</span>
-                </label>
-                <div className="relative">
+                {/* Title */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-base-content">Appointment Title *</label>
                   <input
                     type="text"
-                    placeholder="Search or select a friend..."
-                    className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                    onChange={(e) => {
-                      setFormData(prev => ({...prev, friendSearch: e.target.value}));
-                    }}
-                    onFocus={() => {
-                      setFormData(prev => ({...prev, showFriendDropdown: true}));
-                    }}
-                    value={formData.friendSearch || ''}
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="e.g., Project Discussion, Language Lesson"
+                    className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
                   />
-                  {formData.showFriendDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border-2 border-base-300 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto">
-                      {friends.filter(f => {
-                        const search = (formData.friendSearch || '').toLowerCase();
-                        return (f.fullName || f.name || '').toLowerCase().includes(search) ||
-                               (f.email || '').toLowerCase().includes(search);
-                      }).map(friend => {
-                        const friendStatus = friendsAvailability[friend._id] || 'available';
-                        const isAway = friendStatus === 'away';
-                        const statusConfig = {
-                          available: {
-                            badge: 'badge-success',
-                            label: 'Available',
-                            icon: '✓'
-                          },
-                          limited: {
-                            badge: 'badge-warning',
-                            label: 'Limited',
-                            icon: '⚠'
-                          },
-                          away: {
-                            badge: 'badge-error',
-                            label: 'Away',
-                            icon: '✕'
-                          }
-                        };
-                        
-                        const config = statusConfig[friendStatus];
-                        
-                        return (
-                          <button
-                            key={friend._id}
-                            type="button"
-                            disabled={isAway}
-                            onClick={() => {
-                              if (!isAway) {
+                </div>
+
+                {/* Friend Selection */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-base-content">Schedule With *</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search or select a friend..."
+                      className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                      onChange={(e) => {
+                        setFormData(prev => ({...prev, friendSearch: e.target.value}));
+                      }}
+                      onFocus={() => {
+                        setFormData(prev => ({...prev, showFriendDropdown: true}));
+                      }}
+                      value={formData.friendSearch || ''}
+                    />
+                    {formData.showFriendDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                        {friends.filter(f => {
+                          const search = (formData.friendSearch || '').toLowerCase();
+                          return (f.fullName || f.name || '').toLowerCase().includes(search) ||
+                                 (f.email || '').toLowerCase().includes(search);
+                        }).map(friend => {
+                          const friendStatus = friendsAvailability[friend._id] || 'available';
+                          const isAway = friendStatus === 'away';
+                          const statusConfig = {
+                            available: { badge: 'badge badge-success', label: 'Available' },
+                            limited: { badge: 'badge badge-warning', label: 'Limited' },
+                            away: { badge: 'badge badge-error', label: 'Away' }
+                          };
+                          
+                          const config = statusConfig[friendStatus];
+                          
+                          return (
+                            <button
+                              key={friend._id}
+                              type="button"
+                              disabled={isAway}
+                              onClick={() => {
                                 setFormData(prev => ({
                                   ...prev,
                                   friendId: friend._id,
-                                  friendSearch: friend.fullName || friend.name,
-                                  showFriendDropdown: false
+                                  friendSearch: '',
+                                  showFriendDropdown: false,
                                 }));
-                              }
-                            }}
-                            className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-base-200 last:border-b-0 transition ${
-                              isAway
-                                ? 'opacity-50 cursor-not-allowed bg-base-200'
-                                : formData.friendId === friend._id
-                                ? 'bg-primary/10 hover:bg-primary/20 cursor-pointer'
-                                : 'hover:bg-base-200 cursor-pointer'
-                            }`}
-                          >
-                            {friend.profilePic ? (
-                              <img
-                                src={friend.profilePic}
-                                alt={friend.fullName}
-                                className="w-9 h-9 rounded-full object-cover flex-shrink-0 ring-2 ring-base-300"
-                              />
-                            ) : (
-                              <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
-                                {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
+                              }}
+                              className={`w-full px-4 py-3 text-left flex items-center gap-3 border-b border-base-200 last:border-b-0 transition text-sm ${
+                                isAway
+                                  ? 'opacity-50 cursor-not-allowed bg-base-100 hover:bg-base-100'
+                                  : formData.friendId === friend._id
+                                  ? 'bg-primary/10 hover:bg-primary/20 cursor-pointer'
+                                  : 'hover:bg-base-200 cursor-pointer'
+                              }`}
+                            >
+                              {friend.profilePic ? (
+                                <img
+                                  src={friend.profilePic}
+                                  alt={friend.fullName}
+                                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                  {(friend.fullName || friend.name || 'U')[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-base-content text-sm truncate">
+                                  {friend.fullName || friend.name}
+                                </p>
+                                <p className="text-xs text-base-content/60 truncate">
+                                  {friend.email}
+                                </p>
                               </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-base-content truncate">
-                                {friend.fullName || friend.name}
-                              </p>
-                              <p className="text-xs text-base-content/50 truncate">
-                                {friend.email}
+                              <span className={`${config.badge} badge-sm flex-shrink-0`}>
+                                {config.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Friend Card */}
+                  {formData.friendId && (
+                    <div className="space-y-3 pt-3">
+                      {(() => {
+                        const selectedFriend = friends.find(f => f._id === formData.friendId);
+                        const friendStatus = friendsAvailability[selectedFriend?._id] || 'available';
+                        
+                        if (friendStatus === 'away') {
+                          return (
+                            <div className="p-4 bg-error/10 border border-error/30 rounded-lg">
+                              <p className="text-error font-medium text-sm flex items-start gap-3">
+                                <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
+                                <span>This friend is currently away.</span>
                               </p>
                             </div>
-                            <span className={`badge ${config.badge} gap-1 text-xs flex-shrink-0`}>
-                              {config.icon} {config.label}
-                            </span>
-                          </button>
-                        );
-                      })}
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      <div className="p-4 bg-primary/10 rounded-lg border border-primary/30 flex items-center gap-3">
+                        {(() => {
+                          const selectedFriend = friends.find(f => f._id === formData.friendId);
+                          if (!selectedFriend) return null;
+                          
+                          const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
+                          const statusConfig = {
+                            available: { badge: 'badge badge-success', label: 'Available' },
+                            limited: { badge: 'badge badge-warning', label: 'Limited' },
+                            away: { badge: 'badge badge-error', label: 'Away' }
+                          };
+                          const config = statusConfig[friendStatus];
+
+                          return (
+                            <>
+                              {selectedFriend.profilePic ? (
+                                <img
+                                  src={selectedFriend.profilePic}
+                                  alt={selectedFriend.fullName}
+                                  className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-primary/30 text-primary flex items-center justify-center font-semibold flex-shrink-0 text-sm">
+                                  {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-base-content text-sm">{selectedFriend.fullName || selectedFriend.name}</p>
+                                <p className="text-xs text-base-content/70">{selectedFriend.email}</p>
+                              </div>
+                              <span className={`${config.badge} badge-sm flex-shrink-0`}>
+                                {config.label}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {loadingFriendAvailability ? (
+                        <div className="p-4 bg-base-200 rounded-lg animate-pulse">
+                          <div className="h-16 bg-base-300 rounded"></div>
+                        </div>
+                      ) : (
+                        <AvailabilityInfo 
+                          availability={selectedFriendAvailability?.availability || {}} 
+                          availabilityStatus={selectedFriendAvailability?.availabilityStatus || friendsAvailability[formData.friendId] || 'available'}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Selected Friend Card */}
-                {formData.friendId && (
-                  <div className="mt-4 p-4 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border-2 border-primary/20 flex items-center gap-4">
-                    {(() => {
-                      const selectedFriend = friends.find(f => f._id === formData.friendId);
-                      if (!selectedFriend) return null;
+                {/* Schedule Details */}
+                <div className="space-y-4 p-5 bg-base-200 rounded-lg border border-base-300">
+                  <div className="flex items-center gap-3 pb-3 border-b border-base-300">
+                    <Calendar className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-semibold text-base-content">When</h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Date Display with Day and Calendar */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-base-content">Date *</label>
                       
-                      const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
-                      const statusConfig = {
-                        available: {
-                          badge: 'badge-success',
-                          label: 'Available',
-                          icon: '✓'
-                        },
-                        limited: {
-                          badge: 'badge-warning',
-                          label: 'Limited',
-                          icon: '⚠'
-                        },
-                        away: {
-                          badge: 'badge-error',
-                          label: 'Away',
-                          icon: '✕'
-                        }
-                      };
-                      const config = statusConfig[friendStatus];
-
-                      return (
-                        <>
-                          {selectedFriend.profilePic ? (
-                            <img
-                              src={selectedFriend.profilePic}
-                              alt={selectedFriend.fullName}
-                              className="w-12 h-12 rounded-full object-cover flex-shrink-0 ring-2 ring-primary"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
-                              {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                      {/* Current Selection Display */}
+                      {formData.startTime && (
+                        <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 space-y-3">
+                          <div>
+                            <p className="text-xs text-primary font-semibold mb-2 uppercase">Selected</p>
+                            <div className="flex items-baseline gap-2">
+                              <p className="text-2xl font-bold text-primary">
+                                {format(parseISO(formData.startTime), 'd')}
+                              </p>
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-base-content">
+                                  {format(parseISO(formData.startTime), 'EEEE')}
+                                </p>
+                                <p className="text-xs text-base-content/70">
+                                  {format(parseISO(formData.startTime), 'MMMM yyyy')}
+                                </p>
+                              </div>
                             </div>
-                          )}
-                          <div className="flex-1">
-                            <p className="font-semibold text-base-content">{selectedFriend.fullName || selectedFriend.name}</p>
-                            <p className="text-xs text-base-content/60">{selectedFriend.email}</p>
                           </div>
-                          <span className={`badge ${config.badge} gap-1`}>
-                            {config.icon} {config.label}
-                          </span>
-                        </>
-                      );
-                    })()}
+                          
+                          {/* Max Appointments & Current Count */}
+                          {(() => {
+                            const selectedFriend = friends.find(f => f._id === formData.friendId);
+                            const friendAvail = friendsAvailability[formData.friendId];
+                            const maxPerDay = friendAvail?.maxPerDay || selectedFriend?.availability?.maxPerDay || 5;
+                            const appts = getAppointmentsForDate(parseISO(formData.startTime));
+                            const isFull = appts.length >= maxPerDay;
+                            
+                            return (
+                              <div className="pt-3 border-t border-primary/20 space-y-2">
+                                {/* Max appointments capacity bar */}
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
+                                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                      isFull 
+                                        ? 'bg-error/20 text-error' 
+                                        : 'bg-success/20 text-success'
+                                    }`}>
+                                      {appts.length} / {maxPerDay}
+                                    </span>
+                                  </div>
+                                  {/* Capacity bar */}
+                                  <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all ${
+                                        appts.length === 0 ? 'bg-success' :
+                                        isFull ? 'bg-error' : 'bg-warning'
+                                      }`}
+                                      style={{ width: `${Math.min((appts.length / maxPerDay) * 100, 100)}%` }}
+                                    ></div>
+                                  </div>
+                                  {isFull && (
+                                    <p className="text-xs text-error font-medium">❌ This day is fully booked. Please select another date.</p>
+                                  )}
+                                </div>
+
+                                {/* Appointments on selected date */}
+                                {appts.length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Appointments</p>
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                      {appts.map((appt, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
+                                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                            appt.status === 'confirmed' ? 'bg-success' :
+                                            appt.status === 'pending' ? 'bg-warning' :
+                                            appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
+                                          }`}></div>
+                                          <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
+                                          <span className="text-base-content/60 flex-shrink-0">{typeof appt.startTime === 'string' ? format(parseISO(appt.startTime), 'h:mm a') : format(new Date(appt.startTime), 'h:mm a')}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* Mini Calendar */}
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-4 shadow-sm">
+                        {/* Calendar Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <button
+                            type="button"
+                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
+                            className="p-1.5 hover:bg-base-300 rounded-lg transition-all text-base-content/60"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <p className="text-sm font-semibold text-base-content">
+                            {format(calendarMonth, 'MMMM yyyy')}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
+                            className="p-1.5 hover:bg-base-300 rounded-lg transition-all text-base-content/60"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Weekday Headers */}
+                        <div className="grid grid-cols-7 gap-1 mb-2">
+                          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                            <div key={i} className="text-center text-xs font-semibold text-base-content/60 py-2">
+                              {day}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Calendar Days */}
+                        <div className="grid grid-cols-7 gap-1">
+                          {getCalendarDays().map((day, index) => {
+                            const isCurrentMonth = day && isSameMonth(day, calendarMonth);
+                            const isSelected = day && formData.startTime && isSameDay(day, parseISO(formData.startTime));
+                            const isDisabled = day && isBefore(day, new Date().setHours(0, 0, 0, 0));
+                            const dayAppointments = day ? getAppointmentsForDate(day) : [];
+                            const hasAppointments = dayAppointments.length > 0;
+                            
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                disabled={!day || isDisabled || !isCurrentMonth}
+                                onClick={() => day && handleDateSelect(day.getDate())}
+                                className={`py-2 text-xs font-medium rounded transition-all relative ${
+                                  !day
+                                    ? 'text-transparent'
+                                    : !isCurrentMonth
+                                    ? 'text-base-content/30 cursor-default'
+                                    : isDisabled
+                                    ? 'text-base-content/30 cursor-not-allowed'
+                                    : isSelected
+                                    ? 'bg-primary text-primary-content shadow-sm'
+                                    : 'text-base-content hover:bg-base-300 border border-base-300 hover:border-primary cursor-pointer'
+                                }`}
+                              >
+                                <div className="flex flex-col items-center gap-0.5">
+                                  {day ? format(day, 'd') : ''}
+                                  {hasAppointments && !isSelected && (
+                                    <div className="flex gap-0.5 justify-center">
+                                      {dayAppointments.slice(0, 2).map((appt, idx) => (
+                                        <div key={idx} className={`w-1 h-1 rounded-full ${
+                                          appt.status === 'confirmed' ? 'bg-success' :
+                                          appt.status === 'pending' ? 'bg-warning' :
+                                          appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
+                                        }`}></div>
+                                      ))}
+                                      {dayAppointments.length > 2 && <span className="text-xs leading-none">+</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Time Picker */}
+                    <div>
+                      <label className="block text-sm font-medium text-base-content mb-2">Time *</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {timeSlots.map(slot => (
+                          <button
+                            key={slot.time}
+                            type="button"
+                            disabled={slot.disabled}
+                            onClick={() => {
+                              const date = formData.startTime.split('T')[0] || format(new Date(), 'yyyy-MM-dd');
+                              setFormData(prev => ({
+                                ...prev,
+                                startTime: `${date}T${slot.time}`,
+                                endTime: format(addMinutes(parseISO(`${date}T${slot.time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
+                              }));
+                            }}
+                            className={`px-3 py-2.5 rounded-lg font-medium text-xs transition-all border ${
+                              formData.startTime.split('T')[1] === slot.time
+                                ? 'bg-primary text-primary-content border-primary shadow-sm'
+                                : slot.disabled
+                                ? 'bg-base-300 text-base-content/50 border-base-300 cursor-not-allowed'
+                                : 'bg-base-100 text-base-content border-base-300 hover:border-primary hover:bg-base-200'
+                            }`}
+                          >
+                            <div className="font-medium">{slot.display}</div>
+                            {slot.reason && <div className="text-xs opacity-60">{slot.reason}</div>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div>
+                      <label className="block text-sm font-medium text-base-content mb-2">Duration</label>
+                      <select
+                        value={formData.duration}
+                        onChange={handleDurationChange}
+                        className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all appearance-none text-sm shadow-sm hover:border-base-400"
+                      >
+                        {durationOptions.map(duration => (
+                          <option key={duration} value={duration}>
+                            {duration} minute{duration !== 1 ? 's' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* End Time Display */}
+                    {formData.startTime && formData.endTime && (
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-4">
+                        <p className="text-xs text-base-content/60 mb-2 font-medium">End Time</p>
+                        <p className="text-base font-semibold text-base-content">
+                          {format(parseISO(formData.endTime), 'h:mm a')} • {format(parseISO(formData.endTime), 'MMM d')}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-
-              {/* Date and Time Section */}
-              <div className="bg-gradient-to-br from-base-200/50 to-base-300/30 rounded-2xl p-6 border-2 border-base-300">
-                <h3 className="text-lg font-semibold text-base-content mb-6 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  Schedule Details
-                </h3>
-
-                {/* Start Date/Time */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-base-content mb-2">
-                    Start Date & Time <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    name="startTime"
-                    value={formData.startTime}
-                    onChange={handleStartTimeChange}
-                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  />
-                  <p className="text-xs text-base-content/60 mt-2">Cannot schedule in the past</p>
                 </div>
 
-                {/* Duration */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-base-content mb-2">
-                    Duration <span className="text-error">*</span>
-                  </label>
-                  <select
-                    value={formData.duration}
-                    onChange={handleDurationChange}
-                    className="w-full px-4 py-3 bg-base-100 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  >
-                    {durationOptions.map(duration => (
-                      <option key={duration} value={duration}>
-                        {duration} minutes
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Meeting Details */}
+                <div className="space-y-4 p-5 bg-base-200 rounded-lg border border-base-300">
+                  <div className="flex items-center gap-3 pb-3 border-b border-base-300">
+                    <Zap className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-semibold text-base-content">Details</h3>
+                  </div>
 
-                {/* End Time (Auto-calculated) */}
-                {formData.startTime && (
                   <div>
-                    <label className="block text-sm font-medium text-base-content mb-2">
-                      End Time (Auto-calculated)
-                    </label>
-                    <div className="px-4 py-3 bg-base-100 rounded-xl text-base-content font-medium border-2 border-base-300/50">
-                      {formData.endTime 
-                        ? format(parseISO(formData.endTime), 'MMM d, yyyy - h:mm a')
-                        : 'Will be calculated based on duration'
-                      }
-                    </div>
+                    <label className="block text-sm font-medium text-base-content mb-2">Meeting Type</label>
+                    <select
+                      name="meetingType"
+                      value={formData.meetingType}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all appearance-none text-sm shadow-sm hover:border-base-400"
+                    >
+                      <option>Video Call</option>
+                      <option>Phone Call</option>
+                      <option>In Person</option>
+                    </select>
                   </div>
-                )}
-              </div>
 
-              {/* Meeting Type */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Meeting Type
-                </label>
-                <select
-                  name="meetingType"
-                  value={formData.meetingType}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                >
-                  <option>Video Call</option>
-                  <option>Phone Call</option>
-                  <option>In Person</option>
-                </select>
-              </div>
+                  {formData.meetingType === 'In Person' && (
+                    <div>
+                      <label className="block text-sm font-medium text-base-content mb-2">Location *</label>
+                      <input
+                        type="text"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleChange}
+                        placeholder="e.g., Coffee Shop, Library"
+                        className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                      />
+                    </div>
+                  )}
 
-              {/* Location - Only show for In Person meetings */}
-              {formData.meetingType === 'In Person' && (
-                <div>
-                  <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-                    Meeting Location <span className="text-error">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    placeholder="e.g., Coffee Shop, Library, Park"
-                    className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-base-content mb-2">Notes</label>
+                    <textarea
+                      name="description"
+                      value={formData.description}
+                      onChange={handleChange}
+                      placeholder="Add any additional details..."
+                      rows="3"
+                      className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none text-sm shadow-sm hover:border-base-400"
+                    />
+                  </div>
                 </div>
-              )}
 
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Notes & Details
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  placeholder="Add any additional information about this appointment..."
-                  rows="4"
-                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
-                />
-              </div>
-
-              {/* Reminder */}
-              <div>
-                <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                  Reminder Notification
-                </label>
-                <select
-                  name="reminder"
-                  value={formData.reminder}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                >
-                  <option value={0}>No reminder</option>
-                  <option value={5}>5 minutes before</option>
-                  <option value={10}>10 minutes before</option>
-                  <option value={15}>15 minutes before</option>
-                  <option value={30}>30 minutes before</option>
-                  <option value={60}>1 hour before</option>
-                  <option value={120}>2 hours before</option>
-                  <option value={1440}>1 day before</option>
-                </select>
-                <p className="text-xs text-base-content/60 mt-2">
-                  Get notified before your appointment
-                </p>
-              </div>
-
-              {/* Booking Information Summary */}
-              {formData.startTime && formData.friendId && (
-                <div className="bg-gradient-to-br from-info/20 to-info/5 border-2 border-info/30 rounded-2xl p-6">
-                  <h4 className="text-sm font-semibold text-info-content mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-info"></span>
-                    Appointment Summary
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-base-300">
+                  {appointment && onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCancellation(true)}
+                      className="px-4 py-2.5 rounded-lg transition-all border text-sm font-medium bg-error/10 hover:bg-error/20 text-error border-error/30"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <div className="flex-1 flex gap-3 justify-end">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-5 py-2.5 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away')}
+                      className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-content font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              // STEP 2: Review/Summary
+              <div className="p-6 space-y-4">
+                <div className="bg-success/10 border border-success/30 rounded-lg p-5 space-y-4">
+                  <h4 className="text-lg font-semibold text-base-content flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-success flex items-center justify-center text-success-content font-semibold text-xs">✓</div>
+                    Review
                   </h4>
-                  <div className="space-y-3 text-sm text-base-content">
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Title:</span>
-                      <span className="font-semibold">{formData.title || 'Not set'}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Date & Time:</span>
-                      <span className="font-semibold text-right">{format(parseISO(formData.startTime), 'MMM d, yyyy - h:mm a')}</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Duration:</span>
-                      <span className="font-semibold">{formData.duration} minutes</span>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <span className="font-medium text-base-content/70">Type:</span>
-                      <span className="font-semibold">{formData.meetingType}</span>
-                    </div>
-                    {formData.meetingType === 'In Person' && formData.location && (
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-base-content/70">Location:</span>
-                        <span className="font-semibold text-right">{formData.location}</span>
+                  
+                  <div className="space-y-3">
+                    {/* Title */}
+                    {formData.title && (
+                      <div className="pb-3 border-b border-success/20">
+                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Title</p>
+                        <p className="text-sm font-semibold text-base-content truncate">{formData.title}</p>
                       </div>
                     )}
-                    {formData.friendId && (
-                      <div className="flex justify-between items-start">
-                        <span className="font-medium text-base-content/70">With:</span>
-                        <span className="font-semibold">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</span>
+
+                    {/* Date & Time in one row */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Date</p>
+                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
+                        <p className="text-xs text-base-content/60 mt-0.5">{format(parseISO(formData.startTime), 'EEE')}</p>
                       </div>
-                    )}
-                    {formData.reminder > 0 && (
-                      <div className="flex justify-between items-start pt-3 border-t border-info/20">
-                        <span className="font-medium text-base-content/70">Reminder:</span>
-                        <span className="font-semibold">
-                          {formData.reminder === 1440 ? '1 day before' :
-                           formData.reminder === 120 ? '2 hours before' :
-                           formData.reminder === 60 ? '1 hour before' :
-                           `${formData.reminder} minutes before`}
-                        </span>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Time</p>
+                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
+                        <p className="text-xs text-base-content/60 mt-0.5">{formData.duration}m</p>
+                      </div>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Type</p>
+                        <p className="text-sm font-semibold text-base-content truncate">{formData.meetingType}</p>
+                      </div>
+                    </div>
+
+                    {/* With & Location (if applicable) */}
+                    <div className="bg-base-100 border border-base-300 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-base-content/60 font-medium uppercase mb-1">With</p>
+                          <p className="text-sm font-semibold text-base-content truncate">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
+                        </div>
+                        {formData.meetingType === 'In Person' && formData.location && (
+                          <div className="text-right ml-3 flex-shrink-0">
+                            <p className="text-xs text-base-content/60 font-medium uppercase mb-1">Location</p>
+                            <p className="text-sm font-semibold text-base-content">{formData.location}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Notes if present */}
+                    {formData.description && (
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Notes</p>
+                        <p className="text-xs text-base-content leading-relaxed line-clamp-2">{formData.description}</p>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
 
-              {/* Actions */}
-              <div className="flex gap-4 pt-6 border-t-2 border-base-300">
-                {appointment && onDelete && (
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-2 border-t border-base-300">
                   <button
                     type="button"
-                    onClick={() => setShowCancellation(true)}
-                    className="px-6 py-3 bg-error/20 hover:bg-error/30 text-error font-semibold rounded-xl transition-all border-2 border-error/30"
+                    onClick={() => setStep(1)}
+                    className="flex-1 px-4 py-2 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
                   >
-                    Cancel Appointment
+                    ← Back
                   </button>
-                )}
-                <div className="flex-1 flex gap-3 justify-end">
                   <button
                     type="button"
-                    onClick={onClose}
-                    className="px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
+                    onClick={handleConfirmAppointment}
+                    className="flex-1 px-4 py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-sm shadow-sm"
                   >
-                    Close
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-8 py-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
-                  >
-                    {appointment ? 'Update' : 'Create'} Appointment
+                    ✓ Confirm
                   </button>
                 </div>
               </div>
-            </form>
+            )
           ) : showCancellation ? (
             <CancellationForm
               cancellationReason={cancellationReason}
@@ -698,31 +1110,28 @@ const CancellationForm = ({
   onCancel, 
   onSubmit 
 }) => (
-  <div className="p-8 space-y-8">
-    <div className="bg-gradient-to-br from-error/20 to-error/5 border-2 border-error/30 rounded-2xl p-6">
-      <p className="text-error-content text-sm font-medium flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">⚠</span>
-        <span>Cancelling this appointment will notify the other person. Please provide a reason for accountability.</span>
+  <div className="p-8 space-y-6">
+    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+      <p className="text-red-700 font-medium text-sm flex items-start gap-3">
+        <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
+        <span>Cancelling will notify the other person. Please select a reason.</span>
       </p>
     </div>
 
-    <div>
-      <label className="block text-sm font-semibold text-base-content mb-4 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
-        Reason for Cancellation <span className="text-error">*</span>
-      </label>
-      <div className="space-y-3">
+    <div className="space-y-3">
+      <label className="block text-sm font-semibold text-gray-900">Cancellation Reason *</label>
+      <div className="space-y-2">
         {CANCELLATION_REASONS.map((reason) => (
-          <label key={reason} className="flex items-center gap-3 p-3 rounded-xl hover:bg-base-200/50 cursor-pointer transition group">
+          <label key={reason} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition border border-gray-200 hover:border-red-300">
             <input
               type="radio"
               name="cancellation"
               value={reason}
               checked={cancellationReason === reason}
               onChange={(e) => setCancellationReason(e.target.value)}
-              className="radio radio-primary"
+              className="w-4 h-4 accent-red-600"
             />
-            <span className="text-sm font-medium text-base-content group-hover:text-primary transition">
+            <span className="text-sm font-medium text-gray-900">
               {reason}
             </span>
           </label>
@@ -731,33 +1140,30 @@ const CancellationForm = ({
     </div>
 
     {cancellationReason === 'Other (Please specify)' && (
-      <div>
-        <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-          Please explain your reason
-        </label>
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold text-gray-900">Explain Your Reason *</label>
         <textarea
           value={customReason}
           onChange={(e) => setCustomReason(e.target.value)}
           placeholder="Enter your cancellation reason..."
-          rows="4"
-          className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
+          rows="3"
+          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all resize-none text-sm shadow-sm hover:border-gray-400"
         />
       </div>
     )}
 
-    <div className="flex gap-4 pt-6 border-t-2 border-base-300">
+    <div className="flex gap-3 pt-4 border-t border-gray-200">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
+        className="flex-1 px-5 py-2.5 bg-white hover:bg-gray-50 text-gray-900 font-medium rounded-lg transition-all border border-gray-300 text-sm"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-gradient-to-r from-error to-error/80 hover:from-error/90 hover:to-error/70 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
+        className="flex-1 px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-all text-sm shadow-sm"
       >
         Confirm Cancellation
       </button>
@@ -767,40 +1173,37 @@ const CancellationForm = ({
 
 // Decline Form Component
 const DeclineForm = ({ declineMessage, setDeclineMessage, onCancel, onSubmit }) => (
-  <div className="p-8 space-y-8">
-    <div className="bg-gradient-to-br from-warning/20 to-warning/5 border-2 border-warning/30 rounded-2xl p-6">
-      <p className="text-warning-content text-sm font-medium flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">ℹ</span>
-        <span>Declining this appointment will notify the requester. Please provide a reason in your message.</span>
+  <div className="p-8 space-y-6">
+    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <p className="text-yellow-800 font-medium text-sm flex items-start gap-3">
+        <span className="text-lg flex-shrink-0 mt-0.5">ℹ️</span>
+        <span>Declining will notify the requester. Please provide a clear reason.</span>
       </p>
     </div>
 
-    <div>
-      <label className="block text-sm font-semibold text-base-content mb-3 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-warning"></span>
-        Message <span className="text-error">*</span>
-      </label>
+    <div className="space-y-3">
+      <label className="block text-sm font-semibold text-gray-900">Your Message *</label>
       <textarea
         value={declineMessage}
         onChange={(e) => setDeclineMessage(e.target.value)}
         placeholder="Explain why you're declining this appointment..."
-        rows="6"
-        className="w-full px-4 py-3 bg-base-200 border-2 border-base-300 rounded-xl text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all resize-none"
+        rows="4"
+        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all resize-none text-sm shadow-sm hover:border-gray-400"
       />
     </div>
 
-    <div className="flex gap-4 pt-6 border-t-2 border-base-300">
+    <div className="flex gap-3 pt-4 border-t border-gray-200">
       <button
         type="button"
         onClick={onCancel}
-        className="flex-1 px-6 py-3 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-xl transition-all"
+        className="flex-1 px-5 py-2.5 bg-white hover:bg-gray-50 text-gray-900 font-medium rounded-lg transition-all border border-gray-300 text-sm"
       >
         Keep Appointment
       </button>
       <button
         type="button"
         onClick={onSubmit}
-        className="flex-1 px-6 py-3 bg-gradient-to-r from-warning to-warning/80 hover:from-warning/90 hover:to-warning/70 text-warning-content font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl"
+        className="flex-1 px-5 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-all text-sm shadow-sm"
       >
         Decline Appointment
       </button>
@@ -830,6 +1233,7 @@ AppointmentModal.propTypes = {
   onSubmit: PropTypes.func.isRequired,
   initialDate: PropTypes.instanceOf(Date),
   initialTime: PropTypes.instanceOf(Date),
+  initialFriendId: PropTypes.string,
   friends: PropTypes.arrayOf(PropTypes.object),
   currentUser: PropTypes.object,
   availability: PropTypes.object,
@@ -837,6 +1241,10 @@ AppointmentModal.propTypes = {
   onDelete: PropTypes.func,
   onAccept: PropTypes.func,
   onDecline: PropTypes.func,
+  friendsAvailability: PropTypes.object,
+  currentUserStatus: PropTypes.oneOf(['available', 'limited', 'away']),
+  appointments: PropTypes.arrayOf(PropTypes.object),
+  selectedDate: PropTypes.instanceOf(Date),
 };
 
 export default AppointmentModal;

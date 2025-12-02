@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, parseISO } from 'date-fns';
-import { Calendar, Clock, Video, Phone, MapPin, Trash2, Edit } from 'lucide-react';
+import { format, parseISO, isToday } from 'date-fns';
+import { Calendar, Clock, Video, Phone, MapPin, Trash2, Edit, Bell, Clock3, CheckCircle, CheckCircle2, XCircle, ListIcon, Star } from "lucide-react";
 import { getAppointments, deleteAppointment, updateAppointment, getAuthUser } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ThemeSelector from '../components/ThemeSelector';
+import RatingModal from '../components/appointments/RatingModal';
 import { toast } from 'react-hot-toast';
 import { useThemeStore } from '../store/useThemeStore';
 
@@ -15,27 +16,43 @@ const AppointmentsPage = () => {
   const { theme } = useThemeStore();
   const queryClient = useQueryClient();
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all'); // all, incoming, scheduled, confirmed, completed, cancelled, declined
+  const [filterStatus, setFilterStatus] = useState('scheduled'); 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
 
-  // Fetch current user
+
   const { data: currentUser } = useQuery({
     queryKey: ['authUser'],
     queryFn: getAuthUser,
     retry: 1,
   });
 
-  // Fetch appointments
+
   const { data: appointments = [], isLoading, refetch } = useQuery({
     queryKey: ['appointments'],
     queryFn: getAppointments,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Accept appointment mutation
+  const [ratingModalOpen, setRatingModalOpen] = useState(false);
+  const [ratingTarget, setRatingTarget] = useState(null);
+
+  const ratingMutation = useMutation({
+    mutationFn: ({ id, rating, feedback }) => updateAppointment({ id, rating, feedback }),
+    onSuccess: () => {
+      toast.success('Rating saved');
+      queryClient.invalidateQueries(['appointments']);
+      setRatingModalOpen(false);
+      setRatingTarget(null);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || 'Failed to save rating');
+    }
+  });
+
+
   const acceptAppointmentMutation = useMutation({
     mutationFn: (appointmentId) => updateAppointment({ id: appointmentId, status: 'confirmed' }),
     onSuccess: () => {
@@ -49,7 +66,7 @@ const AppointmentsPage = () => {
     }
   });
 
-  // Decline appointment mutation
+
   const declineAppointmentMutation = useMutation({
     mutationFn: (data) => updateAppointment({ 
       id: data.appointmentId,
@@ -67,24 +84,44 @@ const AppointmentsPage = () => {
     }
   });
 
-  // Separate incoming requests (pending appointments where current user is the recipient/friendId)
-  const incomingRequests = appointments.filter(apt => {
-    const currentUserId = currentUser?._id || currentUser?.id;
-    const appointmentFriendId = apt.friendId?._id || apt.friendId;
-    return apt.status === 'pending' && appointmentFriendId === currentUserId;
-  });
-  
-  // User's own appointments (created by them, excluding incoming requests)
-  const userAppointments = appointments.filter(apt => {
-    const currentUserId = currentUser?._id || currentUser?.id;
+
+  const currentUserId = currentUser?._id || currentUser?.id;
+
+
+  const involvedAppointments = appointments.filter((apt) => {
     const appointmentUserId = apt.userId?._id || apt.userId;
     const appointmentFriendId = apt.friendId?._id || apt.friendId;
-    const isCreatedByUser = appointmentUserId === currentUserId;
-    const isIncomingRequest = apt.status === 'pending' && appointmentFriendId === currentUserId;
-    return isCreatedByUser && !isIncomingRequest;
+    return appointmentUserId === currentUserId || appointmentFriendId === currentUserId;
   });
 
-  // Debug logging
+  
+  const incomingRequests = appointments.filter((apt) => {
+    const appointmentFriendId = apt.friendId?._id || apt.friendId;
+    return (apt.status === 'pending' || apt.status === 'scheduled') && appointmentFriendId === currentUserId;
+  });
+
+
+  const userCreatedAppointments = appointments.filter((apt) => {
+    const appointmentUserId = apt.userId?._id || apt.userId;
+    return appointmentUserId === currentUserId;
+  });
+
+  
+  const userSentPendingAppointments = userCreatedAppointments.filter((apt) => apt.status === 'pending');
+
+  
+  const appointmentsForToday = involvedAppointments
+    .filter((apt) => {
+      const startTime = typeof apt.startTime === 'string' ? parseISO(apt.startTime) : new Date(apt.startTime);
+      return isToday(startTime) && apt.status === 'confirmed';
+    })
+    .sort((a, b) => {
+      const timeA = typeof a.startTime === 'string' ? parseISO(a.startTime) : new Date(a.startTime);
+      const timeB = typeof b.startTime === 'string' ? parseISO(b.startTime) : new Date(b.startTime);
+      return timeA - timeB;
+    });
+
+  
   useEffect(() => {
     if (appointments.length > 0) {
       console.log('Total appointments:', appointments.length);
@@ -92,14 +129,18 @@ const AppointmentsPage = () => {
     }
   }, [appointments, currentUser, incomingRequests]);
 
-  // Filter appointments based on status
-  const filteredAppointments = filterStatus === 'all' 
-    ? userAppointments
+  
+  const filteredAppointments = filterStatus === 'all'
+    ? involvedAppointments
     : filterStatus === 'incoming'
     ? incomingRequests
-    : userAppointments.filter(apt => apt.status === filterStatus);
+    : filterStatus === 'pending'
+    ? userSentPendingAppointments
+    : filterStatus === 'scheduled'
+    ? appointmentsForToday
+    : involvedAppointments.filter((apt) => apt.status === filterStatus);
 
-  // Handle delete appointment
+  
   const handleDeleteClick = (appointmentId) => {
     setAppointmentToDelete(appointmentId);
     setShowConfirmDialog(true);
@@ -130,7 +171,6 @@ const AppointmentsPage = () => {
     });
   }, [declineAppointmentMutation]);
 
-  // Format appointment date and time
   const formatAppointmentDateTime = (appointment) => {
     const startTime = typeof appointment.startTime === 'string'
       ? parseISO(appointment.startTime)
@@ -138,23 +178,44 @@ const AppointmentsPage = () => {
     return format(startTime, 'MMM dd, yyyy - h:mm a');
   };
 
-  // Get status badge color
+
   const getStatusBadgeColor = (status) => {
     switch (status) {
       case 'scheduled':
         return 'badge-success';
       case 'pending':
         return 'badge-warning';
+      case 'confirmed':
+        return 'badge-success';
       case 'completed':
         return 'badge-info';
       case 'cancelled':
+        return 'badge-error';
+      case 'declined':
         return 'badge-error';
       default:
         return 'badge-neutral';
     }
   };
 
-  // Get meeting type icon
+  const getStatusAccent = (status) => {
+    switch (status) {
+      case 'scheduled':
+      case 'confirmed':
+        return 'bg-gradient-to-b from-blue-500 to-blue-600';
+      case 'pending':
+        return 'bg-gradient-to-b from-yellow-400 to-yellow-500';
+      case 'completed':
+        return 'bg-gradient-to-b from-indigo-500 to-indigo-600';
+      case 'cancelled':
+      case 'declined':
+        return 'bg-gradient-to-b from-red-500 to-red-600';
+      default:
+        return 'bg-gray-400';
+    }
+  };
+
+
   const getMeetingTypeIcon = (meetingType) => {
     switch (meetingType) {
       case 'Video Call':
@@ -196,7 +257,6 @@ const AppointmentsPage = () => {
           onClose={() => setSelectedAppointment(null)}
           onDelete={() => handleDeleteClick(selectedAppointment._id)}
           onEdit={() => {
-            // Handle edit
             console.log('Edit appointment:', selectedAppointment._id);
           }}
           onSendMessage={() => {
@@ -205,7 +265,6 @@ const AppointmentsPage = () => {
         />
       ) : (
         <>
-          {/* Header */}
           <div className="bg-base-200 border-b border-base-300 sticky top-0 z-10">
             <div className="max-w-7xl mx-auto px-6 py-6">
               <div className="flex items-center justify-between mb-6">
@@ -215,37 +274,47 @@ const AppointmentsPage = () => {
                 </div>
               </div>
 
-              {/* Filter Tabs */}
               <div className="flex gap-2 flex-wrap items-center">
                 {[
-                  { value: 'all', label: 'All', count: userAppointments.length, icon: null },
-                  { value: 'incoming', label: 'Incoming', count: incomingRequests.length, icon: '📬' },
-                  { value: 'scheduled', label: 'Scheduled', count: userAppointments.filter(a => a.status === 'scheduled').length, icon: null },
-                  { value: 'confirmed', label: 'Confirmed', count: userAppointments.filter(a => a.status === 'confirmed').length, icon: null },
-                  { value: 'completed', label: 'Completed', count: userAppointments.filter(a => a.status === 'completed').length, icon: null },
-                  { value: 'cancelled', label: 'Cancelled', count: userAppointments.filter(a => a.status === 'cancelled').length, icon: null },
-                  { value: 'declined', label: 'Declined', count: userAppointments.filter(a => a.status === 'declined').length, icon: null },
+                  { value: 'scheduled', label: 'Today', count: appointmentsForToday.length, Icon: Calendar, priority: true },
+                  { value: 'incoming', label: 'Incoming', count: incomingRequests.length, Icon: Bell },
+                  { value: 'pending', label: 'Pending', count: userSentPendingAppointments.length, Icon: Clock3 },
+                  { value: 'confirmed', label: 'Confirmed', count: involvedAppointments.filter(a => a.status === 'confirmed').length, Icon: CheckCircle },
+                  { value: 'completed', label: 'Completed', count: involvedAppointments.filter(a => a.status === 'completed').length, Icon: CheckCircle2 },
+                  { value: 'cancelled', label: 'Cancelled', count: involvedAppointments.filter(a => a.status === 'cancelled').length, Icon: XCircle },
+                  { value: 'declined', label: 'Declined', count: involvedAppointments.filter(a => a.status === 'declined').length, Icon: XCircle },
+                  { value: 'all', label: 'All', count: involvedAppointments.length, Icon: ListIcon },
                 ].map((tab) => (
                   <button
                     key={tab.value}
                     onClick={() => setFilterStatus(tab.value)}
-                    className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
+                    className={`px-2 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2.5 whitespace-nowrap ${
                       filterStatus === tab.value
-                        ? tab.value === 'incoming'
-                          ? 'btn btn-warning btn-sm'
-                          : 'btn btn-primary btn-sm'
-                        : 'btn btn-outline btn-sm'
+                        ? tab.priority
+                          ? 'btn btn-error'
+                          : 'btn btn-primary'
+                        : tab.priority
+                        ? 'btn btn-outline btn-error'
+                        : 'btn btn-outline'
                     }`}
                   >
-                    {tab.icon && <span>{tab.icon}</span>}
-                    <span>{tab.label} ({tab.count})</span>
+                    <tab.Icon className="w-5 h-5" />
+                    <span>{tab.label}</span>
+                    <span className={`badge badge-lg font-bold ${
+                      filterStatus === tab.value
+                        ? 'badge-ghost'
+                        : tab.priority
+                        ? 'badge-error'
+                        : 'badge-ghost'
+                    }`}>
+                      {tab.count}
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* My Appointments List */}
           <div className="max-w-7xl mx-auto px-6 py-8">
             {filterStatus === 'incoming' && incomingRequests.length === 0 ? (
               <div className="text-center py-12">
@@ -269,7 +338,6 @@ const AppointmentsPage = () => {
                       }}
                     >
                       <div className="flex items-start gap-3 mb-3">
-                        {/* Requester Avatar */}
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={requester?.profilePic || '/default-profile.svg'}
@@ -310,98 +378,279 @@ const AppointmentsPage = () => {
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredAppointments.map((appointment) => {
-                  const otherUser = getOtherUser(appointment);
-                  const otherUserProfilePic = getOtherUserProfilePic(appointment);
-                  
-                  return (
-                    <div
-                      key={appointment._id}
-                      className="bg-base-100 border border-base-300 rounded-lg p-4 hover:shadow-md transition flex flex-col h-full"
-                    >
-                      {/* Top section: Avatar, Name, Status */}
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          {/* Avatar with default SVG fallback */}
-                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                            <img
-                              src={otherUserProfilePic}
-                              alt={otherUser?.fullName || 'User'}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.src = '/default-profile.svg';
-                              }}
-                            />
+              <div className={filterStatus === 'scheduled' ? "max-w-4xl mx-auto" : ""}>
+                {filterStatus === 'scheduled' ? (
+                  <div className="space-y-4">
+                    {appointmentsForToday.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Calendar className="w-16 h-16 text-base-content/30 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-base-content mb-2">No appointments today</h3>
+                        <p className="text-base-content/60">
+                          You don't have any confirmed appointments scheduled for today.
+                        </p>
+                      </div>
+                    ) : (
+                      appointmentsForToday.map((appointment, index) => {
+                        const startTime = typeof appointment.startTime === 'string' ? parseISO(appointment.startTime) : new Date(appointment.startTime);
+                        const isUpcoming = startTime > new Date();
+                        const isCurrentOrSoon = Math.abs(new Date() - startTime) < 3600000; // Within 1 hour
+                        
+                        return (
+                          <div key={appointment._id} className="relative">
+                            <div className="absolute -left-8 top-0 flex flex-col items-center">
+                              <div className={`w-5 h-5 rounded-full border-3 flex items-center justify-center text-xs font-bold ${
+                                isCurrentOrSoon 
+                                  ? 'bg-error border-error text-white animate-pulse' 
+                                  : 'bg-primary border-primary text-white'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              {index < appointmentsForToday.length - 1 && (
+                                <div className="w-0.5 h-20 bg-base-300 mt-2" />
+                              )}
+                            </div>
+
+                            {/* Card */}
+                            <div className={`ml-8 p-5 rounded-xl border-2 transition-all ${
+                              isCurrentOrSoon
+                                ? 'bg-gradient-to-r from-error/10 to-warning/10 border-error shadow-lg ring-2 ring-error/20'
+                                : 'bg-base-100 border-base-300 hover:shadow-md'
+                            }`}>
+                              {/* Top section: Avatar, Name, Status */}
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                                  {/* Avatar */}
+                                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-offset-2 ring-offset-base-100" style={{
+                                    ringColor: isCurrentOrSoon ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)'
+                                  }}>
+                                    <img
+                                      src={
+                                        (() => {
+                                          const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                          const otherUserProfilePic = appointmentUserId === currentUserId 
+                                            ? appointment.friendId?.profilePic 
+                                            : appointment.userId?.profilePic;
+                                          return otherUserProfilePic || '/default-profile.png';
+                                        })()
+                                      }
+                                      alt="User"
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = '/default-profile.png';
+                                      }}
+                                    />
+                                  </div>
+
+                                  {/* Name and Specialty */}
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-base-content text-base truncate">
+                                      {(() => {
+                                        const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                        const otherUser = appointmentUserId === currentUserId 
+                                          ? appointment.friendId 
+                                          : appointment.userId;
+                                        return otherUser?.fullName || 'Unknown';
+                                      })()}
+                                    </h3>
+                                    <p className="text-xs text-base-content/60 truncate">
+                                      {appointment.title || 'Appointment'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Status Badge + Urgency indicator */}
+                                <div className="flex items-center gap-2">
+                                  {isCurrentOrSoon && (
+                                    <div className="badge badge-error badge-xs animate-pulse">Soon</div>
+                                  )}
+                                  <div className={`badge badge-xs ${getStatusBadgeColor(appointment.status)}`}>
+                                    {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Confirmed'}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Details: Date, Time, Location */}
+                              <div className="flex flex-col gap-2 mb-4 text-xs text-base-content/70">
+                                <div className="flex items-center gap-2 font-semibold text-base-content">
+                                  <Clock className="w-4 h-4 text-primary" />
+                                  <span className="text-sm">{format(startTime, 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {getMeetingTypeIcon(appointment.meetingType)}
+                                  <span>{appointment.meetingType || 'Video Call'}</span>
+                                </div>
+                                {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="w-3 h-3" />
+                                    <span className="truncate">{appointment.location}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex flex-col gap-2 pt-3 border-t border-base-300">
+                                <button
+                                  onClick={() => setSelectedAppointment(appointment)}
+                                  className={`w-full btn btn-xs ${isCurrentOrSoon ? 'btn-error' : 'btn-primary'}`}
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            </div>
                           </div>
-
-                          {/* Name and Title */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-base-content text-sm line-clamp-2">
-                              {otherUser?.fullName || 'Unknown User'}
-                            </h3>
-                            <p className="text-xs text-base-content/60 line-clamp-1">
-                              {appointment.title || 'Untitled Appointment'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div
-                          className={`badge badge-sm ${getStatusBadgeColor(appointment.status)}`}
-                        >
-                          {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
-                        </div>
-                      </div>
-
-                    {/* Details: Date, Time, Location */}
-                    <div className="flex flex-col gap-2 mb-3 text-xs text-base-content/70">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatAppointmentDateTime(appointment)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getMeetingTypeIcon(appointment.meetingType)}
-                        <span>{appointment.meetingType || 'Video Call'}</span>
-                      </div>
-                      {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-3 h-3" />
-                          <span className="truncate">{appointment.location}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Action Buttons - at bottom */}
-                    <div className="flex flex-col gap-2 mt-auto pt-3 border-t border-base-300">
-                      <button
-                        onClick={() => setSelectedAppointment(appointment)}
-                        className="w-full btn btn-outline btn-xs"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toast.info('Edit feature coming soon');
-                        }}
-                        className="w-full btn btn-outline btn-xs"
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(appointment._id);
-                        }}
-                        className="w-full btn btn-outline btn-error btn-xs"
-                      >
-                        Cancel
-                      </button>
-                    </div>
+                        );
+                      })
+                    )}
                   </div>
-                  );
-                })}
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredAppointments.map((appointment) => (
+                          <div key={appointment._id} className="rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-transform transform hover:-translate-y-1">
+                            <div className="flex h-full bg-gradient-to-b from-base-100 to-base-200">
+                              <div className={`w-1 hidden md:block ${getStatusAccent(appointment.status)}`} />
+                              <div className="flex-1 p-3 md:p-3 flex flex-col h-full">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
+                                      <img
+                                        src={
+                                          (() => {
+                                            const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                            const otherUserProfilePic = appointmentUserId === currentUserId 
+                                              ? appointment.friendId?.profilePic 
+                                              : appointment.userId?.profilePic;
+                                            return otherUserProfilePic || '/default-profile.png';
+                                          })()
+                                        }
+                                        alt="User"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.src = '/default-profile.png'; }}
+                                      />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                          <h3 className="font-medium text-base-content text-sm truncate">
+                                            {(() => {
+                                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                              const otherUser = appointmentUserId === currentUserId 
+                                                ? appointment.friendId 
+                                                : appointment.userId;
+                                              return otherUser?.fullName || 'Unknown';
+                                            })()}
+                                          </h3>
+                                          <p className="text-xs text-base-content/60 truncate line-clamp-1">
+                                            {appointment.title || 'Appointment'}
+                                          </p>
+                                          {appointment.status === 'completed' && (() => {
+                                            const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+                                            return (
+                                              <div className={`badge badge-xs mt-2 ${attended ? 'badge-success' : 'badge-error'}`}>{attended ? 'Joined' : 'Missed'}</div>
+                                            );
+                                          })()}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 ml-3 flex-none">
+                                          <div className={`badge badge-xs ${getStatusBadgeColor(appointment.status)}`}>
+                                            {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending'}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {appointment.status === 'completed' && (() => {
+                                  const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+                                  const ratings = appointment.ratings || [];
+                                  const userRating = ratings.find(r => (r.userId?._id || r.userId) === currentUserId || (r.userId && r.userId.toString() === currentUserId));
+                                  const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                  const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+                                  const otherId = (appointmentUserId === currentUserId) ? appointmentFriendId : appointmentUserId;
+                                  const otherRating = ratings.find(r => (r.userId?._id || r.userId) === (otherId) || (r.userId && r.userId.toString() === (otherId && otherId.toString())));
+                                  const otherName = (() => {
+                                    const apptUser = appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
+                                    if (!apptUser) return 'Participant';
+                                    return apptUser.fullName ? apptUser.fullName.split(' ')[0] : (apptUser.fullName || 'Participant');
+                                  })();
+
+                                  return (
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <div className="ml-auto flex flex-col items-end gap-1 flex-none w-36">
+                                        <div className="flex flex-col items-end gap-1 text-[11px] text-base-content/70">
+                                          <span className="whitespace-nowrap font-medium">You</span>
+                                          <div className="flex items-center gap-0.5">
+                                            {Array.from({ length: 5 }).map((_, i) => {
+                                              const filled = userRating ? i < (userRating.rating || 0) : false;
+                                              return (
+                                                <button key={i} onClick={() => { setRatingTarget(appointment); setRatingModalOpen(true); }} className="p-0" aria-label={`Set ${i+1} stars`}>
+                                                  <Star className={`w-4 h-4 ${filled ? 'text-yellow-400' : 'text-gray-400'}`} strokeWidth={filled ? 0 : 1.2} fill={filled ? 'currentColor' : 'none'} />
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-col items-end gap-1 text-[11px] text-base-content/70">
+                                          <span className="whitespace-nowrap font-medium">{otherName}</span>
+                                          <div className="flex items-center gap-0.5">
+                                            {Array.from({ length: 5 }).map((_, i) => {
+                                              const filled = otherRating ? i < (otherRating.rating || 0) : false;
+                                              return (
+                                                <Star key={i} className={`w-4 h-4 ${filled ? 'text-yellow-400' : 'text-gray-400'}`} strokeWidth={filled ? 0 : 1.2} fill={filled ? 'currentColor' : 'none'} />
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                <div className="flex flex-col gap-1 mb-1 text-xs text-base-content/70">
+                                  <div className="flex items-center gap-2 font-semibold text-base-content">
+                                    <Clock className="w-4 h-4 text-primary" />
+                                    <span className="text-sm">{format(new Date(appointment.startTime), 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {getMeetingTypeIcon(appointment.meetingType)}
+                                    <span>{appointment.meetingType || 'Video Call'}</span>
+                                  </div>
+                                  {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                                    <div className="flex items-center gap-2">
+                                      <MapPin className="w-3 h-3" />
+                                      <span className="truncate">{appointment.location}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1 mt-2">
+                                  <button
+                                    onClick={() => setSelectedAppointment(appointment)}
+                                    className="btn btn-primary btn-sm flex-1"
+                                  >
+                                    View Details
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); toast.info('Edit feature coming soon'); }}
+                                    className="btn btn-ghost btn-sm"
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(appointment._id); }}
+                                    className="btn btn-error btn-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -435,6 +684,17 @@ const AppointmentsPage = () => {
         onAccept={handleAcceptAppointment}
         onDecline={handleDeclineAppointment}
         isLoading={acceptAppointmentMutation.isLoading || declineAppointmentMutation.isLoading}
+      />
+      <RatingModal
+        isOpen={ratingModalOpen}
+        onClose={() => { setRatingModalOpen(false); setRatingTarget(null); }}
+        initialRating={ratingTarget ? (ratingTarget.ratings && ratingTarget.ratings.find(r => (r.userId?._id || r.userId) === currentUserId || (r.userId && r.userId.toString() === currentUserId))?.rating) || 0 : 0}
+        initialFeedback={ratingTarget ? (ratingTarget.ratings && (ratingTarget.ratings.find(r => (r.userId?._id || r.userId) === currentUserId || (r.userId && r.userId.toString() === currentUserId))?.feedback)) : ''}
+        isLoading={ratingMutation.isLoading}
+        onSubmit={({ rating, feedback }) => {
+          if (!ratingTarget) return;
+          ratingMutation.mutate({ id: ratingTarget._id, rating, feedback });
+        }}
       />
     </div>
   );

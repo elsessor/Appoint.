@@ -321,6 +321,21 @@ const AppointmentDetails = ({
                   <p className="text-base-content capitalize">{appointment.status}</p>
                 </div>
                 <hr className="border-base-300" />
+                {appointment.status === 'completed' && (
+                  <>
+                    <div>
+                      <p className="text-base-content/60 mb-1">Attendance</p>
+                      <p className="text-base-content">
+                        {(() => {
+                          const currentUserId = currentUser?._id || currentUser?.id;
+                          const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+                          return attended ? 'Joined' : 'Missed';
+                        })()}
+                      </p>
+                    </div>
+                    <hr className="border-base-300" />
+                  </>
+                )}
                 <div>
                   <p className="text-base-content/60 mb-1">Reminder</p>
                   <p className="text-base-content">

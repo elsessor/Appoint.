@@ -6,13 +6,16 @@ import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
-import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import SettingPage from "./pages/SettingPage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
+import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
+import ChatsPage from "./pages/ChatsPage.jsx";
+import SettingPage from "./pages/SettingPage.jsx";
+import FriendProfilePage from "./pages/FriendProfilePage.jsx";
+
 
 import { Toaster } from "react-hot-toast";
 
@@ -39,18 +42,29 @@ const App = () => {
         <Route
           path="/"
           element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <HomePage />
-              </Layout>
-            ) : !isAuthenticated ? (
+            !isAuthenticated ? (
               <LandingPage />
-            ) : (
+            ) : !isOnboarded ? (
               <Navigate to="/onboarding" />
+            ) : (
+              <Navigate to="/homepage" />
             )
           }
         />
         <Route path="/landing" element={<LandingPage />} />
+
+        <Route
+          path="/homepage"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <HomePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
         <Route
           path="/friends"
           element={
@@ -66,13 +80,13 @@ const App = () => {
         <Route
           path="/signup"
           element={
-            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
           path="/login"
           element={
-            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />
+            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
@@ -87,29 +101,30 @@ const App = () => {
             )
           }
         />
-        <Route
-          path="/call/:id"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <CallPage />
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-
-        <Route
-          path="/chat/:id"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={false}>
-                <ChatPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
+<Route
+  path="/chats"
+  element={
+    isAuthenticated && isOnboarded ? (
+      <Layout showSidebar={true}>  {/* ✅ Change to true */}
+        <ChatsPage />
+      </Layout>
+    ) : (
+      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+    )
+  }
+/>
+<Route
+  path="/chats/:id"
+  element={
+    isAuthenticated && isOnboarded ? (
+      <Layout showSidebar={true}>  {/* ✅ Change to true */}
+        <ChatsPage />
+      </Layout>
+    ) : (
+      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+    )
+  }
+/>
 
 
         <Route
@@ -145,7 +160,7 @@ const App = () => {
               !isOnboarded ? (
                 <OnboardingPage />
               ) : (
-                <Navigate to="/" />
+                <Navigate to="/homepage" />
               )
             ) : (
               <Navigate to="/login" />
@@ -165,6 +180,18 @@ const App = () => {
             )
           } 
         />
+                <Route
+          path="/meeting-minutes"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar>
+                <MeetingMinutesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
         <Route
           path="/settings"
           element={
@@ -177,6 +204,30 @@ const App = () => {
             )
           }
         />
+        <Route 
+          path="/profile/:id" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <FriendProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+
+        <Route
+          path="/call/:channelId"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <CallPage />
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        
       </Routes>
 
       <Toaster />

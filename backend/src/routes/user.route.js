@@ -6,8 +6,10 @@ import {
   getMyFriends,
   getOutgoingFriendReqs,
   getRecommendedUsers,
+  getUserById,
   markNotificationsRead,
   sendFriendRequest,
+  unfriend,
   getMySettings,
   updateMySettings,
   changePassword,
@@ -21,15 +23,14 @@ const router = express.Router();
 
 router.use(protectRoute);
 
-router.get("/", getRecommendedUsers);
 router.get("/friends", getMyFriends);
+router.get("/friend-requests", getFriendRequests);
+router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 
 router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
+router.delete("/friend/:id", unfriend);
 router.put("/notifications/read", markNotificationsRead);
-
-router.get("/friend-requests", getFriendRequests);
-router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 
 // Settings
 router.get("/me/settings", getMySettings);
@@ -41,5 +42,8 @@ router.delete("/me", deleteMyAccount);
 // Profile
 router.get("/me/profile", getMyProfile);
 router.put("/me/profile", updateMyProfile);
+
+router.get("/", getRecommendedUsers);
+router.get("/:id", getUserById);
 
 export default router;

@@ -24,11 +24,27 @@ export async function getRecommendedUsers(req, res) {
   }
 }
 
+export async function getUserById(req, res) {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select("-password -email");
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    console.error("Error in getUserById controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
       .select("friends")
-      .populate("friends", "fullName profilePic nativeLanguage learningLanguage");
+      .populate("friends", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
 
     res.status(200).json(user.friends);
   } catch (error) {
@@ -126,12 +142,12 @@ export async function getFriendRequests(req, res) {
     const incomingReqs = await FriendRequest.find({
       recipient: req.user.id,
       status: "pending",
-    }).populate("sender", "fullName profilePic nativeLanguage learningLanguage");
+    }).populate("sender", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
 
     const acceptedReqs = await FriendRequest.find({
       sender: req.user.id,
       status: "accepted",
-    }).populate("recipient", "fullName profilePic");
+    }).populate("recipient", "fullName profilePic availabilityStatus");
 
     res.status(200).json({ incomingReqs, acceptedReqs });
   } catch (error) {
@@ -145,11 +161,40 @@ export async function getOutgoingFriendReqs(req, res) {
     const outgoingRequests = await FriendRequest.find({
       sender: req.user.id,
       status: "pending",
-    }).populate("recipient", "fullName profilePic nativeLanguage learningLanguage");
+    }).populate("recipient", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
 
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function unfriend(req, res) {
+  try {
+    const myId = req.user.id;
+    const { id: friendId } = req.params;
+
+    if (myId === friendId) {
+      return res.status(400).json({ message: "You can't unfriend yourself" });
+    }
+
+    const friend = await User.findById(friendId);
+    if (!friend) {
+      return res.status(404).json({ message: "Friend not found" });
+    }
+
+    await User.findByIdAndUpdate(myId, {
+      $pull: { friends: friendId },
+    });
+
+    await User.findByIdAndUpdate(friendId, {
+      $pull: { friends: myId },
+    });
+
+    res.status(200).json({ message: "Friend removed successfully" });
+  } catch (error) {
+    console.error("Error in unfriend controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -167,22 +212,50 @@ export async function getMySettings(req, res) {
 
 export async function updateMySettings(req, res) {
   try {
-    const { notifications, privacy, videoAudio } = req.body;
+    const { notifications, privacy, videoAudio, availability } = req.body;
 
     const updates = {};
     if (notifications) updates["settings.notifications"] = notifications;
     if (privacy) updates["settings.privacy"] = privacy;
     if (videoAudio) updates["settings.videoAudio"] = videoAudio;
+    
+    // Handle availability settings including max appointments per day
+    if (availability) {
+      // Validate maxPerDay if provided
+      if (availability.maxPerDay !== undefined) {
+        const maxPerDay = parseInt(availability.maxPerDay, 10);
+        if (isNaN(maxPerDay) || maxPerDay < 1 || maxPerDay > 20) {
+          return res.status(400).json({ 
+            message: "Max appointments per day must be between 1 and 20" 
+          });
+        }
+        updates["availability.maxPerDay"] = maxPerDay;
+      }
+      
+      // Handle other availability fields
+      if (availability.days !== undefined) updates["availability.days"] = availability.days;
+      if (availability.start !== undefined) updates["availability.start"] = availability.start;
+      if (availability.end !== undefined) updates["availability.end"] = availability.end;
+      if (availability.slotDuration !== undefined) updates["availability.slotDuration"] = availability.slotDuration;
+      if (availability.buffer !== undefined) updates["availability.buffer"] = availability.buffer;
+      if (availability.minLeadTime !== undefined) updates["availability.minLeadTime"] = availability.minLeadTime;
+      if (availability.cancelNotice !== undefined) updates["availability.cancelNotice"] = availability.cancelNotice;
+      if (availability.appointmentDuration !== undefined) updates["availability.appointmentDuration"] = availability.appointmentDuration;
+      if (availability.breakTimes !== undefined) updates["availability.breakTimes"] = availability.breakTimes;
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ message: "No settings provided to update" });
     }
 
     const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true }).select(
-      "settings"
+      "settings availability"
     );
 
-    res.status(200).json(user.settings);
+    res.status(200).json({
+      settings: user.settings,
+      availability: user.availability
+    });
   } catch (error) {
     console.error("Error in updateMySettings controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });

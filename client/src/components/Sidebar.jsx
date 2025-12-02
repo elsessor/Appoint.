@@ -1,12 +1,18 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon } from "lucide-react";
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
+
+  const handleHomeClick = (e) => {
+    e.preventDefault();
+    navigate("/homepage");
+  };
 
   return (
     <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
@@ -20,15 +26,15 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        <Link
-          to="/"
+        <button
+          onClick={handleHomeClick}
           className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/" ? "btn-active" : ""
+            currentPath === "/homepage" ? "btn-active" : ""
           }`}
         >
           <HomeIcon className="size-5 text-base-content opacity-70" />
           <span>Home</span>
-        </Link>
+        </button>
 
         <Link
           to="/friends"
@@ -60,15 +66,6 @@ const Sidebar = () => {
           <span>Book Appointment</span>
         </Link>
 
-        <Link
-          to="/notifications"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/notifications" ? "btn-active" : ""
-          }`}
-        >
-          <BellIcon className="size-5 text-base-content opacity-70" />
-          <span>Notifications</span>
-        </Link>
 
         <Link
           to="/settings"
@@ -79,6 +76,21 @@ const Sidebar = () => {
           <SettingsIcon className="size-5 text-base-content opacity-70" />
           <span>Settings</span>
         </Link>
+
+        <Link
+         to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
+        <FileText className="size-5 text-base-content opacity-70" />
+        <span className="font-medium">Meeting Log</span>
+        </Link>
+        <Link
+  to="/chats"
+  className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+    currentPath.startsWith("/chats") ? "btn-active" : ""  // ✅ Highlight if on /chats
+  }`}
+>
+  <MessageCircle className="size-5 text-base-content opacity-70" />
+  <span>Messages</span>
+</Link>
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto">
