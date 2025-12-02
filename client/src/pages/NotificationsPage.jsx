@@ -97,6 +97,7 @@ const NotificationsPage = () => {
                             <img
                               src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
                               alt={notification.senderId?.fullName || 'User'}
+                              className="rounded-full"
                               onError={(e) => {
                                 e.target.src = '/default-profile.svg';
                               }}
@@ -142,6 +143,7 @@ const NotificationsPage = () => {
                               <img 
                                 src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
                                 alt={request.sender.fullName}
+                                className="rounded-full"
                                 onError={(e) => {
                                   e.target.src = '/default-profile.svg';
                                 }}
@@ -191,6 +193,7 @@ const NotificationsPage = () => {
                             <img
                               src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
                               alt={notification.recipient?.fullName}
+                              className="rounded-full"
                               onError={(e) => {
                                 e.target.src = '/default-profile.svg';
                               }}

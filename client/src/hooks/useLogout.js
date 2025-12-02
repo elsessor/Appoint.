@@ -10,7 +10,14 @@ const useLogout = () => {
     error,
   } = useMutation({
     mutationFn: logout,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+    onSuccess: () => {
+      // Force set authUser to null immediately
+      queryClient.setQueryData(["authUser"], null);
+      // Clear all queries
+      queryClient.clear();
+      // Force a hard redirect to login page
+      window.location.href = "/login";
+    },
   });
 
   return { logoutMutation, isPending, error };

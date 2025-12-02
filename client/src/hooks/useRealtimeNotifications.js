@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { disconnectSocket, initSocket } from "../lib/socket";
+import { disconnectSocket, initSocket, getSocket } from "../lib/socket";
+import { initPresence } from "../lib/presence";
 
 const useRealtimeNotifications = (shouldConnect) => {
   const queryClient = useQueryClient();
@@ -12,6 +13,9 @@ const useRealtimeNotifications = (shouldConnect) => {
     }
 
     const socket = initSocket();
+
+    // initialize presence tracking
+    initPresence(socket);
 
     const handleNotificationUpdate = () => {
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });

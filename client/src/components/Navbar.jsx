@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, LogOutIcon, ShipWheelIcon, Home } from "lucide-react";
+import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
-import { getFriendRequests } from "../lib/api";
+import { getFriendRequests, getNotifications } from "../lib/api";
+import ConfirmDialog from "./ConfirmDialog";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -13,6 +15,7 @@ const Navbar = () => {
   const isChatPage = location.pathname?.startsWith("/chat/") && !location.pathname?.startsWith("/chats");
   const isOnboarded = authUser?.isOnboarded;
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { logoutMutation } = useLogout();
 
   const { data: friendRequests } = useQuery({
@@ -21,13 +24,28 @@ const Navbar = () => {
     enabled: Boolean(isOnboarded),
   });
 
-  const notificationsCount =
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: getNotifications,
+    enabled: Boolean(isOnboarded),
+  });
+
+  const friendRequestsCount =
     (friendRequests?.incomingReqs?.filter((req) => !req.recipientSeen).length || 0) +
     (friendRequests?.acceptedReqs?.filter((req) => !req.senderSeen).length || 0);
+
+  const unreadNotificationsCount = notifications.filter((notif) => !notif.isRead).length || 0;
+
+  const notificationsCount = friendRequestsCount + unreadNotificationsCount;
 
   const handleHomeClick = (e) => {
     e.preventDefault();
     navigate("/homepage");
+  };
+
+  const handleLogout = () => {
+    logoutMutation();
+    setShowLogoutConfirm(false);
   };
 
   return (
@@ -71,12 +89,23 @@ const Navbar = () => {
               </div>
             </Link>
 
-            <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
+            <button className="btn btn-ghost btn-circle" onClick={() => setShowLogoutConfirm(true)}>
               <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
             </button>
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to log out? You will need to sign in again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        variant="warning"
+      />
     </nav>
   );
 };

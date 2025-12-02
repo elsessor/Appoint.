@@ -170,6 +170,36 @@ export async function getOutgoingFriendReqs(req, res) {
   }
 }
 
+export async function cancelFriendRequest(req, res) {
+  try {
+    const myId = req.user.id;
+    const { id: requestId } = req.params;
+
+    const friendRequest = await FriendRequest.findById(requestId);
+
+    if (!friendRequest) {
+      return res.status(404).json({ message: "Friend request not found" });
+    }
+
+    if (friendRequest.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You are not authorized to cancel this request" });
+    }
+
+    if (friendRequest.status !== "pending") {
+      return res.status(400).json({ message: "Cannot cancel a request that is not pending" });
+    }
+
+    await FriendRequest.findByIdAndDelete(requestId);
+
+    emitNotificationUpdate(friendRequest.recipient);
+
+    res.status(200).json({ message: "Friend request cancelled successfully" });
+  } catch (error) {
+    console.error("Error in cancelFriendRequest controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function unfriend(req, res) {
   try {
     const myId = req.user.id;

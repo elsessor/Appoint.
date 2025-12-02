@@ -6,6 +6,8 @@ const useAuthUser = () => {
     queryKey: ["authUser"],
     queryFn: getAuthUser,
     retry: false,
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache data (previously cacheTime)
   });
 
   // Handle both response formats: { user: {...} } and direct user object

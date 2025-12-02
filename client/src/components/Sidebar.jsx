@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
+import { BellIcon, LayoutDashboard, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
@@ -15,7 +15,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
+    <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen fixed top-0 left-0 z-30">
       <div className="p-5 border-b border-base-300">
         <Link to="/" className="flex items-center gap-2.5">
           <ShipWheelIcon className="size-9 text-primary" />
@@ -32,8 +32,8 @@ const Sidebar = () => {
             currentPath === "/homepage" ? "btn-active" : ""
           }`}
         >
-          <HomeIcon className="size-5 text-base-content opacity-70" />
-          <span>Home</span>
+          <LayoutDashboard className="size-5 text-base-content opacity-70" />
+          <span>Dashboard</span>
         </button>
 
         <Link

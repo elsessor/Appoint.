@@ -1,25 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
   getUserFriends,
   getFriendRequests,
   sendFriendRequest,
+  cancelFriendRequest,
   getAppointments,
 } from "../lib/api";
 import { Link } from "react-router";
-import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon } from "lucide-react";
+import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { capitialize } from "../lib/utils";
 
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 import useAuthUser from "../hooks/useAuthUser";
+import { isOnline } from '../lib/presence';
 
 const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
+  const [outgoingRequestMap, setOutgoingRequestMap] = useState(new Map());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const [loadingUserId, setLoadingUserId] = useState(null);
   const { authUser } = useAuthUser();
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
@@ -47,18 +53,41 @@ const HomePage = () => {
     queryFn: getAppointments,
   });
 
-  const { mutate: sendRequestMutation, isPending } = useMutation({
+  const { mutate: sendRequestMutation } = useMutation({
     mutationFn: sendFriendRequest,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] });
+      setLoadingUserId(null);
+    },
+    onError: () => {
+      setLoadingUserId(null);
+    },
+  });
+
+  const { mutate: cancelRequestMutation } = useMutation({
+    mutationFn: cancelFriendRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] });
+      setLoadingUserId(null);
+    },
+    onError: () => {
+      setLoadingUserId(null);
+    },
   });
 
   useEffect(() => {
     const outgoingIds = new Set();
+    const requestMap = new Map();
     if (outgoingFriendReqs && outgoingFriendReqs.length > 0) {
       outgoingFriendReqs.forEach((req) => {
         outgoingIds.add(req.recipient._id);
+        requestMap.set(req.recipient._id, req._id);
       });
       setOutgoingRequestsIds(outgoingIds);
+      setOutgoingRequestMap(requestMap);
+    } else {
+      setOutgoingRequestsIds(new Set());
+      setOutgoingRequestMap(new Map());
     }
   }, [outgoingFriendReqs]);
 
@@ -122,6 +151,41 @@ const HomePage = () => {
   const pendingAppointmentsDelta = computePercent(pendingAppointmentsCurrent, pendingAppointmentsPrev);
   const pendingFriendRequestsDelta = computePercent(incomingCurrent, incomingPrev);
 
+  // Filter and search recommended users
+  const filteredUsers = useMemo(() => {
+    let filtered = recommendedUsers;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((user) =>
+        user.fullName?.toLowerCase().includes(query) ||
+        user.location?.toLowerCase().includes(query) ||
+        user.bio?.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply language filter
+    if (languageFilter !== "all") {
+      filtered = filtered.filter((user) =>
+        user.nativeLanguage === languageFilter ||
+        user.learningLanguage === languageFilter
+      );
+    }
+
+    return filtered;
+  }, [recommendedUsers, searchQuery, languageFilter]);
+
+  // Get unique languages for filter dropdown
+  const availableLanguages = useMemo(() => {
+    const languages = new Set();
+    recommendedUsers.forEach((user) => {
+      if (user.nativeLanguage) languages.add(user.nativeLanguage);
+      if (user.learningLanguage) languages.add(user.learningLanguage);
+    });
+    return Array.from(languages).sort();
+  }, [recommendedUsers]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto space-y-10">
@@ -133,8 +197,8 @@ const HomePage = () => {
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-base-content opacity-70 text-sm">Total Appointments</p>
+                  <div className="flex-1">
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Total Appointments</p>
                     <p className="text-3xl font-bold mt-2">{totalAppointments}</p>
                   </div>
                   <div className="badge badge-lg badge-primary">
@@ -150,12 +214,12 @@ const HomePage = () => {
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-base-content opacity-70 text-sm">Completed Calls</p>
+                  <div className="flex-1">
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Completed Calls</p>
                     <p className="text-3xl font-bold mt-2">{completedCalls}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#00c875" }}>
-                    <VideoIcon className="size-4" />
+                    <VideoIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
                 <div className={`text-xs ${completedDelta.positive ? "text-success" : "text-error"} mt-3`}>
@@ -167,12 +231,12 @@ const HomePage = () => {
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-base-content opacity-70 text-sm">Active Contacts</p>
+                  <div className="flex-1">
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Active Contacts</p>
                     <p className="text-3xl font-bold mt-2">{activeContacts}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#9d4edd" }}>
-                    <UserCheckIcon className="size-4" />
+                    <UserCheckIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
                 <div className={`text-xs ${activeDelta.positive ? "text-success" : "text-error"} mt-3`}>
@@ -184,12 +248,12 @@ const HomePage = () => {
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-base-content opacity-70 text-sm">Pending Appointments</p>
+                  <div className="flex-1">
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Pending Appointments</p>
                     <p className="text-3xl font-bold mt-2">{pendingAppointments}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#ff9500" }}>
-                    <ClockIcon className="size-4" />
+                    <ClockIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
                 <div className={`text-xs ${pendingAppointmentsDelta.positive ? "text-success" : "text-error"} mt-3`}>
@@ -201,12 +265,12 @@ const HomePage = () => {
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
               <div className="card-body">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-base-content opacity-70 text-sm">Pending Friend Requests</p>
+                  <div className="flex-1">
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Pending Friend Requests</p>
                     <p className="text-3xl font-bold mt-2">{friendRequests?.incomingReqs?.length || 0}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#ff7aa2" }}>
-                    <UsersIcon className="size-4" />
+                    <UsersIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
                 <div className={`text-xs ${pendingFriendRequestsDelta.positive ? "text-success" : "text-error"} mt-3`}>
@@ -237,12 +301,22 @@ const HomePage = () => {
             <div className="flex flex-wrap items-left justify-start gap-6">
               {mainFriends.map((f, idx) => {
                 const initials = (f.fullName || "").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase();
-                const status = (f.availabilityStatus || "available").toLowerCase();
-                const statusClass = status === "available" ? "bg-success" : status === "limited" ? "bg-warning" : "bg-error";
+                const status = (f.availabilityStatus ?? "offline").toLowerCase();
+                // If the user is not currently connected, show offline (neutral) regardless of their availability.
+                // If they are connected, reflect their availability: available -> green, limited -> warning, away -> error.
+                const statusClass = !isOnline(f._id)
+                  ? 'bg-neutral-500'
+                  : status === 'available'
+                  ? 'bg-success'
+                  : status === 'limited'
+                  ? 'bg-warning'
+                  : status === 'away'
+                  ? 'bg-error'
+                  : 'bg-neutral-500';
                 return (
                   <div key={f._id || f.fullName} className="flex flex-col items-center group w-20">
-                    <div className="relative">
-                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 transition-all duration-300 transform group-hover:scale-105 bg-base-300">
+                    <Link to={`/profile/${f._id}`} className="relative">
+                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 transition-all duration-300 transform group-hover:scale-105 bg-base-300 cursor-pointer">
                         {f.profilePic ? (
                           <img src={f.profilePic} alt={f.fullName || 'friend avatar'} className="w-full h-full object-cover rounded-full" />
                         ) : (
@@ -250,7 +324,7 @@ const HomePage = () => {
                         )}
                       </div>
                       <span className={`absolute top-0 right-0 -translate-x-0 translate-y-1 w-4 h-4 rounded-full border-2 border-base-100 ${statusClass} z-10`} />
-                    </div>
+                    </Link>
                     {f.fullName ? (
                       <div className="mt-3 text-base font-semibold text-white group-hover:text-primary transition-colors text-center truncate w-full">{f.fullName}</div>
                     ) : (
@@ -270,12 +344,18 @@ const HomePage = () => {
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {otherFriends.map((f) => {
                   const initials = (f.fullName || "").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase();
-                  const status = (f.availabilityStatus || "available").toLowerCase();
-                  const statusClass = status === "available" ? "bg-success" : status === "limited" ? "bg-warning" : "bg-error";
+                  const status = (f.availabilityStatus ?? "offline").toLowerCase();
+                  const statusClass = status === "available"
+                    ? "bg-success"
+                    : status === "limited"
+                    ? "bg-warning"
+                    : status === "offline"
+                    ? "bg-neutral-500"
+                    : "bg-error";
                   return (
                     <div key={f._id || f.fullName} className="flex flex-col items-center w-16">
-                      <div className="relative">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-base-300">
+                      <Link to={`/profile/${f._id}`} className="relative">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-base-300 cursor-pointer">
                           {f.profilePic ? (
                             <img src={f.profilePic} alt={f.fullName || 'friend avatar'} className="w-full h-full object-cover rounded-full" />
                           ) : (
@@ -283,7 +363,7 @@ const HomePage = () => {
                           )}
                         </div>
                         <span className={`absolute top-0 right-0 -translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-full border-2 border-base-100 ${statusClass} z-10`} />
-                      </div>
+                      </Link>
                       <div className="mt-2 text-sm font-medium text-center truncate w-full">{f.fullName}</div>
                     </div>
                   );
@@ -304,22 +384,56 @@ const HomePage = () => {
                 </p>
               </div>
             </div>
+
+            {/* Search and Filter Section */}
+            <div className="mt-6 flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 opacity-50" />
+                <input
+                  type="text"
+                  placeholder="Search by name, location, or bio..."
+                  className="input input-bordered w-full pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="sm:w-64">
+                <select
+                  className="select select-bordered w-full"
+                  value={languageFilter}
+                  onChange={(e) => setLanguageFilter(e.target.value)}
+                >
+                  <option value="all">All Languages</option>
+                  {availableLanguages.map((lang) => (
+                    <option key={lang} value={lang}>
+                      {capitialize(lang)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           {loadingUsers ? (
             <div className="flex justify-center py-12">
               <span className="loading loading-spinner loading-lg" />
             </div>
-          ) : recommendedUsers.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="card bg-base-200 p-6 text-center">
-              <h3 className="font-semibold text-lg mb-2">No recommendations available</h3>
+              <h3 className="font-semibold text-lg mb-2">
+                {searchQuery || languageFilter !== "all" 
+                  ? "No users found matching your search" 
+                  : "No recommendations available"}
+              </h3>
               <p className="text-base-content opacity-70">
-                Check back later for new language partners!
+                {searchQuery || languageFilter !== "all"
+                  ? "Try adjusting your search or filter criteria."
+                  : "Check back later for new language partners!"}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedUsers.map((user) => {
+              {filteredUsers.map((user) => {
                 const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
 
                 return (
@@ -333,6 +447,7 @@ const HomePage = () => {
                           <img 
                             src={user.profilePic || '/default-profile.svg'} 
                             alt={user.fullName}
+                            className="rounded-full"
                             onError={(e) => {
                               e.target.src = '/default-profile.svg';
                             }}
@@ -365,15 +480,27 @@ const HomePage = () => {
 
                       <button
                         className={`btn w-full mt-2 ${
-                          hasRequestBeenSent ? "btn-disabled" : "btn-primary"
+                          hasRequestBeenSent ? "btn-outline btn-error" : "btn-primary"
                         } `}
-                        onClick={() => sendRequestMutation(user._id)}
-                        disabled={hasRequestBeenSent || isPending}
+                        onClick={() => {
+                          setLoadingUserId(user._id);
+                          if (hasRequestBeenSent) {
+                            const requestId = outgoingRequestMap.get(user._id);
+                            if (requestId) {
+                              cancelRequestMutation(requestId);
+                            }
+                          } else {
+                            sendRequestMutation(user._id);
+                          }
+                        }}
+                        disabled={loadingUserId === user._id}
                       >
-                        {hasRequestBeenSent ? (
+                        {loadingUserId === user._id ? (
+                          <span className="loading loading-spinner loading-sm"></span>
+                        ) : hasRequestBeenSent ? (
                           <>
-                            <CheckCircleIcon className="size-4 mr-2" />
-                            Request Sent
+                            <XIcon className="size-4 mr-2" />
+                            Cancel Request
                           </>
                         ) : (
                           <>

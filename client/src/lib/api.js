@@ -171,6 +171,11 @@ export async function sendFriendRequest(userId) {
   return response.data;
 }
 
+export async function cancelFriendRequest(requestId) {
+  const response = await axiosInstance.delete(`/users/friend-request/${requestId}`);
+  return response.data;
+}
+
 export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;

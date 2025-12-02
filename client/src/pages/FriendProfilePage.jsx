@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin, Globe, Briefcase, Star } from 'lucide-react';
 import { getFriendProfile } from '../lib/api';
+import { isOnline } from '../lib/presence';
 import PageLoader from '../components/PageLoader';
 import { useThemeStore } from '../store/useThemeStore';
 
@@ -38,47 +39,64 @@ const FriendProfilePage = () => {
     );
   }
 
-  const availabilityBadgeColor = friend.availabilityStatus === 'available' 
-    ? 'btn-success' 
-    : friend.availabilityStatus === 'limited' 
-    ? 'btn-warning' 
+  const availabilityBadgeColor = friend.availabilityStatus === 'available'
+    ? 'btn-success'
+    : friend.availabilityStatus === 'limited'
+    ? 'btn-warning'
+    : friend.availabilityStatus === 'offline'
+    ? 'btn-neutral'
     : 'btn-error';
+
+  // Live presence check (used to disable booking when user is offline)
+  const online = isOnline(friend._id);
 
   return (
     <div className="min-h-screen bg-base-100" data-theme={theme}>
       {/* Header with Back Button */}
       <div className="bg-gradient-to-r from-primary/20 to-secondary/20 border-b-2 border-primary sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="px-4 py-3 flex items-center">
           <button
             onClick={() => navigate(-1)}
-            className="btn btn-ghost btn-sm gap-2"
+            className="btn btn-ghost btn-sm gap-2 ml-0"
+            style={{ marginLeft: 4 }}
           >
             <ArrowLeft className="w-5 h-5" />
             Back
           </button>
+          <div className="flex-1">
+            <div className="max-w-6xl mx-auto" />
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Profile Header Section */}
-        <div className="bg-base-200 rounded-2xl border-2 border-primary/30 p-8 mb-8 shadow-lg">
+          <div className="bg-base-200 rounded-2xl border-2 border-primary/20 p-8 mb-8 shadow-xl">
           <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
             {/* Avatar with Badge */}
             <div className="relative flex-shrink-0">
-              <div className="w-40 h-40 rounded-full bg-base-100 p-2">
+              <div className="w-40 h-40 rounded-full bg-base-100 p-2 ring-1 ring-primary/10">
                 <img
                   src={friend.profilePic || '/default-profile.png'}
                   alt={friend.fullName}
                   className="w-full h-full rounded-full object-cover border-4 border-base-100 shadow-lg hover:shadow-xl transition-all duration-300"
                 />
               </div>
-              {friend.availabilityStatus && (
-                <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-4 border-base-100 shadow-lg ${
-                  friend.availabilityStatus === 'available' ? 'bg-success' : 
-                  friend.availabilityStatus === 'limited' ? 'bg-warning' : 'bg-error'
-                }`} />
-              )}
+              {
+                // Show avatar presence dot based on live presence when available;
+                // fallback to stored availability classes when online, otherwise show neutral (offline)
+                (() => {
+                  const online = isOnline(friend._id);
+                  const colorClass = online
+                    ? (friend.availabilityStatus === 'available' ? 'bg-success' : friend.availabilityStatus === 'limited' ? 'bg-warning' : 'bg-error')
+                    : 'bg-neutral-500';
+
+                  return (
+                    <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-4 border-base-100 shadow-lg ${colorClass}`} />
+                  );
+                })()
+              }
             </div>
 
             {/* Name, Location, and Actions */}
@@ -87,28 +105,47 @@ const FriendProfilePage = () => {
                 <div>
                   <h1 className="text-5xl font-bold text-base-content mb-2">{friend.fullName}</h1>
                   <div className="flex items-center gap-2 text-base-content/70 text-lg">
-                    <MapPin className="w-5 h-5 text-primary" />
+                    <MapPin className="w-5 h-5 text-primary" aria-hidden />
                     <span>{friend.location || 'Location not specified'}</span>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 flex-wrap">
-                <button className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition-all">
-                  <MessageCircle className="w-5 h-5" />
-                  Message
+              <div className="flex gap-3 flex-wrap items-center">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/chats/${friend._id}`)}
+                  className="btn btn-primary gap-2 shadow-md hover:shadow-lg transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                  aria-label={`Message ${friend.fullName}`}
+                >
+                  <MessageCircle className="w-5 h-5" aria-hidden />
+                  <span className="sr-only">Message</span>
+                  <span className="ml-1">Message</span>
                 </button>
-                <button className="btn btn-secondary gap-2 shadow-md hover:shadow-lg transition-all">
-                  <Calendar className="w-5 h-5" />
-                  Book Appointment
+
+                <button
+                  type="button"
+                  onClick={() => navigate(`/booking?friendId=${friend._id}`)}
+                  className="btn btn-secondary gap-2 shadow-md hover:shadow-lg transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-secondary/30"
+                  aria-label={`Book appointment with ${friend.fullName}`}
+                  title={`Book appointment with ${friend.fullName}`}
+                >
+                  <Calendar className="w-5 h-5" aria-hidden />
+                  <span className="ml-1">Book Appointment</span>
                 </button>
-                <button className={`btn gap-2 shadow-md hover:shadow-lg transition-all ${
-                  friend.availabilityStatus === 'available' ? 'btn-success' : 
-                  friend.availabilityStatus === 'limited' ? 'btn-warning' : 'btn-error'
-                }`}>
-                  <Star className="w-5 h-5" />
-                  <span>{friend.availabilityStatus?.charAt(0).toUpperCase() + friend.availabilityStatus?.slice(1) || 'Available'}</span>
+
+                <button
+                  type="button"
+                  className={`btn gap-2 shadow-md transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-accent/30 ${
+                    friend.availabilityStatus === 'available' ? 'btn-success' : 
+                    friend.availabilityStatus === 'limited' ? 'btn-warning' : 'btn-error'
+                  }`}
+                  aria-pressed={friend.availabilityStatus !== 'offline'}
+                  aria-label={`Availability: ${friend.availabilityStatus || 'available'}`}
+                >
+                  <Star className="w-5 h-5" aria-hidden />
+                  <span className="ml-1">{friend.availabilityStatus?.charAt(0).toUpperCase() + friend.availabilityStatus?.slice(1) || 'Available'}</span>
                 </button>
               </div>
             </div>

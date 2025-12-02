@@ -6,6 +6,19 @@
   @apply bg-purple-700 hover:bg-purple-800 text-white;
 }
 
+/* Prevent scroll without layout shift */
+body.modal-open {
+  overflow: hidden;
+}
+
+html {
+  overflow-y: scroll;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
 /* ========== Stream Chat Custom Styles ========== */
 
 /* Main chat container */

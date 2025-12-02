@@ -4,14 +4,12 @@ import Navbar from "./Navbar";
 const Layout = ({ children, showSidebar = false }) => {
   return (
     <div className="min-h-screen bg-base-100">
-      <div className="flex">
-        {showSidebar && <Sidebar />}
+      {showSidebar && <Sidebar />}
 
-        <div className="flex-1 flex flex-col bg-base-100">
-          <Navbar />
+      <div className={`flex flex-col bg-base-100 min-h-screen ${showSidebar ? 'lg:ml-64' : ''}`}>
+        <Navbar />
 
-          <main className="flex-1 overflow-y-auto bg-base-100">{children}</main>
-        </div>
+        <main className="flex-1 bg-base-100">{children}</main>
       </div>
     </div>
   );
