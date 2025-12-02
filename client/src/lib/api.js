@@ -106,10 +106,16 @@ export async function getNotifications() {
   return response.data;
 }
 
-export async function markNotificationAsRead(notificationId) {
-  const response = await axiosInstance.put(`/notifications/${notificationId}/read`);
-  return response.data;
-}
+export const markNotificationAsRead = async (notificationId) => {
+  const res = await fetch(`/api/notifications/${notificationId}/read`, {
+    method: "PUT",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || "Failed to mark notification as read");
+  }
+  return data;
+};
 
 export const createAppointment = async (appointmentData) => {
   const response = await axiosInstance.post('/appointments', appointmentData);
@@ -251,3 +257,4 @@ export const deleteNotification = async (notificationId) => {
   }
   return data;
 };
+
