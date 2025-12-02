@@ -14,6 +14,7 @@ import { hardDeleteExpiredUsers } from "./deleteScheduler.js";
 
 import { connectDB } from "./lib/db.js";
 import { initSocket } from "./lib/socket.js";
+import { startReminderScheduler } from './utils/appointmentReminders.js';
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -43,6 +44,8 @@ initSocket(server, CLIENT_ORIGIN);
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   connectDB();
+
+  startReminderScheduler();
 
   // Run scheduled hard delete for users whose 14-day grace period has expired
   // Runs once every 24 hours
