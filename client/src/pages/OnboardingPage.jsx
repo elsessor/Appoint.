@@ -236,7 +236,7 @@ const OnboardingPage = () => {
                 Welcome to Appoint! 👋
               </h1>
               <p className="text-lg text-base-content/70 max-w-md mx-auto">
-                Let's set up your profile so you can start connecting with language partners around the world
+                Let's set up your profile so you can start booking and managing appointments with ease.
               </p>
               <button onClick={nextStep} className="btn btn-primary btn-lg gap-2">
                 Get Started
