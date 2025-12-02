@@ -184,6 +184,28 @@ const AppointmentBookingPage = () => {
     }
   });
 
+  // Reschedule appointment mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: (data) => updateAppointment({ 
+      id: data.appointmentId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      title: data.title,
+      description: data.description,
+      meetingType: data.meetingType,
+      location: data.location,
+      duration: data.duration,
+    }),
+    onSuccess: () => {
+      toast.success('Appointment rescheduled successfully!');
+      queryClient.invalidateQueries(['appointments']);
+      setSelectedAppointmentDetail(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to reschedule appointment');
+    }
+  });
+
   // Accept appointment mutation
   const acceptAppointmentMutation = useMutation({
     mutationFn: (appointmentId) => updateAppointment({ id: appointmentId, status: 'confirmed' }),
@@ -825,6 +847,16 @@ const AppointmentBookingPage = () => {
           }}
           onEdit={() => {
             console.log('Edit appointment:', selectedAppointmentDetail._id);
+          }}
+          friends={friends}
+          availability={currentUser?.availability || {}}
+          friendsAvailability={friendsAvailability}
+          appointments={appointments}
+          onUpdateAppointment={(formData) => {
+            rescheduleAppointmentMutation.mutate({
+              appointmentId: selectedAppointmentDetail._id,
+              ...formData
+            });
           }}
         />
       )}

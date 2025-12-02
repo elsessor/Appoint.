@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { format, parseISO, isToday, isBefore } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { Clock, User, MessageSquare, Calendar, X, Send, ArrowDown } from 'lucide-react';
 import AppointmentModal from './AppointmentModal';
 import AppointmentDetailsView from './AppointmentDetailsView';
@@ -18,8 +19,17 @@ const DayDetailsModal = ({
   friendsAvailability = {},
   viewingFriendId = null,
 }) => {
+  const navigate = useNavigate();
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
+
+  // Hide page scrollbar when modal is open
+  React.useEffect(() => {
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, []);
 
   const formatTime = (timeString) => {
     if (!timeString) return '';
@@ -166,7 +176,9 @@ const DayDetailsModal = ({
           ) : (
             <div className="p-6">
               <div className="space-y-3">
-                {appointments.map((appointment) => {
+                {appointments
+                  .filter(appt => !['declined', 'cancelled'].includes(appt.status))
+                  .map((appointment) => {
                   const appointmentType = getAppointmentType(appointment);
                   const otherUser = getOtherUser(appointment);
                   const isRequested = appointmentType === 'Requested';
@@ -265,23 +277,6 @@ const DayDetailsModal = ({
         </div>
       </div>
 
-      {/* Show appointment details when an appointment is clicked */}
-      {selectedAppointmentDetail && (
-        <AppointmentDetailsView
-          appointment={selectedAppointmentDetail}
-          currentUser={currentUser}
-          onClose={() => setSelectedAppointmentDetail(null)}
-          onDelete={() => {
-            setSelectedAppointmentDetail(null);
-            // Optionally trigger a delete handler here if needed
-          }}
-          onEdit={() => {
-            // Handle edit
-            console.log('Edit appointment:', selectedAppointmentDetail._id);
-          }}
-        />
-      )}
-
       {/* Appointment Modal */}
       <AppointmentModal
         isOpen={showAppointmentModal}
@@ -297,6 +292,19 @@ const DayDetailsModal = ({
         friendsAvailability={friendsAvailability}
         currentUserStatus={currentUser?.availabilityStatus || 'available'}
       />
+
+      {/* Appointment Details Side Panel */}
+      {selectedAppointmentDetail && (
+        <AppointmentDetailsView
+          appointment={selectedAppointmentDetail}
+          currentUser={currentUser}
+          onClose={() => setSelectedAppointmentDetail(null)}
+          onDelete={() => setSelectedAppointmentDetail(null)}
+          onEdit={() => {
+            console.log('Edit appointment:', selectedAppointmentDetail._id);
+          }}
+        />
+      )}
     </div>
   );
 };
