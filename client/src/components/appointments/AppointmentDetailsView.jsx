@@ -61,7 +61,7 @@ const AppointmentDetails = ({
     : appointment.userId;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" data-theme={theme}>
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/50" data-theme={theme}>
       <div className="flex items-center justify-end min-h-screen">
         {/* Backdrop - click to close */}
         <div 
@@ -71,7 +71,7 @@ const AppointmentDetails = ({
         ></div>
 
         {/* Sliding Side Panel */}
-        <div className="relative z-50 h-screen w-full max-w-3xl bg-base-100 shadow-2xl overflow-y-auto">
+        <div className="relative z-[71] h-screen w-full max-w-3xl bg-base-100 shadow-2xl overflow-y-auto">
           {/* Header */}
           <div className="bg-base-200 border-l border-base-300 sticky top-0 z-10">
             <div className="px-6 py-6">

@@ -79,6 +79,19 @@ const Calendar = ({
     return userId; // Return the person who booked it
   };
 
+  // Get status badge colors only (not card colors)
+  const getStatusBadgeColor = (status) => {
+    const statusColorMap = {
+      scheduled: { bg: 'bg-blue-100', text: 'text-blue-700' },
+      confirmed: { bg: 'bg-green-100', text: 'text-green-700' },
+      completed: { bg: 'bg-gray-200', text: 'text-gray-700' },
+      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700' },
+      declined: { bg: 'bg-red-100', text: 'text-red-700' },
+    };
+    return statusColorMap[status?.toLowerCase()] || { bg: 'bg-gray-200', text: 'text-gray-700' };
+  };
+
   // Check if friend is visible
   const isFriendVisible = (friendId) => {
     const currentUserId = currentUser?._id || currentUser?.id;
@@ -132,9 +145,7 @@ const Calendar = ({
     const map = new Map();
     
     appointments.forEach(appointment => {
-      // Skip declined and cancelled appointments from capacity calculation
-      if (['declined', 'cancelled'].includes(appointment.status)) return;
-      
+      // Don't filter any appointments here - show all for calendar reference
       if (!appointment.startTime) return;
       
       try {
@@ -500,9 +511,12 @@ const Calendar = ({
                         .map((appt) => {
                           const ownerId = getAppointmentOwnerId(appt);
                           const ownerColor = isMultiCalendarMode ? getColorForFriend(ownerId) : null;
-                          const apptBgClass = ownerColor ? ownerColor.apptBg : 'bg-primary/30';
-                          const apptTextClass = ownerColor ? ownerColor.apptText : 'text-primary-content';
-                          const apptBorderClass = ownerColor ? ownerColor.apptBorder : 'border-primary/50';
+                          const statusBadgeColor = getStatusBadgeColor(appt.status);
+                          
+                          // Use owner color for multi-calendar mode background, theme colors for single mode
+                          const apptBgClass = isMultiCalendarMode && ownerColor ? ownerColor.apptBg : 'bg-base-100';
+                          const apptTextClass = isMultiCalendarMode && ownerColor ? ownerColor.apptText : 'text-base-content';
+                          const apptBorderClass = isMultiCalendarMode && ownerColor ? ownerColor.apptBorder : 'border-base-300';
                           
                           return (
                             <div 

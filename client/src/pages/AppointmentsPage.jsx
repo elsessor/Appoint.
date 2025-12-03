@@ -136,7 +136,11 @@ const AppointmentsPage = () => {
   const appointmentsForToday = involvedAppointments
     .filter((apt) => {
       const startTime = typeof apt.startTime === 'string' ? parseISO(apt.startTime) : new Date(apt.startTime);
-      return isToday(startTime) && apt.status === 'confirmed';
+      // Exclude completed, cancelled, and declined appointments
+      const isValidStatus = !['completed', 'cancelled', 'declined'].includes(apt.status?.toLowerCase());
+      // Must be confirmed or scheduled
+      const isActiveStatus = ['confirmed', 'scheduled'].includes(apt.status?.toLowerCase());
+      return isToday(startTime) && isActiveStatus && isValidStatus;
     })
     .sort((a, b) => {
       const timeA = typeof a.startTime === 'string' ? parseISO(a.startTime) : new Date(a.startTime);

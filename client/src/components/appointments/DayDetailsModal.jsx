@@ -23,7 +23,7 @@ const DayDetailsModal = ({
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
 
-  // Hide page scrollbar when modal is open
+  // Hide page scrollbar and prevent interaction when modal is open
   React.useEffect(() => {
     document.documentElement.style.overflow = 'hidden';
     return () => {
@@ -61,21 +61,34 @@ const DayDetailsModal = ({
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      scheduled: { bg: 'bg-info/15', text: 'text-info', label: 'Scheduled' },
-      confirmed: { bg: 'bg-success/15', text: 'text-success', label: 'Confirmed' },
-      cancelled: { bg: 'bg-error/15', text: 'text-error', label: 'Cancelled' },
-      completed: { bg: 'bg-base-300/30', text: 'text-base-content', label: 'Completed' },
-      pending: { bg: 'bg-warning/15', text: 'text-warning', label: 'Pending' },
-      declined: { bg: 'bg-error/15', text: 'text-error', label: 'Declined' },
+      scheduled: { bg: 'bg-blue-500', text: 'text-white', label: 'Scheduled' },
+      confirmed: { bg: 'bg-green-500', text: 'text-white', label: 'Confirmed' },
+      cancelled: { bg: 'bg-red-500', text: 'text-white', label: 'Cancelled' },
+      completed: { bg: 'bg-gray-500', text: 'text-white', label: 'Completed' },
+      pending: { bg: 'bg-yellow-500', text: 'text-white', label: 'Pending' },
+      declined: { bg: 'bg-red-500', text: 'text-white', label: 'Declined' },
     };
     
-    const config = statusConfig[status?.toLowerCase()] || { bg: 'bg-base-300/30', text: 'text-base-content', label: status || 'Scheduled' };
+    const config = statusConfig[status?.toLowerCase()] || { bg: 'bg-gray-500', text: 'text-white', label: status || 'Scheduled' };
     
     return (
-      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${config.bg} ${config.text}`}>
+      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${config.bg} ${config.text}`}>
         {config.label}
       </span>
     );
+  };
+
+  // Get card background color based on status
+  const getStatusCardColor = (status) => {
+    const statusCardMap = {
+      scheduled: 'hover:bg-base-200/50 border-base-300/40',
+      confirmed: 'hover:bg-base-200/50 border-base-300/40',
+      completed: 'hover:bg-base-200/50 border-base-300/40',
+      pending: 'hover:bg-base-200/50 border-base-300/40',
+      cancelled: 'hover:bg-base-200/50 border-base-300/40',
+      declined: 'hover:bg-base-200/50 border-base-300/40',
+    };
+    return statusCardMap[status?.toLowerCase()] || 'hover:bg-base-200/50 border-base-300/40';
   };
 
   const getAppointmentType = (appointment) => {
@@ -116,22 +129,21 @@ const DayDetailsModal = ({
       onCreateAppointment(formData);
     }
     
-    // Close the appointment modal after submission
+    // Close both the appointment modal and day details modal after submission
     setShowAppointmentModal(false);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
-        </div>
-
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">
-          &#8203;
-        </span>
-
-        <div className="inline-block align-bottom bg-base-100 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      {/* Only show backdrop and modal if appointment modal and details view are not open */}
+      {!showAppointmentModal && !selectedAppointmentDetail && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+          
+          {/* Modal */}
+          <div className="relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col mx-4">
           <div className="bg-base-100 px-6 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-base-300/40">
             <div className="flex justify-between items-start">
               <div>
@@ -174,10 +186,9 @@ const DayDetailsModal = ({
               </div>
             </div>
           ) : (
-            <div className="p-6">
+            <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-3">
                 {appointments
-                  .filter(appt => !['declined', 'cancelled'].includes(appt.status))
                   .map((appointment) => {
                   const appointmentType = getAppointmentType(appointment);
                   const otherUser = getOtherUser(appointment);
@@ -187,7 +198,7 @@ const DayDetailsModal = ({
                   <button
                     key={appointment._id || appointment.id}
                     onClick={() => setSelectedAppointmentDetail(appointment)}
-                    className="w-full text-left hover:bg-base-200/50 p-4 rounded-lg transition border border-base-300/40 hover:border-primary/30 group"
+                    className={`w-full text-left p-4 rounded-lg transition border ${getStatusCardColor(appointment.status)} hover:border-primary/30 group`}
                   >
                     <div className="space-y-2">
                       <div className="flex items-start justify-between gap-3">
@@ -257,7 +268,7 @@ const DayDetailsModal = ({
           )}
           
           {appointments.length > 0 && (
-            <div className="bg-base-100 border-t border-base-300/40 px-6 py-3 sm:flex sm:flex-row-reverse gap-3">
+            <div className="bg-base-100 border-t border-base-300/40 px-6 py-3 flex flex-row-reverse gap-3 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleCreateAppointment}
@@ -274,24 +285,27 @@ const DayDetailsModal = ({
               </button>
             </div>
           )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Appointment Modal */}
-      <AppointmentModal
-        isOpen={showAppointmentModal}
-        onClose={handleAppointmentModalClose}
-        onSubmit={handleAppointmentSubmit}
-        initialDate={date}
-        initialTime={undefined}
-        initialFriendId={viewingFriendId}
-        friends={friends}
-        currentUser={currentUser}
-        appointments={appointments}
-        availability={availability}
-        friendsAvailability={friendsAvailability}
-        currentUserStatus={currentUser?.availabilityStatus || 'available'}
-      />
+      {showAppointmentModal && (
+        <AppointmentModal
+          isOpen={showAppointmentModal}
+          onClose={handleAppointmentModalClose}
+          onSubmit={handleAppointmentSubmit}
+          initialDate={date}
+          initialTime={undefined}
+          initialFriendId={viewingFriendId}
+          friends={friends}
+          currentUser={currentUser}
+          appointments={appointments}
+          availability={availability}
+          friendsAvailability={friendsAvailability}
+          currentUserStatus={currentUser?.availabilityStatus || 'available'}
+        />
+      )}
 
       {/* Appointment Details Side Panel */}
       {selectedAppointmentDetail && (

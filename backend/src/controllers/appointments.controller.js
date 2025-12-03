@@ -171,17 +171,19 @@ export async function createAppointment(req, res) {
       });
     }
 
-    // Check max appointments per day constraint
-    const maxPerDay = friendAvailability.maxPerDay || 5;
+    // Check max appointments per day constraint for the logged-in user
+    const user = await User.findById(userId);
+    const maxPerDay = user.maxAppointmentsPerDay || 5;
     const startOfDay = new Date(start);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(start);
     endOfDay.setHours(23, 59, 59, 999);
 
+    // Count ALL appointments for the logged-in user on this day (with any friend)
     const appointmentsOnSameDay = await Appointment.countDocuments({
       $or: [
-        { userId: friendId },
-        { friendId: friendId }
+        { userId: userId },
+        { friendId: userId }
       ],
       status: { $in: ['pending', 'confirmed', 'scheduled'] },
       startTime: { $gte: startOfDay, $lte: endOfDay }
@@ -189,7 +191,7 @@ export async function createAppointment(req, res) {
 
     if (appointmentsOnSameDay >= maxPerDay) {
       return res.status(400).json({
-        message: `Maximum ${maxPerDay} appointments per day reached for this user. Please choose a different date.`,
+        message: `You have reached the maximum of ${maxPerDay} appointments per day. Please choose a different date.`,
         maxPerDay,
         appointmentsOnDate: appointmentsOnSameDay
       });
@@ -213,7 +215,6 @@ export async function createAppointment(req, res) {
     await appointment.populate(["userId", "friendId"]);
 
     // Create notification for the friend
-    const user = await User.findById(userId);
     const formattedDate = new Date(startTime).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -542,7 +543,6 @@ export async function deleteAppointment(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
-}
 
 export async function saveCustomAvailability(req, res) {
   try {
@@ -586,6 +586,8 @@ export async function saveCustomAvailability(req, res) {
             max: 120,
           },
         },
+        // Also save maxPerDay to top-level field for appointment creation validation
+        maxAppointmentsPerDay: maxPerDay || 5,
         ...(availabilityStatus && ['available', 'limited', 'away'].includes(availabilityStatus) && {
           availabilityStatus: availabilityStatus,
         }),
