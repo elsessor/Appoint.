@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin, Globe, Briefcase, Star, Clock, TrendingUp, Video, CheckCircle, Heart, Linkedin, Twitter } from 'lucide-react';
 import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, toggleFavorite } from '../lib/api';

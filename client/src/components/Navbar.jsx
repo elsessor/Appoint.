@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard } from "lucide-react";
@@ -77,15 +77,15 @@ const Navbar = () => {
 
             <ThemeSelector />
 
-            <Link to="/profile" className="avatar">
+            <Link to="/profile" className="avatar" aria-label="profile">
               <div className="w-9 rounded-full cursor-pointer">
-                <img 
-                src={authUser?.profilePic || '/default-profile.svg'} 
-                alt="User Avatar"
-                onError={(e) => {
-                  e.target.src = '/default-profile.svg';
-                }}
-              />
+                <img
+                  src={authUser?.profilePic && authUser.profilePic.trim() ? authUser.profilePic : '/default-profile.png'}
+                  alt={`${authUser?.fullName || 'User'} avatar`}
+                  onError={(e) => {
+                    e.target.src = '/default-profile.png';
+                  }}
+                />
               </div>
             </Link>
 

@@ -494,14 +494,7 @@ const HomePage = () => {
                     <div className="card-body p-5 space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
-                          <img 
-                            src={user.profilePic || '/default-profile.svg'} 
-                            alt={user.fullName}
-                            className="rounded-full"
-                            onError={(e) => {
-                              e.target.src = '/default-profile.svg';
-                            }}
-                          />
+                          <img src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} alt={user.fullName} />
                         </div>
 
                         <div>

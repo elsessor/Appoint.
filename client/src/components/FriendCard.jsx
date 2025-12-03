@@ -8,7 +8,7 @@ const FriendCard = ({ friend }) => {
         <div className="flex items-center gap-3 mb-3">
           <div className="avatar size-12 rounded-full">
             <img 
-              src={friend.profilePic || '/default-profile.svg'} 
+              src={friend.profilePic && friend.profilePic.trim() ? friend.profilePic : '/default-profile.png' || '/default-profile.svg'} 
               alt={friend.fullName}
               onError={(e) => {
                 e.target.src = '/default-profile.svg';

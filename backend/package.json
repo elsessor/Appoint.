@@ -20,9 +20,11 @@
     "dotenv": "^16.5.0",
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
+    "mern-project": "file:..",
     "mongoose": "^8.13.2",
     "socket.io": "^4.8.1",
-    "stream-chat": "^8.60.0"
+    "stream-chat": "^8.60.0",
+    "streamify": "file:.."
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
