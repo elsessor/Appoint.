@@ -3,23 +3,20 @@ import useAuthUser from "../hooks/useAuthUser";
 import { updateProfilePicture, getMyProfile, updateMyProfile } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
-import AvailabilitySettings from "../components/AvailabilitySettings";
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [showAvailabilitySettings, setShowAvailabilitySettings] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
-    location: 'Camarines Sur, Philippines',
-    phone: '09479067912',
-    twitter: '@loremipsum',
-    github: '@loremipsum',
-    linkedin: 'loremipsum',
-    about:
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.\n\nDuis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+    location: '',
+    phone: '',
+    twitter: '',
+    github: '',
+    linkedin: '',
+    about: '',
   });
   const [draft, setDraft] = useState(profile);
   const draftRef = useRef(draft);
@@ -460,15 +457,6 @@ const ProfilePage = () => {
                   <span>Cancel</span>
                 </button>
               )}
-              <button
-                onClick={() => setShowAvailabilitySettings(true)}
-                className="flex items-center space-x-2 bg-secondary hover:bg-secondary-focus text-white px-4 py-2 rounded-lg transition-colors ml-auto"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>⚙️ Availability</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -664,13 +652,6 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
-
-      {/* Availability Settings Modal */}
-      <AvailabilitySettings
-        isOpen={showAvailabilitySettings}
-        onClose={() => setShowAvailabilitySettings(false)}
-        currentUser={authUser}
-      />
     </div>
   );
 };

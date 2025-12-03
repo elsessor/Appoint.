@@ -120,22 +120,17 @@ const userSchema = new mongoose.Schema(
           default: 120,
         },
       },
+      defaultReminderTime: {
+        type: Number,
+        default: 15,
+        enum: [0, 5, 10, 15, 30, 60, 120, 1440], // minutes before appointment
+      },
     },
     // Availability status: available, limited, or away
     availabilityStatus: {
       type: String,
       enum: ["available", "limited", "away"],
       default: "available",
-    },
-    settings: {
-      notifications: {
-        appointmentReminders: { type: Boolean, default: true },
-        newMessages: { type: Boolean, default: true },
-        appointmentRequests: { type: Boolean, default: true },
-        emailNotifications: { type: Boolean, default: true },
-        smsNotifications: { type: Boolean, default: false },
-        reminderTiming: { type: String, default: "15 minutes before" },
-      },
     },
     // User Preferences (functional settings)
     preferences: {

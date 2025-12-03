@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import { getMySettings, updateMySettings, changePassword, deleteMyAccount } from "../lib/api";
 import { axiosInstance } from "../lib/axios";
 import { useQueryClient } from "@tanstack/react-query";
+import AvailabilitySettings from "../components/AvailabilitySettings";
 
 const SettingPage = () => {
   const { authUser } = useAuthUser();
@@ -19,6 +20,7 @@ const SettingPage = () => {
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showAvailabilitySettings, setShowAvailabilitySettings] = useState(false);
 
   const [activeTab, setActiveTab] = useState("Privacy Controls");
 
@@ -30,10 +32,17 @@ const SettingPage = () => {
   });
   const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
 
+  // Reminder Settings State
+  const [defaultReminderTime, setDefaultReminderTime] = useState(15);
+  const [isUpdatingReminder, setIsUpdatingReminder] = useState(false);
+
   // Load user preferences
   useEffect(() => {
     if (authUser?.preferences?.privacy) {
       setPrivacySettings(prev => ({ ...prev, ...authUser.preferences.privacy }));
+    }
+    if (authUser?.availability?.defaultReminderTime !== undefined) {
+      setDefaultReminderTime(authUser.availability.defaultReminderTime);
     }
   }, [authUser]);
 
@@ -74,6 +83,28 @@ const SettingPage = () => {
       toast.error(message);
     } finally {
       setIsUpdatingPrivacy(false);
+    }
+  };
+
+  const updateReminderTime = async () => {
+    try {
+      setIsUpdatingReminder(true);
+      const response = await axiosInstance.put("/appointments/availability", {
+        ...authUser.availability,
+        defaultReminderTime: defaultReminderTime,
+      });
+      
+      // Invalidate and refetch the authUser query to get updated data
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      await queryClient.invalidateQueries({ queryKey: ["userAvailability"] });
+      
+      toast.success("Reminder time updated");
+    } catch (err) {
+      console.error(err);
+      const message = err.response?.data?.message || "Failed to update reminder time";
+      toast.error(message);
+    } finally {
+      setIsUpdatingReminder(false);
     }
   };
 
@@ -133,6 +164,14 @@ const SettingPage = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab("Availability")}
+            aria-pressed={activeTab === "Availability"}
+            className={`btn btn-ghost btn-sm rounded-full ${activeTab === "Availability" ? "bg-base-300 text-primary shadow" : ""}`}
+          >
+            Availability
+          </button>
+
+          <button
             onClick={() => setActiveTab("Security")}
             aria-pressed={activeTab === "Security"}
             className={`btn btn-ghost btn-sm rounded-full ${activeTab === "Security" ? "bg-base-300 text-primary shadow" : ""}`}
@@ -140,6 +179,58 @@ const SettingPage = () => {
             Security
           </button>
         </div>
+
+        {activeTab === "Availability" && (
+          <section className="mb-6">
+            <h2 className="font-semibold mb-3">Availability Settings</h2>
+            <div className="text-xs text-slate-400 mb-4">
+              Manage your availability schedule and booking preferences
+            </div>
+            <div className="grid gap-4">
+              <div className="py-3">
+                <button
+                  onClick={() => setShowAvailabilitySettings(true)}
+                  className="btn btn-primary"
+                >
+                  ⚙️ Configure Availability
+                </button>
+                <div className="text-xs text-slate-400 mt-2">
+                  Set your working hours, availability status, break times, and appointment limits
+                </div>
+              </div>
+
+              <div className="py-3 border-t">
+                <label className="font-medium block mb-2">Default Appointment Reminder</label>
+                <select 
+                  className="select select-bordered w-full max-w-xs" 
+                  value={defaultReminderTime}
+                  onChange={(e) => setDefaultReminderTime(Number(e.target.value))}
+                >
+                  <option value={0}>No reminder</option>
+                  <option value={5}>5 minutes before</option>
+                  <option value={10}>10 minutes before</option>
+                  <option value={15}>15 minutes before</option>
+                  <option value={30}>30 minutes before</option>
+                  <option value={60}>1 hour before</option>
+                  <option value={120}>2 hours before</option>
+                  <option value={1440}>1 day before</option>
+                </select>
+                <div className="text-xs text-slate-400 mt-1">
+                  Default reminder time for your appointments
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button 
+                    className={`btn btn-primary btn-sm ${isUpdatingReminder ? "loading" : ""}`} 
+                    onClick={updateReminderTime}
+                    disabled={isUpdatingReminder}
+                  >
+                    {isUpdatingReminder ? "Saving..." : "Save Reminder Time"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {activeTab === "Privacy Controls" && (
           <section className="mb-6">
@@ -265,6 +356,12 @@ const SettingPage = () => {
           </div>
         </section>
       </div>
+
+      <AvailabilitySettings
+        isOpen={showAvailabilitySettings}
+        onClose={() => setShowAvailabilitySettings(false)}
+        currentUser={authUser}
+      />
     </div>
   );
 };

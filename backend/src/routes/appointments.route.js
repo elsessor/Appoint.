@@ -15,11 +15,9 @@ const router = express.Router();
 
 router.use(protectRoute);
 
-// Availability operations MUST come before /:id routes
 router.post("/availability", saveCustomAvailability);
 router.get("/availability/:userId", getUserAvailability);
 
-// Appointment CRUD operations
 router.post("/", createAppointment);
 router.get("/", getAppointments);
 router.get("/friend/:friendId", getFriendAppointments);
