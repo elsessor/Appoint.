@@ -15,6 +15,18 @@ const AppointmentRequestModal = ({
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineMessage, setDeclineMessage] = useState('');
 
+  // Hide page scrollbar when modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = 'auto';
+    }
+    return () => {
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !appointment) return null;
 
   const startTime = typeof appointment.startTime === 'string'

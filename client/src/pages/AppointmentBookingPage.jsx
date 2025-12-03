@@ -184,6 +184,28 @@ const AppointmentBookingPage = () => {
     }
   });
 
+  // Reschedule appointment mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: (data) => updateAppointment({ 
+      id: data.appointmentId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      title: data.title,
+      description: data.description,
+      meetingType: data.meetingType,
+      location: data.location,
+      duration: data.duration,
+    }),
+    onSuccess: () => {
+      toast.success('Appointment rescheduled successfully!');
+      queryClient.invalidateQueries(['appointments']);
+      setSelectedAppointmentDetail(null);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || 'Failed to reschedule appointment');
+    }
+  });
+
   // Accept appointment mutation
   const acceptAppointmentMutation = useMutation({
     mutationFn: (appointmentId) => updateAppointment({ id: appointmentId, status: 'confirmed' }),
@@ -319,6 +341,25 @@ const AppointmentBookingPage = () => {
     
     const friendIndex = friends.findIndex(f => f._id === ownerId);
     return friendIndex >= 0 ? colorPalette[(friendIndex + 1) % colorPalette.length] : colorPalette[0];
+  };
+
+  // Get status-based colors for consistent styling across all components
+  const getStatusBadgeColor = (status) => {
+    const statusColorMap = {
+      scheduled: { badge: 'bg-blue-500', text: 'text-white' },
+      confirmed: { badge: 'bg-green-500', text: 'text-white' },
+      completed: { badge: 'bg-gray-500', text: 'text-white' },
+      pending: { badge: 'bg-yellow-500', text: 'text-white' },
+      cancelled: { badge: 'bg-red-500', text: 'text-white' },
+      declined: { badge: 'bg-red-500', text: 'text-white' },
+    };
+    return statusColorMap[status?.toLowerCase()] || { badge: 'bg-gray-500', text: 'text-white' };
+  };
+
+  // Get card background color based on status
+  const getStatusCardColor = (status) => {
+    // Always use theme colors for card backgrounds
+    return 'bg-base-100 border-base-300';
   };
 
   // Helper function to detect if this is a pending request FROM another user
@@ -730,13 +771,8 @@ const AppointmentBookingPage = () => {
                       : new Date(appointment.endTime))
                   : null;
                 
-                const statusColors = {
-                  pending: 'bg-warning/20 border-warning text-warning-content',
-                  confirmed: 'bg-success/20 border-success text-success-content',
-                  scheduled: 'bg-info/20 border-info text-info-content',
-                  declined: 'bg-error/20 border-error text-error-content',
-                  cancelled: 'bg-base-300 border-base-300 text-base-content/70',
-                };
+                const statusColor = getStatusBadgeColor(appointment.status);
+                const cardColor = getStatusCardColor(appointment.status);
 
                 const isPending = isPendingRequestFromOther(appointment);
                 const owner = getAppointmentOwner(appointment);
@@ -745,11 +781,7 @@ const AppointmentBookingPage = () => {
                 return (
                   <div 
                     key={appointment._id || appointment.id} 
-                    className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${
-                      isPending 
-                        ? 'bg-warning/20 border-warning hover:shadow-lg' 
-                        : 'bg-base-200 border-base-300 hover:shadow-lg'
-                    }`}
+                    className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${cardColor || 'bg-base-100 border-base-300'}`}
                     onClick={() => {
                       if (isPending) {
                         setSelectedRequest(appointment);
@@ -794,9 +826,7 @@ const AppointmentBookingPage = () => {
                             {owner.name[0].toUpperCase()}
                           </span>
                         )}
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium badge ${
-                          statusColors[appointment.status] || statusColors.scheduled
-                        }`}>
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusColor?.badge || 'bg-gray-500'} ${statusColor?.text || 'text-white'}`}>
                           {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Scheduled'}
                         </span>
                       </div>
@@ -851,6 +881,16 @@ const AppointmentBookingPage = () => {
           }}
           onEdit={() => {
             console.log('Edit appointment:', selectedAppointmentDetail._id);
+          }}
+          friends={friends}
+          availability={currentUser?.availability || {}}
+          friendsAvailability={friendsAvailability}
+          appointments={appointments}
+          onUpdateAppointment={(formData) => {
+            rescheduleAppointmentMutation.mutate({
+              appointmentId: selectedAppointmentDetail._id,
+              ...formData
+            });
           }}
         />
       )}

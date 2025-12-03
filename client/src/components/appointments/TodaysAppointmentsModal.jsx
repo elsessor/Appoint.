@@ -25,6 +25,7 @@ const TodaysAppointmentsModal = ({
   currentUser,
   onEditAppointment,
   onDeleteAppointment,
+  onNewAppointment,
 }) => {
   const { theme } = useThemeStore();
   const navigate = useNavigate();
@@ -141,14 +142,18 @@ const TodaysAppointmentsModal = ({
                 {/* Status Card */}
                 <div className="bg-base-100 border border-base-300 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <span className={`inline-flex items-center gap-2 px-3 py-1 badge gap-2 ${
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold gap-2 ${
                       selectedAppointment.status === 'confirmed' 
-                        ? 'badge-success' 
+                        ? 'bg-green-100 text-green-700' 
                         : selectedAppointment.status === 'declined'
-                        ? 'badge-error'
+                        ? 'bg-red-100 text-red-700'
                         : selectedAppointment.status === 'pending'
-                        ? 'badge-warning'
-                        : 'badge-info'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : selectedAppointment.status === 'completed'
+                        ? 'bg-gray-200 text-gray-700'
+                        : selectedAppointment.status === 'cancelled'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-blue-100 text-blue-700'
                     }`}>
                       <CheckCircle2 className="w-4 h-4" />
                       {selectedAppointment.status === 'scheduled' ? 'Confirmed' : selectedAppointment.status?.charAt(0).toUpperCase() + selectedAppointment.status?.slice(1)}
@@ -434,11 +439,13 @@ const TodaysAppointmentsModal = ({
                             )}
                           </div>
                         </div>
-                        <span className={`badge badge-sm flex-shrink-0 ${
-                          appointment.status === 'confirmed' ? 'badge-success' :
-                          appointment.status === 'pending' ? 'badge-warning' :
-                          appointment.status === 'declined' ? 'badge-error' :
-                          'badge-info'
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                          appointment.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                          appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          appointment.status === 'declined' ? 'bg-red-100 text-red-700' :
+                          appointment.status === 'completed' ? 'bg-gray-200 text-gray-700' :
+                          appointment.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
                         }`}>
                           {appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Scheduled'}
                         </span>
@@ -451,13 +458,21 @@ const TodaysAppointmentsModal = ({
           </div>
 
           {/* Footer */}
-          <div className="bg-base-100 border-t border-base-300 px-8 py-4 flex justify-end">
+          <div className="bg-base-100 border-t border-base-300 px-8 py-4 flex items-center justify-between">
             <button
               onClick={onClose}
               className="px-6 py-2 bg-base-200 hover:bg-base-300 text-base-content font-semibold rounded-lg transition"
             >
               Close
             </button>
+            {onNewAppointment && (
+              <button
+                onClick={onNewAppointment}
+                className="px-6 py-2.5 bg-green-400 hover:bg-green-500 text-green-950 font-semibold rounded-lg transition"
+              >
+                New Appointment
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -472,6 +487,7 @@ TodaysAppointmentsModal.propTypes = {
   currentUser: PropTypes.object,
   onEditAppointment: PropTypes.func,
   onDeleteAppointment: PropTypes.func,
+  onNewAppointment: PropTypes.func,
 };
 
 export default TodaysAppointmentsModal;
