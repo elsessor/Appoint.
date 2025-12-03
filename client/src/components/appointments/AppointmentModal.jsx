@@ -60,6 +60,7 @@ const AppointmentModal = ({
   const [loadingFriendAvailability, setLoadingFriendAvailability] = useState(false);
   const [step, setStep] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
   const { theme } = useThemeStore();
 
   useEffect(() => {
@@ -342,11 +343,11 @@ const AppointmentModal = ({
 
   const getAppointmentsForDate = (date) => {
     const friendId = appointment?.friendId?._id || appointment?.friendId || formData.friendId;
-    if (!date || !friendId || appointments.length === 0) return [];
+    if (!date || appointments.length === 0) return [];
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const friendIdStr = String(friendId); // Ensure it's a string for comparison
+      const friendIdStr = friendId ? String(friendId) : null;
       
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
@@ -360,6 +361,9 @@ const AppointmentModal = ({
         
         if (apptDateStr !== dateStr) return false;
         
+        // If no friend is selected, show all appointments on that date
+        if (!friendIdStr) return true;
+        
         const apptUserId = String(appt.userId?._id || appt.userId);
         const apptFriendId = String(appt.friendId?._id || appt.friendId);
         
@@ -367,6 +371,29 @@ const AppointmentModal = ({
       });
     } catch (e) {
       console.error('Error in getAppointmentsForDate:', e);
+      return [];
+    }
+  };
+
+  // Get ALL appointments for the selected friend (not just on a specific date)
+  const getAllAppointmentsForFriend = () => {
+    const friendId = formData.friendId;
+    if (!friendId || appointments.length === 0) return [];
+    
+    try {
+      const friendIdStr = String(friendId);
+      
+      return appointments.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        // Show all statuses
+        const apptUserId = String(appt.userId?._id || appt.userId);
+        const apptFriendId = String(appt.friendId?._id || appt.friendId);
+        
+        return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+      });
+    } catch (e) {
+      console.error('Error in getAllAppointmentsForFriend:', e);
       return [];
     }
   };
@@ -821,14 +848,14 @@ const AppointmentModal = ({
                                   )}
                                 </div>
 
-                                {/* Appointments on selected date (filtered by friend for reference) */}
+                                {/* Appointments on selected date (filtered by friend) */}
                                 {(() => {
-                                  const friendAppts = getAppointmentsForDate(parseISO(formData.startTime));
-                                  return friendAppts.length > 0 ? (
+                                  const selectedDateAppts = getAppointmentsForDate(parseISO(formData.startTime));
+                                  return selectedDateAppts.length > 0 ? (
                                     <div className="space-y-1">
-                                      <p className="text-xs text-base-content/70 font-medium uppercase">Your appointments with this friend</p>
+                                      <p className="text-xs text-base-content/70 font-medium uppercase">Appointments on this date</p>
                                       <div className="space-y-1 max-h-32 overflow-y-auto">
-                                        {friendAppts.map((appt, idx) => {
+                                        {selectedDateAppts.map((appt, idx) => {
                                           const startTime = typeof appt.startTime === 'string' ? parseISO(appt.startTime) : new Date(appt.startTime);
                                           const endTime = typeof appt.endTime === 'string' ? parseISO(appt.endTime) : new Date(appt.endTime);
                                           const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
@@ -1183,6 +1210,105 @@ const AppointmentModal = ({
           )}
         </div>
       </div>
+
+      {/* All Appointments Modal */}
+      {showAppointmentsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setShowAppointmentsModal(false)}
+          ></div>
+
+          {/* Modal */}
+          <div className="relative z-50 bg-base-100 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="bg-base-200 border-b border-base-300 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-base-content">
+                  All Scheduled Appointments
+                </h3>
+                <p className="text-xs text-base-content/60 mt-1">
+                  with {friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAppointmentsModal(false)}
+                className="p-2 hover:bg-base-300 rounded-lg transition-all text-base-content/60 hover:text-base-content"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const allFriendAppts = getAllAppointmentsForFriend();
+                return allFriendAppts.length > 0 ? (
+                  <div className="space-y-2">
+                    {allFriendAppts.map((appt, idx) => {
+                      const startTime = typeof appt.startTime === 'string' ? parseISO(appt.startTime) : new Date(appt.startTime);
+                      const endTime = typeof appt.endTime === 'string' ? parseISO(appt.endTime) : new Date(appt.endTime);
+                      const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+                      const durationDisplay = durationMinutes < 60 
+                        ? `${durationMinutes}m` 
+                        : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+                      
+                      return (
+                        <div key={idx} className="flex items-center gap-3 p-4 bg-base-100 border border-base-300 rounded-lg hover:border-primary/50 transition">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                            appt.status === 'confirmed' ? 'bg-green-500' :
+                            appt.status === 'pending' ? 'bg-yellow-500' :
+                            appt.status === 'declined' ? 'bg-red-500' :
+                            appt.status === 'completed' ? 'bg-gray-500' :
+                            appt.status === 'cancelled' ? 'bg-red-500' :
+                            'bg-blue-500'
+                          }`}></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-semibold text-base-content truncate">{appt.title || 'Untitled'}</p>
+                            <p className="text-sm text-base-content/60 mt-1">
+                              {format(startTime, 'MMM d, yyyy')} • {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')} ({durationDisplay})
+                            </p>
+                            {appt.description && (
+                              <p className="text-xs text-base-content/50 mt-1 line-clamp-1">{appt.description}</p>
+                            )}
+                          </div>
+                          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 whitespace-nowrap ${
+                            appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                            appt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            appt.status === 'declined' ? 'bg-red-100 text-red-700' :
+                            appt.status === 'completed' ? 'bg-gray-200 text-gray-700' :
+                            appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Scheduled'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64">
+                    <p className="text-base-content/60">No appointments found</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-base-300 px-6 py-3">
+              <button
+                type="button"
+                onClick={() => setShowAppointmentsModal(false)}
+                className="w-full px-4 py-2 bg-base-200 hover:bg-base-300 text-base-content font-medium rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
