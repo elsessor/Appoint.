@@ -4,6 +4,7 @@ import { X, Calendar, Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight } from
 import { format, parseISO, isToday, isBefore, isAfter, addMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { getUserAvailability } from '../../lib/api';
+import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import AvailabilityInfo from '../AvailabilityInfo';
 import { useThemeStore } from '../../store/useThemeStore';
 
@@ -61,7 +62,14 @@ const AppointmentModal = ({
   const [step, setStep] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
+  const [phHolidays, setPhHolidays] = useState([]);
   const { theme } = useThemeStore();
+
+  // Load holidays on component mount
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    setPhHolidays(getPhilippineHolidays(currentYear));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -464,6 +472,13 @@ const AppointmentModal = ({
     const startDateTime = parseISO(formData.startTime);
     const endDateTime = parseISO(formData.endTime);
     const now = new Date();
+    
+    // Check if appointment is on a holiday
+    if (isHoliday(startDateTime, phHolidays)) {
+      const holidayName = getHolidayName(startDateTime, phHolidays);
+      toast.error(`Cannot book on ${holidayName} - service not available`);
+      return;
+    }
     
     if (isBefore(startDateTime, now)) {
       toast.error('Cannot schedule an appointment in the past');
@@ -925,9 +940,10 @@ const AppointmentModal = ({
                           {getCalendarDays().map((day, index) => {
                             const isCurrentMonth = day && isSameMonth(day, calendarMonth);
                             const isSelected = day && formData.startTime && isSameDay(day, parseISO(formData.startTime));
-                            const isDisabled = day && isBefore(day, new Date().setHours(0, 0, 0, 0));
+                            const isDisabled = day && (isBefore(day, new Date().setHours(0, 0, 0, 0)) || isHoliday(day, phHolidays));
                             const dayAppointments = day ? getAppointmentsForDate(day) : [];
                             const hasAppointments = dayAppointments.length > 0;
+                            const dayHoliday = day ? getHolidayName(day, phHolidays) : null;
                             
                             return (
                               <button
@@ -941,15 +957,16 @@ const AppointmentModal = ({
                                     : !isCurrentMonth
                                     ? 'text-base-content/30 cursor-default'
                                     : isDisabled
-                                    ? 'text-base-content/30 cursor-not-allowed'
+                                    ? `text-base-content/30 cursor-not-allowed ${dayHoliday ? 'bg-error/20 border border-error/30' : ''}`
                                     : isSelected
                                     ? 'bg-primary text-primary-content shadow-sm'
                                     : 'text-base-content hover:bg-base-300 border border-base-300 hover:border-primary cursor-pointer'
                                 }`}
+                                title={dayHoliday || (isDisabled ? 'Not available' : '')}
                               >
                                 <div className="flex flex-col items-center gap-0.5">
                                   {day ? format(day, 'd') : ''}
-                                  {hasAppointments && !isSelected && (
+                                  {hasAppointments && !isSelected && !dayHoliday && (
                                     <div className="flex gap-0.5 justify-center">
                                       {dayAppointments.slice(0, 2).map((appt, idx) => (
                                         <div key={idx} className={`w-1 h-1 rounded-full ${

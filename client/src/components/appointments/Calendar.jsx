@@ -5,6 +5,7 @@ import DayDetailsModal from './DayDetailsModal';
 import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const Calendar = ({
   appointments = [],
@@ -206,13 +207,28 @@ const Calendar = ({
 
   // Handle date selection
   const handleDateClick = (day) => {
+    if (!isDateAvailable(day)) {
+      const holidayName = getHolidayName(day, phHolidays);
+      if (holidayName) {
+        toast.error(`Cannot book on ${holidayName} - service not available`);
+      }
+      return;
+    }
     setSelectedDate(day);
   };
 
   // Handle creating a new appointment
   const handleCreateAppointment = (date, time) => {
     if (isViewingFriendAway) {
-      return; // Don't allow booking when friend is away
+      toast.error('Cannot book when the user is away');
+      return;
+    }
+    if (!isDateAvailable(date)) {
+      const holidayName = getHolidayName(date, phHolidays);
+      if (holidayName) {
+        toast.error(`Cannot book on ${holidayName} - service not available`);
+      }
+      return;
     }
     setSelectedDate(date);
     setSelectedTime(time);
@@ -501,7 +517,7 @@ const Calendar = ({
                   )}
                   
                   {dayHoliday && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-error" title="Holiday - No bookings available"></span>
                   )}
                 </div>
 
@@ -519,7 +535,7 @@ const Calendar = ({
                 
                 <div className="flex-1 overflow-hidden">
                   {dayHoliday && (
-                    <div className="text-xs text-error font-medium truncate mb-1">
+                    <div className="text-xs text-error font-bold truncate mb-1 bg-error/10 px-1 py-0.5 rounded">
                       {dayHoliday}
                     </div>
                   )}
