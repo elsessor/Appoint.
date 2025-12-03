@@ -27,13 +27,20 @@ export async function getRecommendedUsers(req, res) {
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
+    const currentUserId = req.user?.id;
     const user = await User.findById(id).select("-password -email");
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    res.status(200).json(user);
+    const userData = user.toObject();
+    if (currentUserId) {
+      const currentUser = await User.findById(currentUserId).select("favorites");
+      userData.isFavorite = currentUser?.favorites?.includes(id) || false;
+    }
+    
+    res.status(200).json(userData);
   } catch (error) {
     console.error("Error in getUserById controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -43,10 +50,16 @@ export async function getUserById(req, res) {
 export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
-      .select("friends")
+      .select("friends favorites")
       .populate("friends", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
 
-    res.status(200).json(user.friends);
+    const friendsWithFavoriteStatus = user.friends.map(friend => {
+      const friendObj = friend.toObject();
+      friendObj.isFavorite = user.favorites.includes(friend._id);
+      return friendObj;
+    });
+
+    res.status(200).json(friendsWithFavoriteStatus);
   } catch (error) {
     console.error("Error in getMyFriends controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -407,7 +420,7 @@ export async function getMyProfile(req, res) {
       location: user.location,
       phone: user.phone,
       twitter: user.twitter,
-      github: user.github,
+      pinterest: user.pinterest,
       linkedin: user.linkedin,
       skills: user.skills || [],
     });
@@ -420,7 +433,7 @@ export async function getMyProfile(req, res) {
 export async function updateMyProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { fullName, bio, location, phone, twitter, github, linkedin, skills } = req.body;
+    const { fullName, bio, location, phone, twitter, pinterest, linkedin, skills } = req.body;
 
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -428,7 +441,7 @@ export async function updateMyProfile(req, res) {
     if (location !== undefined) updates.location = location;
     if (phone !== undefined) updates.phone = phone;
     if (twitter !== undefined) updates.twitter = twitter;
-    if (github !== undefined) updates.github = github;
+    if (pinterest !== undefined) updates.pinterest = pinterest;
     if (linkedin !== undefined) updates.linkedin = linkedin;
     if (skills !== undefined) updates.skills = Array.isArray(skills) ? skills : [];
 
@@ -466,7 +479,7 @@ export async function updateMyProfile(req, res) {
         location: updatedUser.location,
         phone: updatedUser.phone,
         twitter: updatedUser.twitter,
-        github: updatedUser.github,
+        pinterest: updatedUser.pinterest,
         linkedin: updatedUser.linkedin,
         skills: updatedUser.skills || [],
       },
@@ -494,6 +507,51 @@ export async function markNotificationsRead(req, res) {
     res.status(200).json({ success: true, message: "Notifications marked as read" });
   } catch (error) {
     console.error("Error in markNotificationsRead controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function toggleFavorite(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id: friendId } = req.params;
+
+    if (!friendId || !mongoose.Types.ObjectId.isValid(friendId)) {
+      return res.status(400).json({ message: "Invalid friend ID" });
+    }
+
+    // Check if friend exists
+    const friend = await User.findById(friendId);
+    if (!friend) {
+      return res.status(404).json({ message: "Friend not found" });
+    }
+
+    // Get current user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if friendId is in favorites
+    const isFavorited = user.favorites.includes(friendId);
+
+    if (isFavorited) {
+      // Remove from favorites
+      user.favorites = user.favorites.filter(id => id.toString() !== friendId);
+    } else {
+      // Add to favorites
+      user.favorites.push(friendId);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      isFavorite: !isFavorited,
+      message: isFavorited ? "Removed from favorites" : "Added to favorites",
+    });
+  } catch (error) {
+    console.error("Error in toggleFavorite controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

@@ -18,6 +18,7 @@ import {
   updateProfilePicture,
   getMyProfile,
   updateMyProfile,
+  toggleFavorite,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -44,6 +45,7 @@ router.delete("/me", deleteMyAccount);
 // Profile
 router.get("/me/profile", getMyProfile);
 router.put("/me/profile", updateMyProfile);
+router.post("/favorite/:id", toggleFavorite);
 
 router.get("/", getRecommendedUsers);
 router.get("/:id", getUserById);

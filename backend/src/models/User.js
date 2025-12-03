@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    github: {
+    pinterest: {
       type: String,
       default: "",
     },
@@ -62,6 +62,12 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
