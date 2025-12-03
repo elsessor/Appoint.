@@ -95,7 +95,7 @@ const appointmentSchema = new mongoose.Schema(
       minLeadTime: Number,
       cancelNotice: Number,
     },
-    appointmentDuration: {
+    duration: {
       type: Number,
       required: true,
       min: 15,
@@ -109,10 +109,6 @@ const appointmentSchema = new mongoose.Schema(
     location: {
       type: String,
       default: "",
-    },
-    duration: {
-      type: Number,
-      default: 30,
     },
   },
   { timestamps: true }

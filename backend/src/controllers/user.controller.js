@@ -230,22 +230,50 @@ export async function getMySettings(req, res) {
 
 export async function updateMySettings(req, res) {
   try {
-    const { notifications, privacy, videoAudio } = req.body;
+    const { notifications, privacy, videoAudio, availability } = req.body;
 
     const updates = {};
     if (notifications) updates["settings.notifications"] = notifications;
     if (privacy) updates["settings.privacy"] = privacy;
     if (videoAudio) updates["settings.videoAudio"] = videoAudio;
+    
+    // Handle availability settings including max appointments per day
+    if (availability) {
+      // Validate maxPerDay if provided
+      if (availability.maxPerDay !== undefined) {
+        const maxPerDay = parseInt(availability.maxPerDay, 10);
+        if (isNaN(maxPerDay) || maxPerDay < 1 || maxPerDay > 20) {
+          return res.status(400).json({ 
+            message: "Max appointments per day must be between 1 and 20" 
+          });
+        }
+        updates["availability.maxPerDay"] = maxPerDay;
+      }
+      
+      // Handle other availability fields
+      if (availability.days !== undefined) updates["availability.days"] = availability.days;
+      if (availability.start !== undefined) updates["availability.start"] = availability.start;
+      if (availability.end !== undefined) updates["availability.end"] = availability.end;
+      if (availability.slotDuration !== undefined) updates["availability.slotDuration"] = availability.slotDuration;
+      if (availability.buffer !== undefined) updates["availability.buffer"] = availability.buffer;
+      if (availability.minLeadTime !== undefined) updates["availability.minLeadTime"] = availability.minLeadTime;
+      if (availability.cancelNotice !== undefined) updates["availability.cancelNotice"] = availability.cancelNotice;
+      if (availability.appointmentDuration !== undefined) updates["availability.appointmentDuration"] = availability.appointmentDuration;
+      if (availability.breakTimes !== undefined) updates["availability.breakTimes"] = availability.breakTimes;
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ message: "No settings provided to update" });
     }
 
     const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true }).select(
-      "settings"
+      "settings availability"
     );
 
-    res.status(200).json(user.settings);
+    res.status(200).json({
+      settings: user.settings,
+      availability: user.availability
+    });
   } catch (error) {
     console.error("Error in updateMySettings controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });

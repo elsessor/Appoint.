@@ -120,6 +120,81 @@ export async function createAppointment(req, res) {
       });
     }
 
+    // ⚠️ CRITICAL: Check for overlapping/double-booking appointments
+    // This prevents BOTH users from booking the same time slot
+    const overlappingAppointments = await Appointment.find({
+      // Only check non-cancelled appointments
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      // Time overlap check: appointment starts before new one ends AND ends after new one starts
+      startTime: { $lt: end },
+      endTime: { $gt: start },
+      // Check both participants (either party could have a conflict)
+      $or: [
+        { userId: friendId },      // Friend's appointments
+        { friendId: friendId },    // Friend as recipient
+        { userId: userId },        // Current user's appointments
+        { friendId: userId }       // Current user as recipient
+      ]
+    });
+
+    // Check for conflicts - but exclude the case where they already have an appointment together
+    // (this would be an update scenario)
+    const conflict = overlappingAppointments.find(existingAppt => {
+      const existingUserId = (existingAppt.userId._id || existingAppt.userId).toString();
+      const existingFriendId = (existingAppt.friendId._id || existingAppt.friendId).toString();
+      
+      // Skip if this is already an appointment between these two users (update/reschedule case)
+      const isSameAppointmentPair = 
+        (existingUserId === userId && existingFriendId === friendId) ||
+        (existingUserId === friendId && existingFriendId === userId);
+      
+      if (isSameAppointmentPair) {
+        return false;
+      }
+      
+      // Return true if there's a conflict involving either the friend or current user
+      return (existingUserId === friendId || existingFriendId === friendId) ||
+             (existingUserId === userId || existingFriendId === userId);
+    });
+
+    if (conflict) {
+      const conflictTime = new Date(conflict.startTime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return res.status(409).json({
+        message: `This time slot conflicts with an existing appointment at ${conflictTime}. Please choose a different time.`,
+        conflictingAppointmentId: conflict._id,
+        conflictTime: conflict.startTime
+      });
+    }
+
+    // Check max appointments per day constraint
+    const maxPerDay = friendAvailability.maxPerDay || 5;
+    const startOfDay = new Date(start);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(start);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const appointmentsOnSameDay = await Appointment.countDocuments({
+      $or: [
+        { userId: friendId },
+        { friendId: friendId }
+      ],
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (appointmentsOnSameDay >= maxPerDay) {
+      return res.status(400).json({
+        message: `Maximum ${maxPerDay} appointments per day reached for this user. Please choose a different date.`,
+        maxPerDay,
+        appointmentsOnDate: appointmentsOnSameDay
+      });
+    }
+
     const appointment = new Appointment({
       userId,
       friendId,
@@ -131,7 +206,7 @@ export async function createAppointment(req, res) {
       status: "pending",
       bookedBy: bookedBy || {},
       availability: availability || {},
-      appointmentDuration: appointmentDuration || durationMinutes,
+      duration: appointmentDuration || durationMinutes,
     });
 
     await appointment.save();
@@ -308,6 +383,28 @@ export async function updateAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
+    // Validate status transitions if status is being changed
+    if (status && status !== appointment.status) {
+      const currentStatus = appointment.status;
+      const validTransitions = {
+        pending: ['confirmed', 'declined', 'cancelled'],
+        confirmed: ['cancelled', 'completed'],
+        scheduled: ['cancelled', 'completed'],
+        completed: [], // Terminal state
+        cancelled: [], // Terminal state
+        declined: []   // Terminal state
+      };
+
+      if (!validTransitions[currentStatus] || !validTransitions[currentStatus].includes(status)) {
+        return res.status(400).json({
+          message: `Cannot transition from '${currentStatus}' to '${status}'. Valid transitions: ${validTransitions[currentStatus].join(', ') || 'none'}`,
+          currentStatus,
+          attemptedStatus: status,
+          validTransitions: validTransitions[currentStatus]
+        });
+      }
+    }
+
     if (startTime) appointment.startTime = new Date(startTime);
     if (endTime) appointment.endTime = new Date(endTime);
     if (title) appointment.title = title;
@@ -410,13 +507,41 @@ export async function deleteAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to delete this appointment" });
     }
 
-    await Appointment.findByIdAndDelete(id);
+    // Prevent cancellation of already completed, cancelled, or declined appointments
+    if (['completed', 'cancelled', 'declined'].includes(appointment.status)) {
+      return res.status(400).json({ 
+        message: `Cannot cancel an appointment that is already ${appointment.status}` 
+      });
+    }
 
-    res.status(200).json({ message: "Appointment deleted successfully" });
+    // Check cancel notice requirement
+    // The cancelNotice is stored in the appointment's availability snapshot
+    const cancelNoticeMinutes = appointment.availability?.cancelNotice || 0;
+    if (cancelNoticeMinutes > 0) {
+      const now = new Date();
+      const appointmentStart = new Date(appointment.startTime);
+      const minutesUntilAppointment = (appointmentStart - now) / (1000 * 60);
+
+      if (minutesUntilAppointment < cancelNoticeMinutes) {
+        const hoursNotice = Math.ceil(cancelNoticeMinutes / 60);
+        return res.status(400).json({
+          message: `This appointment requires ${hoursNotice} hour${hoursNotice > 1 ? 's' : ''} notice to cancel. Please contact the organizer.`,
+          requiredNoticeMinutes: cancelNoticeMinutes,
+          minutesUntilAppointment: Math.max(0, minutesUntilAppointment)
+        });
+      }
+    }
+
+    // Mark as cancelled instead of hard delete (better for history/auditing)
+    appointment.status = 'cancelled';
+    await appointment.save();
+
+    res.status(200).json({ message: "Appointment cancelled successfully" });
   } catch (error) {
     console.error("Error in deleteAppointment controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
+}
 }
 
 export async function saveCustomAvailability(req, res) {

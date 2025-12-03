@@ -407,16 +407,26 @@ const Calendar = ({
           const isDayToday = isToday(day);
           const dayHoliday = isHoliday(day, phHolidays) ? getHolidayName(day, phHolidays) : null;
           
+          // Get max appointments for the current user (or viewed friend if applicable)
+          const maxPerDay = viewingFriendId 
+            ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
+            : (currentUser?.availability?.maxPerDay || 5);
+          const dayAppointmentsCount = getAppointmentsForDate(day).length;
+          const isAtCapacity = dayAppointmentsCount >= maxPerDay;
+          const capacityPercentage = Math.min((dayAppointmentsCount / maxPerDay) * 100, 100);
+          
           return (
             <div 
               key={i}
               className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 ${
                 isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : (
-                  !isDateAvailableNow && isCurrentMonth ? 'opacity-60 cursor-not-allowed bg-base-300' : 'hover:bg-base-200 cursor-pointer'
+                  !isDateAvailableNow && isCurrentMonth ? 'opacity-60 cursor-not-allowed bg-base-300' : (
+                    isAtCapacity ? 'bg-error/5 border border-error/20' : 'hover:bg-base-200'
+                  )
                 )
-              } ${
+              } cursor-pointer ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
-              } ${isSelected ? 'ring-2 ring-primary z-10' : ''}`}
+              } ${isSelected ? 'ring-2 ring-primary z-10' : ''} transition-all`}
               onClick={() => isDateAvailableNow && !isViewingFriendAway && handleDateClick(day)}
             >
               <div className="flex flex-col h-full">
@@ -431,25 +441,44 @@ const Calendar = ({
                     {format(day, 'd')}
                   </span>
                   
-                  {isDateAvailableNow && !hasAppts && !dayHoliday && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+                  {/* Capacity indicator */}
+                  {isCurrentMonth && isDateAvailableNow && (
+                    <div className="flex items-center gap-1">
+                      {isAtCapacity && (
+                        <span className="text-xs font-bold text-error" title="Day is fully booked">🔴</span>
+                      )}
+                      {!isAtCapacity && dayAppointmentsCount > 0 && (
+                        <span className="text-xs font-semibold text-warning" title={`${dayAppointmentsCount}/${maxPerDay} booked`}>
+                          {dayAppointmentsCount}/{maxPerDay}
+                        </span>
+                      )}
+                      {!hasAppts && !dayHoliday && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-success" title="Available"></span>
+                      )}
+                    </div>
                   )}
                   
-                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
-                    <span className="text-xs font-semibold text-error">✕</span>
+                  {dayHoliday && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
                   )}
                 </div>
+
+                {/* Capacity bar under the day number */}
+                {isCurrentMonth && isDateAvailableNow && dayAppointmentsCount > 0 && (
+                  <div className="w-full bg-base-300 rounded-full h-1 mb-1 overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        isAtCapacity ? 'bg-error' : 'bg-warning'
+                      }`}
+                      style={{ width: `${capacityPercentage}%` }}
+                    ></div>
+                  </div>
+                )}
                 
                 <div className="flex-1 overflow-hidden">
                   {dayHoliday && (
                     <div className="text-xs text-error font-medium truncate mb-1">
                       {dayHoliday}
-                    </div>
-                  )}
-                  
-                  {!isDateAvailableNow && isCurrentMonth && !dayHoliday && (
-                    <div className="text-xs text-error/70 font-medium">
-                      Unavailable
                     </div>
                   )}
                   
@@ -549,6 +578,8 @@ const Calendar = ({
           availability={availability}
           friendsAvailability={friendsAvailability}
           currentUserStatus={currentUser?.availabilityStatus || 'available'}
+          appointments={appointments}
+          selectedDate={selectedDate}
         />
       )}
     </div>
