@@ -542,7 +542,6 @@ export async function deleteAppointment(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
-}
 
 export async function saveCustomAvailability(req, res) {
   try {

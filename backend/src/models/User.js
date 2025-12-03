@@ -136,6 +136,7 @@ const userSchema = new mongoose.Schema(
         smsNotifications: { type: Boolean, default: false },
         reminderTiming: { type: String, default: "15 minutes before" },
       },
+    },
     // User Preferences (functional settings)
     preferences: {
       privacy: {
