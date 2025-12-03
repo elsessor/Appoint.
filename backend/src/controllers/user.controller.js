@@ -469,7 +469,15 @@ export async function getMyProfile(req, res) {
       phone: user.phone,
       twitter: user.twitter,
       github: user.github,
+      pinterest: user.pinterest,
       linkedin: user.linkedin,
+      portfolio: user.portfolio,
+      jobTitle: user.jobTitle,
+      company: user.company,
+      yearsExperience: user.yearsExperience,
+      appointmentsCompleted: user.appointmentsCompleted,
+      rating: user.rating,
+      successRate: user.successRate,
       skills: user.skills || [],
     });
   } catch (error) {
@@ -481,7 +489,10 @@ export async function getMyProfile(req, res) {
 export async function updateMyProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { fullName, bio, location, phone, twitter, github, linkedin, skills } = req.body;
+    const { 
+      fullName, bio, location, phone, twitter, github, pinterest, linkedin, portfolio,
+      skills, jobTitle, company, yearsExperience, appointmentsCompleted, rating, successRate 
+    } = req.body;
 
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -490,7 +501,15 @@ export async function updateMyProfile(req, res) {
     if (phone !== undefined) updates.phone = phone;
     if (twitter !== undefined) updates.twitter = twitter;
     if (github !== undefined) updates.github = github;
+    if (pinterest !== undefined) updates.pinterest = pinterest;
     if (linkedin !== undefined) updates.linkedin = linkedin;
+    if (portfolio !== undefined) updates.portfolio = portfolio;
+    if (jobTitle !== undefined) updates.jobTitle = jobTitle;
+    if (company !== undefined) updates.company = company;
+    if (yearsExperience !== undefined) updates.yearsExperience = yearsExperience;
+    if (appointmentsCompleted !== undefined) updates.appointmentsCompleted = appointmentsCompleted;
+    if (rating !== undefined) updates.rating = rating;
+    if (successRate !== undefined) updates.successRate = successRate;
     if (skills !== undefined) updates.skills = Array.isArray(skills) ? skills : [];
 
     if (Object.keys(updates).length === 0) {
@@ -528,7 +547,15 @@ export async function updateMyProfile(req, res) {
         phone: updatedUser.phone,
         twitter: updatedUser.twitter,
         github: updatedUser.github,
+        pinterest: updatedUser.pinterest,
         linkedin: updatedUser.linkedin,
+        portfolio: updatedUser.portfolio,
+        jobTitle: updatedUser.jobTitle,
+        company: updatedUser.company,
+        yearsExperience: updatedUser.yearsExperience,
+        appointmentsCompleted: updatedUser.appointmentsCompleted,
+        rating: updatedUser.rating,
+        successRate: updatedUser.successRate,
         skills: updatedUser.skills || [],
       },
     });
