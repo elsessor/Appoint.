@@ -11,7 +11,7 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
   const queryClient = useQueryClient();
 
   // Get current status
-  const { data: statusData } = useQuery({
+  const { data: statusData, isLoading: isLoadingStatus } = useQuery({
     queryKey: ['availabilityStatus', currentUser?._id],
     queryFn: async () => {
       const res = await axiosInstance.get(`/appointments/availability/${currentUser._id}`);
@@ -22,29 +22,42 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
 
   const currentStatus = statusData?.availabilityStatus || 'available';
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Current Status Data:', statusData);
+    console.log('🔍 Current Status:', currentStatus);
+  }, [statusData, currentStatus]);
+
   // Update status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus) => {
-      const res = await axiosInstance.post('/appointments/availability', {
-        availabilityStatus: newStatus,
-        // Keep existing availability data
-        days: statusData?.availability?.days || [1, 2, 3, 4, 5],
-        start: statusData?.availability?.start || '09:00',
-        end: statusData?.availability?.end || '17:00',
-        slotDuration: statusData?.availability?.slotDuration || 30,
-        buffer: statusData?.availability?.buffer || 15,
-        maxPerDay: statusData?.availability?.maxPerDay || 5,
-        breakTimes: statusData?.availability?.breakTimes || [],
-        minLeadTime: statusData?.availability?.minLeadTime || 0,
-        cancelNotice: statusData?.availability?.cancelNotice || 0,
-        appointmentDuration: statusData?.availability?.appointmentDuration || {
+      // Get the current availability data structure
+      const availabilityData = statusData?.availability || {
+        days: [1, 2, 3, 4, 5],
+        start: '09:00',
+        end: '17:00',
+        slotDuration: 30,
+        buffer: 15,
+        maxPerDay: 5,
+        breakTimes: [],
+        minLeadTime: 0,
+        cancelNotice: 0,
+        appointmentDuration: {
           min: 15,
           max: 120,
         },
+      };
+
+      const res = await axiosInstance.post('/appointments/availability', {
+        availabilityStatus: newStatus,
+        // Spread the availability data to keep all settings
+        ...availabilityData,
       });
+      console.log('✅ Status update response:', res.data);
       return res.data;
     },
     onSuccess: (data) => {
+      console.log('✅ Mutation success, received data:', data);
       const newStatus = data.availabilityStatus;
       const messages = {
         available: 'You are now available for bookings',
@@ -52,10 +65,19 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
         away: 'You are away and not accepting bookings',
       };
       toast.success(messages[newStatus] || 'Status updated');
-      // Invalidate related queries to refetch data
-      queryClient.invalidateQueries({ queryKey: ['availabilityStatus'] });
+      
+      // IMPORTANT: Update the cache immediately with the full response data
+      // This prevents the old data from flashing before refetch completes
+      queryClient.setQueryData(['availabilityStatus', currentUser?._id], {
+        availability: data.availability,
+        availabilityStatus: data.availabilityStatus,
+      });
+      
+      // Then invalidate to ensure we have the latest from server
+      queryClient.invalidateQueries({ queryKey: ['availabilityStatus', currentUser?._id] });
       queryClient.invalidateQueries({ queryKey: ['userAvailability'] });
       queryClient.invalidateQueries({ queryKey: ['authUser'] });
+      
       if (onStatusChange) {
         onStatusChange(newStatus);
       }
@@ -66,9 +88,12 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
   });
 
   const handleStatusChange = (newStatus) => {
+    console.log('🔄 Changing status from', currentStatus, 'to', newStatus);
     if (newStatus !== currentStatus) {
       updateStatusMutation.mutate(newStatus);
       setIsDropdownOpen(false);
+    } else {
+      console.log('⚠️ Status is already', newStatus);
     }
   };
 
@@ -107,37 +132,66 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
 
   const config = statusConfig[currentStatus];
 
+  // Get the proper button classes based on status
+  const getButtonClasses = () => {
+    const baseClasses = 'btn btn-xs gap-1 btn-outline';
+    switch (currentStatus) {
+      case 'available':
+        return `${baseClasses} btn-success`;
+      case 'limited':
+        return `${baseClasses} btn-warning`;
+      case 'away':
+        return `${baseClasses} btn-error`;
+      default:
+        return `${baseClasses} btn-success`;
+    }
+  };
+
+  // Get text color classes for dropdown items
+  const getTextColorClass = (status) => {
+    switch (status) {
+      case 'available':
+        return 'text-success';
+      case 'limited':
+        return 'text-warning';
+      case 'away':
+        return 'text-error';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className={`btn btn-sm gap-2 btn-outline btn-${config.color}`}
+        className={getButtonClasses()}
         title={config.tooltip}
       >
-        <span className="text-lg">{config.icon}</span>
-        <span className="hidden sm:inline">{config.label}</span>
+        <span className="text-sm">{config.icon}</span>
+        <span className="hidden sm:inline text-xs">{config.label}</span>
       </button>
 
       {isDropdownOpen && (
         <ul
-          className="absolute bottom-full right-0 mb-2 z-50 menu p-2 shadow bg-base-100 rounded-box w-56 border border-base-300"
+          className="absolute bottom-full right-0 mb-2 z-50 menu p-1.5 shadow bg-base-100 rounded-box w-48 border border-base-300"
         >
         {Object.entries(statusConfig).map(([status, { icon, color, label, tooltip }]) => (
           <li key={status}>
             <a
               onClick={() => handleStatusChange(status)}
-              className={`flex items-center gap-2 ${
-                currentStatus === status ? `text-${color}` : ''
+              className={`flex items-center gap-2 py-1.5 px-2 text-sm ${
+                currentStatus === status ? getTextColorClass(status) : ''
               } ${updateStatusMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
               disabled={updateStatusMutation.isPending}
             >
-              <span className="text-lg">{icon}</span>
+              <span className="text-base">{icon}</span>
               <div className="flex-1">
-                <div className="font-medium">{label}</div>
+                <div className="font-medium text-sm">{label}</div>
                 <div className="text-xs opacity-70">{tooltip}</div>
               </div>
               {currentStatus === status && (
-                <span className="badge badge-primary">Active</span>
+                <span className="badge badge-primary badge-xs">Active</span>
               )}
             </a>
           </li>

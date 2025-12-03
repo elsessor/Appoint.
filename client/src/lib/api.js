@@ -151,6 +151,11 @@ export async function getUserFriends() {
   return response.data;
 }
 
+export async function getFriendProfile(id) {
+  const response = await axiosInstance.get(`/users/${id}`);
+  return response.data;
+}
+
 export async function unfriendUser(friendId) {
   const response = await axiosInstance.delete(`/users/friend/${friendId}`);
   return response.data;
@@ -168,6 +173,11 @@ export async function getOutgoingFriendReqs() {
 
 export async function sendFriendRequest(userId) {
   const response = await axiosInstance.post(`/users/friend-request/${userId}`);
+  return response.data;
+}
+
+export async function cancelFriendRequest(requestId) {
+  const response = await axiosInstance.delete(`/users/friend-request/${requestId}`);
   return response.data;
 }
 
@@ -236,7 +246,47 @@ export async function updateMyProfile(payload) {
   return response.data;
 }
 
-export async function getFriendProfile(friendId) {
-  const response = await axiosInstance.get(`/users/${friendId}`);
+export const getAdminDashboardStats = async () => {
+  const response = await axiosInstance.get("/admin/dashboard");
+  return response.data;
+};
+
+export const getAdminUsers = async (params = {}) => {
+  const response = await axiosInstance.get("/admin/users", { params });
+  return response.data;
+};
+
+export const updateAdminUserRole = async (id, role) => {
+  const response = await axiosInstance.put(`/admin/users/${id}/role`, { role });
+  return response.data;
+};
+
+export const deleteAdminUser = async (id) => {
+  const response = await axiosInstance.delete(`/admin/users/${id}`);
+  return response.data;
+};
+
+export const getAdminAppointments = async (params = {}) => {
+  const response = await axiosInstance.get("/admin/appointments", { params });
+  return response.data;
+};
+
+export const deleteAdminAppointment = async (id) => {
+  const response = await axiosInstance.delete(`/admin/appointments/${id}`);
+  return response.data;
+};
+
+export async function getRecentMeetings(friendId) {
+  const response = await axiosInstance.get(`/appointments/completed/${friendId}`);
+  return response.data;
+};
+
+export async function getUpcomingAppointmentsCount(friendId, days = 7) {
+  const response = await axiosInstance.get(`/appointments/upcoming/${friendId}?days=${days}`);
+  return response.data;
+};
+
+export async function toggleFavorite(friendId) {
+  const response = await axiosInstance.post(`/users/favorite/${friendId}`);
   return response.data;
 };

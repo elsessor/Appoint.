@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    github: {
+    pinterest: {
       type: String,
       default: "",
     },
@@ -61,7 +61,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
     friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -139,6 +150,59 @@ const userSchema = new mongoose.Schema(
         showAvailability: { type: String, default: "everyone", enum: ["everyone", "friends", "nobody"] },
         profileVisibility: { type: String, default: "public", enum: ["public", "private"] },
       },
+    },
+    availability: {
+      days: {
+        type: [Number],
+        default: [1, 2, 3, 4, 5],
+      },
+      start: {
+        type: String,
+        default: "09:00",
+      },
+      end: {
+        type: String,
+        default: "17:00",
+      },
+      slotDuration: {
+        type: Number,
+        default: 30,
+      },
+      buffer: {
+        type: Number,
+        default: 15,
+      },
+      maxPerDay: {
+        type: Number,
+        default: 5,
+      },
+      breakTimes: {
+        type: [{ start: String, end: String }],
+        default: [],
+      },
+      minLeadTime: {
+        type: Number,
+        default: 0,
+      },
+      cancelNotice: {
+        type: Number,
+        default: 0,
+      },
+      appointmentDuration: {
+        min: {
+          type: Number,
+          default: 15,
+        },
+        max: {
+          type: Number,
+          default: 120,
+        },
+      },
+    },
+    availabilityStatus: {
+      type: String,
+      enum: ['available', 'limited', 'away'],
+      default: 'available',
     },
     // Soft delete / scheduled deletion
     isDeletionPending: {

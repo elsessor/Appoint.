@@ -185,6 +185,12 @@ const CalendarSidebar = ({
                     src={friend.profilePic}
                     alt={friend.fullName || friend.name}
                     className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      if (e.target.nextElementSibling) {
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }
+                    }}
                   />
                 ) : (
                   <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">

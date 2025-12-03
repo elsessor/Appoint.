@@ -11,6 +11,13 @@ const ProfilePage = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
+    location: 'Camarines Sur, Philippines',
+    phone: '09479067912',
+    twitter: '@loremipsum',
+    pinterest: '@loremipsum',
+    linkedin: 'loremipsum',
+    about:
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.\n\nDuis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
     location: '',
     phone: '',
     twitter: '',
@@ -38,7 +45,7 @@ const ProfilePage = () => {
           location: profileData.location || '',
           phone: profileData.phone || '',
           twitter: profileData.twitter || '',
-          github: profileData.github || '',
+          pinterest: profileData.pinterest || '',
           linkedin: profileData.linkedin || '',
           skills: profileData.skills || [],
         };
@@ -69,7 +76,7 @@ const ProfilePage = () => {
           location: authLoc,
           phone: '',
           twitter: '',
-          github: '',
+          pinterest: '',
           linkedin: '',
           skills: [],
         };
@@ -185,7 +192,7 @@ const ProfilePage = () => {
         location: toSave.location || '',
         phone: toSave.phone || '',
         twitter: toSave.twitter || '',
-        github: toSave.github || '',
+        pinterest: toSave.pinterest || '',
         linkedin: toSave.linkedin || '',
         skills: Array.isArray(toSave.skills) ? toSave.skills : skills,
       };
@@ -483,9 +490,10 @@ const ProfilePage = () => {
                         <path d="M22.46 6c-.77.35-1.6.58-2.46.69a4.27 4.27 0 001.88-2.36 8.52 8.52 0 01-2.7 1.03 4.24 4.24 0 00-7.23 3.86A12.04 12.04 0 013 4.79a4.24 4.24 0 001.31 5.66 4.2 4.2 0 01-1.92-.53v.05c0 2.05 1.46 3.76 3.4 4.15a4.27 4.27 0 01-1.91.07 4.25 4.25 0 003.96 2.95A8.51 8.51 0 012 19.54 12.02 12.02 0 008.29 21c7.55 0 11.68-6.26 11.68-11.68 0-.18-.01-.36-.02-.53A8.36 8.36 0 0022.46 6z" />
                       </svg>
                     )},
-                    { id: 'pinterest', field: 'github', svg: (
+                    { id: 'pinterest', field: 'pinterest', svg: (
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M12 0C5.37 0 0 5.37 0 12c0 4.99 3.05 9.26 7.43 11.03-.1-.94-.19-2.39.04-3.42.21-.94 1.36-5.98 1.36-5.98s-.35-.7-.35-1.73c0-1.62.94-2.83 2.12-2.83 1 .07 1.53.75 1.53 1.65 0 1.01-.64 2.52-.97 3.92-.28 1.18.6 2.14 1.78 2.14 2.13 0 3.77-2.23 3.77-5.46 0-2.85-2.06-4.85-5-4.85-3.4 0-5.48 2.56-5.48 5.21 0 1.05.4 2.18.9 2.8.1.12.11.23.08.35-.09.4-.29 1.21-.32 1.38-.05.24-.17.29-.4.17-1.5-.7-2.44-2.89-2.44-4.66 0-3.79 2.76-7.29 8-7.29 4.2 0 7.3 3 7.3 6.99 0 4.28-2.69 7.71-6.42 7.71-1.25 0-2.43-.65-2.83-1.42l-.77 2.92C9.6 22.9 10.6 23 11.65 23 18.28 23 24 17.63 24 11 24 5.37 18.63 0 12 0z" />
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 4.99 3.05 9.26 7.43 11.03-.1-.94-.19-2.39.04-3.42.21-.94 1.36-5.98 1.36-5.98s-.35-.7-.35-1.73c0-1.62.94-2.83 2.12-2.83 1 .07 1.53.75 1.53 1.65 0 1.01-.64 2.52-.97 3.92-.28 1.18.6 2.14 1.78 2.14 2.13 0 3.77-2.23 3.77-5.46 0-2.85-2.06-4.85-5-4.85-3.4 0-5.48 2.56-5.48 5.21 0 1.05.4 2.18.9 2.8.1.12.11.23.08.35-.09.4-.29 1.21-.32 1.38-.05.24-.17.29-.4.17-1.5-.7-2.44-2.89-2.44-4.66 0-3.79 2.76-7.29 8-7.29 4.2 0 7.3 3 7.3 6.99 0 4.28-2.69 7.71-6.42 7.71-1.25 0-2.43-.65-2.83-1.42l-.77 2.92C9.6 22.9 10.6 23 11.65 23 18.28 23 24 17.63 24 11 24 5.37 18.63 0 12 0z" fill="white" />
                       </svg>
                     )},
                     { id: 'linkedin', field: 'linkedin', svg: (

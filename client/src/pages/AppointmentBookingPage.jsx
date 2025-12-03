@@ -539,6 +539,12 @@ const AppointmentBookingPage = () => {
                         src={friend.profilePic}
                         alt={friend.fullName}
                         className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
@@ -562,7 +568,7 @@ const AppointmentBookingPage = () => {
                   </div>
                 )}
               </div>
-                )}
+            )}
               </>
               ) : null}
             </div>
@@ -583,6 +589,8 @@ const AppointmentBookingPage = () => {
               ? 'bg-error/10 border-error/30'
               : friendAvailability?.availabilityStatus === 'limited'
               ? 'bg-warning/10 border-warning/30'
+              : friendAvailability?.availabilityStatus === 'offline'
+              ? 'bg-neutral/10 border-neutral/30'
               : 'bg-primary/10 border-primary/30'
           }`}>
             <div className="flex items-start justify-between gap-4">
@@ -593,20 +601,34 @@ const AppointmentBookingPage = () => {
                       src={selectedFriend.profilePic}
                       alt={selectedFriend.fullName}
                       className="w-16 h-16 rounded-full object-cover ring-2 ring-base-300"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        if (e.target.nextElementSibling) {
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg ring-2 ring-base-300">
                       {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
                     </div>
                   )}
-                  <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold text-white badge ${
+                  <div className={`absolute -bottom-1 -right-1 w-16 h-6 rounded-full flex items-center justify-center text-sm font-medium text-white badge ${
                     friendAvailability?.availabilityStatus === 'away'
                       ? 'badge-error'
                       : friendAvailability?.availabilityStatus === 'limited'
                       ? 'badge-warning'
+                      : friendAvailability?.availabilityStatus === 'offline'
+                      ? 'badge-neutral'
                       : 'badge-success'
                   }`}>
-                    {friendAvailability?.availabilityStatus === 'away' ? '✕' : friendAvailability?.availabilityStatus === 'limited' ? '⚠' : '✓'}
+                    {friendAvailability?.availabilityStatus === 'away'
+                      ? '✕ Away'
+                      : friendAvailability?.availabilityStatus === 'limited'
+                      ? '⚠ Limited'
+                      : friendAvailability?.availabilityStatus === 'offline'
+                      ? 'Offline'
+                      : '✓ Available'}
                   </div>
                 </div>
                 <div className="flex-1">
@@ -624,19 +646,23 @@ const AppointmentBookingPage = () => {
                         ? 'badge-error'
                         : friendAvailability?.availabilityStatus === 'limited'
                         ? 'badge-warning'
+                        : friendAvailability?.availabilityStatus === 'offline'
+                        ? 'badge-neutral'
                         : 'badge-success'
                     }`}>
                       {friendAvailability?.availabilityStatus === 'away'
                         ? '✕ Away'
                         : friendAvailability?.availabilityStatus === 'limited'
                         ? '⚠ Limited Availability'
+                        : friendAvailability?.availabilityStatus === 'offline'
+                        ? 'Offline'
                         : '✓ Available'}
                     </span>
                     {friendAvailability?.availabilityStatus === 'away' && (
                       <p className="text-xs text-error font-medium">Not accepting bookings</p>
                     )}
                   </div>
-                  {friendAvailability?.availabilityStatus !== 'away' && (
+                  {(friendAvailability?.availabilityStatus !== 'away' && friendAvailability?.availabilityStatus !== 'offline') && (
                     <p className="text-xs text-base-content/60 mt-2">
                       📅 You can view their calendar and schedule appointments below
                     </p>

@@ -54,6 +54,11 @@ export const initSocket = (server, origin) => {
     const sockets = getUserSocketSet(userId);
     sockets?.add(socket.id);
 
+    // If this is the first socket for the user, broadcast that the user is online
+    if (sockets && sockets.size === 1) {
+      io.emit('presence:update', { userId: userId.toString(), online: true });
+    }
+
     socket.on("disconnect", () => {
       const userSocketSet = userSockets.get(userId);
       if (!userSocketSet) return;
@@ -61,6 +66,8 @@ export const initSocket = (server, origin) => {
       userSocketSet.delete(socket.id);
       if (userSocketSet.size === 0) {
         userSockets.delete(userId);
+        // User has no more active sockets; broadcast offline
+        io.emit('presence:update', { userId: userId.toString(), online: false });
       }
     });
   });
