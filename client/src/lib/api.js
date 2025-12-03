@@ -245,3 +245,18 @@ export async function getFriendProfile(friendId) {
   const response = await axiosInstance.get(`/users/${friendId}`);
   return response.data;
 };
+
+export async function getRecentMeetings(friendId) {
+  const response = await axiosInstance.get(`/appointments/completed/${friendId}`);
+  return response.data;
+};
+
+export async function getUpcomingAppointmentsCount(friendId, days = 7) {
+  const response = await axiosInstance.get(`/appointments/upcoming/${friendId}?days=${days}`);
+  return response.data;
+};
+
+export async function toggleFavorite(friendId) {
+  const response = await axiosInstance.post(`/users/favorite/${friendId}`);
+  return response.data;
+};

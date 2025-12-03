@@ -540,6 +540,12 @@ const AppointmentBookingPage = () => {
                         src={friend.profilePic}
                         alt={friend.fullName}
                         className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
@@ -563,7 +569,7 @@ const AppointmentBookingPage = () => {
                   </div>
                 )}
               </div>
-                )}
+            )}
               </>
               ) : null}
             </div>
@@ -596,6 +602,12 @@ const AppointmentBookingPage = () => {
                       src={selectedFriend.profilePic}
                       alt={selectedFriend.fullName}
                       className="w-16 h-16 rounded-full object-cover ring-2 ring-base-300"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        if (e.target.nextElementSibling) {
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg ring-2 ring-base-300">

@@ -26,7 +26,38 @@ const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [languageFilter, setLanguageFilter] = useState("all");
   const [loadingUserId, setLoadingUserId] = useState(null);
+  const [showJumpToTop, setShowJumpToTop] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
   const { authUser } = useAuthUser();
+
+  // Handle scroll for jump-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Show button when user is actually near the bottom
+      // Using a large threshold (1000px from bottom) to ensure it only shows near the very end
+      const distanceFromBottom = document.documentElement.scrollHeight - (window.innerHeight + window.scrollY);
+      const isNearBottom = distanceFromBottom < 150; // Show when within 1000px of bottom
+      
+      if (!isNearBottom && showJumpToTop) {
+        // Start fade out animation before hiding
+        setIsFadingOut(true);
+        setTimeout(() => {
+          setShowJumpToTop(false);
+          setIsFadingOut(false);
+        }, 300); // Match animation duration
+      } else if (isNearBottom && !showJumpToTop) {
+        setShowJumpToTop(true);
+        setIsFadingOut(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showJumpToTop]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
@@ -160,8 +191,7 @@ const HomePage = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((user) =>
         user.fullName?.toLowerCase().includes(query) ||
-        user.location?.toLowerCase().includes(query) ||
-        user.bio?.toLowerCase().includes(query)
+        user.location?.toLowerCase().includes(query)
       );
     }
 
@@ -187,7 +217,7 @@ const HomePage = () => {
   }, [recommendedUsers]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
+    <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full" style={{ paddingBottom: '100px' }}>
       <div className="container mx-auto space-y-10">
         <div className="space-y-4">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>
@@ -318,7 +348,17 @@ const HomePage = () => {
                     <Link to={`/profile/${f._id}`} className="relative">
                       <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 transition-all duration-300 transform group-hover:scale-105 bg-base-300 cursor-pointer">
                         {f.profilePic ? (
-                          <img src={f.profilePic} alt={f.fullName || 'friend avatar'} className="w-full h-full object-cover rounded-full" />
+                          <img 
+                            src={f.profilePic} 
+                            alt={f.fullName || 'friend avatar'} 
+                            className="w-full h-full object-cover rounded-full"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextElementSibling) {
+                                e.target.nextElementSibling.style.display = 'flex';
+                              }
+                            }}
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-lg font-semibold text-base-content">{initials}</div>
                         )}
@@ -357,7 +397,17 @@ const HomePage = () => {
                       <Link to={`/profile/${f._id}`} className="relative">
                         <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-base-300 cursor-pointer">
                           {f.profilePic ? (
-                            <img src={f.profilePic} alt={f.fullName || 'friend avatar'} className="w-full h-full object-cover rounded-full" />
+                            <img 
+                              src={f.profilePic} 
+                              alt={f.fullName || 'friend avatar'} 
+                              className="w-full h-full object-cover rounded-full"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextElementSibling) {
+                                  e.target.nextElementSibling.style.display = 'flex';
+                                }
+                              }}
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-base-content">{initials}</div>
                           )}
@@ -391,7 +441,7 @@ const HomePage = () => {
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 opacity-50" />
                 <input
                   type="text"
-                  placeholder="Search by name, location, or bio..."
+                  placeholder="Search by name, or location"
                   className="input input-bordered w-full pl-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -517,6 +567,51 @@ const HomePage = () => {
           )}
         </section>
       </div>
+
+      {/* Jump to Top Button */}
+      {showJumpToTop && (
+        <button
+          onClick={scrollToTop}
+          className={`fixed bottom-5 flex items-center gap-3 px-6 py-4 bg-secondary text-secondary-content rounded-full shadow-2xl hover:shadow-3xl hover:bg-secondary/90 transition-all duration-300 ${isFadingOut ? 'animate-fade-out' : 'animate-fade-in'} font-semibold text-base border border-secondary/20 backdrop-blur-sm`}
+          title="Scroll to top"
+          aria-label="Jump to top"
+          style={{
+            left: 'calc(50% + 120px)',
+            transform: 'translateX(-50%)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(168, 85, 247, 0.3)'
+          }}
+        >
+          <span>Click here to Jump to the top</span>
+          <svg className="w-5 h-5 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </button>
+      )}
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes fadeOut {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-in-out forwards;
+        }
+        .animate-fade-out {
+          animation: fadeOut 0.3s ease-in-out forwards;
+        }
+      `}</style>
     </div>
   );
 };

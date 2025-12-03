@@ -3,6 +3,8 @@ import { ShipWheelIcon } from "lucide-react";
 import { Link } from "react-router";
 
 import useSignUp from "../hooks/useSignUp";
+import { useThemeStore } from "../store/useThemeStore";
+import ThemeSelector from "../components/ThemeSelector";
 
 const SignUpPage = () => {
   const [signupData, setSignupData] = useState({
@@ -12,6 +14,7 @@ const SignUpPage = () => {
   });
 
   const { isPending, error, signupMutation } = useSignUp();
+  const { theme } = useThemeStore();
 
   const handleSignup = (e) => {
     e.preventDefault();
@@ -20,17 +23,24 @@ const SignUpPage = () => {
 
   return (
     <div
-      className="h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 bg-base-100"
-      data-theme="night"
+      className="h-screen flex items-center justify-center bg-base-100 overflow-hidden"
+      data-theme={theme}
     >
-      <div className="border border-primary/25 flex flex-col lg:flex-row w-full max-w-5xl mx-auto bg-base-100 rounded-xl shadow-lg overflow-hidden">
+      {/* Main Content - Centered */}
+      <div className="border border-primary/25 flex flex-col lg:flex-row w-full max-w-5xl mx-auto bg-base-100 rounded-xl shadow-lg overflow-hidden relative">
+        {/* Theme Selector - Absolute Top Right */}
+        <div className="absolute top-4 right-4 z-10">
+          <ThemeSelector />
+        </div>
+
         <div className="w-full lg:w-1/2 p-4 sm:p-8 flex flex-col">
-          <div className="mb-4 flex items-center justify-start gap-2">
+          <div className="mb-8 flex items-center justify-start gap-2">
             <ShipWheelIcon className="size-9 text-primary" />
             <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
               Appoint.
             </span>
           </div>
+
           {error && (
             <div className="alert alert-error mb-4">
               <span>{error.response.data.message}</span>

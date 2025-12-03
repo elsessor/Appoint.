@@ -38,6 +38,8 @@ const AppointmentsPage = () => {
 
   const [ratingModalOpen, setRatingModalOpen] = useState(false);
   const [ratingTarget, setRatingTarget] = useState(null);
+  const [viewingRating, setViewingRating] = useState(null);
+  const [showViewRatingModal, setShowViewRatingModal] = useState(false);
 
   const ratingMutation = useMutation({
     mutationFn: ({ id, rating, feedback }) => updateAppointment({ id, rating, feedback }),
@@ -266,7 +268,19 @@ const AppointmentsPage = () => {
         />
       ) : (
         <>
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-extrabold text-base-content">Appointments</h1>
+                <p className="text-sm text-base-content/60">Manage your upcoming and past appointments</p>
+              </div>
+              <div className="flex items-center gap-2">
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-7xl mx-auto px-6 py-2">
+            <div className="flex gap-2 flex-wrap items-center">
                 {[
                   { value: 'scheduled', label: 'Today', count: appointmentsForToday.length, Icon: Calendar, priority: true },
                   { value: 'all', label: 'All', count: involvedAppointments.length, Icon: ListIcon },
@@ -303,7 +317,8 @@ const AppointmentsPage = () => {
                     </span>
                   </button>
                 ))}
-              </div>
+            </div>
+          </div>
 
           <div className="max-w-7xl mx-auto px-6 py-8">
             {filterStatus === 'incoming' && incomingRequests.length === 0 ? (
@@ -420,13 +435,13 @@ const AppointmentsPage = () => {
                                           const otherUserProfilePic = appointmentUserId === currentUserId 
                                             ? appointment.friendId?.profilePic 
                                             : appointment.userId?.profilePic;
-                                          return otherUserProfilePic || '/default-profile.png';
+                                          return otherUserProfilePic || '/default-profile.svg';
                                         })()
                                       }
                                       alt="User"
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
-                                        e.target.src = '/default-profile.png';
+                                        e.target.src = '/default-profile.svg';
                                       }}
                                     />
                                   </div>
@@ -527,12 +542,12 @@ const AppointmentsPage = () => {
                                             const otherUserProfilePic = appointmentUserId === currentUserId 
                                               ? appointment.friendId?.profilePic 
                                               : appointment.userId?.profilePic;
-                                            return otherUserProfilePic || '/default-profile.png';
+                                            return otherUserProfilePic || '/default-profile.svg';
                                           })()
                                         }
                                         alt="User"
                                         className="w-full h-full object-cover"
-                                        onError={(e) => { e.target.src = '/default-profile.png'; }}
+                                        onError={(e) => { e.target.src = '/default-profile.svg'; }}
                                       />
                                     </div>
 
@@ -562,7 +577,16 @@ const AppointmentsPage = () => {
                                             const otherId = (appointmentUserId === currentUserId) ? appointmentFriendId : appointmentUserId;
                                             const otherRating = ratings.find(r => (r.userId?._id || r.userId) === (otherId) || (r.userId && r.userId.toString() === (otherId && otherId.toString())));
                                             return (
-                                              <div className="flex items-center gap-0.5">
+                                              <div
+                                                className="flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => {
+                                                  if (otherRating) {
+                                                    setViewingRating(otherRating);
+                                                    setShowViewRatingModal(true);
+                                                  }
+                                                }}
+                                                title={otherRating ? 'Click to view feedback' : 'No rating from other user'}
+                                              >
                                                 {Array.from({ length: 5 }).map((_, i) => {
                                                   const filled = otherRating ? i < (otherRating.rating || 0) : false;
                                                   return (
@@ -697,6 +721,57 @@ const AppointmentsPage = () => {
           ratingMutation.mutate({ id: ratingTarget._id, rating, feedback });
         }}
       />
+
+      {/* View Rating Modal (Read-Only) */}
+      {showViewRatingModal && viewingRating && (
+        <div className="modal modal-open">
+          <div className="modal-box w-full max-w-md">
+            <h3 className="font-bold text-lg mb-4">Feedback & Rating</h3>
+            
+            {/* Stars Display */}
+            <div className="flex items-center gap-1 mb-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  className={`w-5 h-5 ${i < (viewingRating.rating || 0) ? 'text-yellow-400' : 'text-gray-400'}`}
+                  strokeWidth={i < (viewingRating.rating || 0) ? 0 : 1.2}
+                  fill={i < (viewingRating.rating || 0) ? 'currentColor' : 'none'}
+                />
+              ))}
+              <span className="ml-2 text-sm text-base-content/70">({viewingRating.rating || 0}/5)</span>
+            </div>
+
+            {/* Feedback Text */}
+            {viewingRating.feedback ? (
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-base-content/80 mb-2">Feedback:</p>
+                <p className="text-sm text-base-content/70 bg-base-200 p-3 rounded-lg">{viewingRating.feedback}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-base-content/60 italic mb-4">No feedback provided</p>
+            )}
+
+            {/* Close Button */}
+            <div className="modal-action">
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowViewRatingModal(false);
+                  setViewingRating(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <form method="dialog" className="modal-backdrop" onClick={() => {
+            setShowViewRatingModal(false);
+            setViewingRating(null);
+          }}>
+            <button>close</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

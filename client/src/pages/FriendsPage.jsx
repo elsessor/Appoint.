@@ -1,4 +1,4 @@
-import { Calendar, UserX, MessageCircle, User } from "lucide-react";
+import { Calendar, UserX, MessageCircle, User, Search, Grid, List, CheckCircle, AlertCircle, Clock, Ban, Heart } from "lucide-react";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
@@ -335,6 +335,126 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
   );
 };
 
+const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
+  const navigate = useNavigate();
+  const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
+  const name = friend.fullName || friend.name || "Unknown";
+  const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
+  const native = friend.nativeLanguage || friend.native || "Unknown";
+  const learning = friend.learningLanguage || friend.learning || "Unknown";
+  const status = (friend.availabilityStatus ?? "offline").toLowerCase();
+  const userOnline = isOnline(friend._id);
+  const statusColor = !userOnline
+    ? 'text-neutral'
+    : status === 'available'
+    ? 'text-success'
+    : status === 'limited'
+    ? 'text-warning'
+    : status === 'away'
+    ? 'text-error'
+    : 'text-neutral';
+
+  const handleUnfriendConfirm = () => {
+    setShowUnfriendConfirm(false);
+    onUnfriend(friend._id || friend.id);
+  };
+
+  const handleCalendarClick = () => {
+    navigate(`/booking?friendId=${friend._id || friend.id}`);
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-4 p-4 bg-base-200 rounded-lg hover:bg-base-300 transition-colors border border-base-300">
+        <Link
+          to={`/profile/${friend._id || friend.id}`}
+          className="flex-shrink-0"
+        >
+          <div className="relative">
+            <img 
+              src={avatar} 
+              alt={name} 
+              className="w-20 h-20 rounded-full border-4 border-base-200 object-cover group-hover:scale-105 transition-transform"
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
+            />
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-base-200 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
+          </div>
+        </Link>
+
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/profile/${friend._id || friend.id}`}
+            className="font-semibold text-base hover:text-primary transition-colors truncate"
+          >
+            {name}
+          </Link>
+          <p className={`text-xs font-medium capitalize ${statusColor}`}>
+            {!userOnline ? 'Offline' : status}
+          </p>
+          <div className="flex gap-2 mt-1 text-xs">
+            <span className="badge badge-sm badge-primary">{native}</span>
+            <span className="badge badge-sm badge-secondary/30">{learning}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            to={`/chat/${friend._id || friend.id}`}
+            className="btn btn-sm btn-primary btn-circle"
+            title="Send message"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </Link>
+          <button 
+            className="btn btn-sm btn-ghost btn-circle"
+            onClick={handleCalendarClick}
+            title="Book appointment"
+          >
+            <Calendar className="w-4 h-4" />
+          </button>
+          <button 
+            className="btn btn-sm btn-ghost btn-circle hover:bg-error/20"
+            onClick={() => setShowUnfriendConfirm(true)}
+            title="Unfriend"
+          >
+            <UserX className="w-4 h-4 text-error" />
+          </button>
+        </div>
+      </div>
+
+      {showUnfriendConfirm && (
+        <dialog open className="modal modal-bottom sm:modal-middle">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Unfriend {name}?</h3>
+            <p className="py-4 text-sm opacity-70">
+              This action cannot be undone. You'll no longer see their availability or be able to message them directly.
+            </p>
+            <div className="modal-action">
+              <button 
+                className="btn btn-outline"
+                onClick={() => setShowUnfriendConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-error"
+                onClick={handleUnfriendConfirm}
+              >
+                Unfriend
+              </button>
+            </div>
+          </div>
+          <form method="dialog" className="modal-backdrop" onClick={() => setShowUnfriendConfirm(false)}>
+            <button>close</button>
+          </form>
+        </dialog>
+      )}
+    </>
+  );
+};
+
 const FriendsPage = () => {
   const queryClient = useQueryClient();
   const { authUser } = useAuthUser();
@@ -356,31 +476,70 @@ const FriendsPage = () => {
 
   const friends = Array.isArray(data) ? data : [];
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" or "list"
+  const [statusFilter, setStatusFilter] = useState("all"); // "all", "online", "limited", "away", "offline"
+  const [favoriteFilter, setFavoriteFilter] = useState("all"); // "all" or "favorites"
 
   const filteredFriends = useMemo(() => {
     const q = (searchQuery || "").trim().toLowerCase();
-    if (!q) return friends;
+    let filtered = friends;
 
-    return friends.filter((f) => {
-      const name = (f.fullName || f.name || "").toLowerCase();
-      const native = (f.nativeLanguage || f.native || "").toLowerCase();
-      const learning = (f.learningLanguage || f.learning || "").toLowerCase();
-      return (
-        name.includes(q) ||
-        native.includes(q) ||
-        learning.includes(q)
-      );
+    // Apply search filter
+    if (q) {
+      filtered = filtered.filter((f) => {
+        const name = (f.fullName || f.name || "").toLowerCase();
+        const native = (f.nativeLanguage || f.native || "").toLowerCase();
+        const learning = (f.learningLanguage || f.learning || "").toLowerCase();
+        return (
+          name.includes(q) ||
+          native.includes(q) ||
+          learning.includes(q)
+        );
+      });
+    }
+
+    // Apply favorite filter
+    if (favoriteFilter === "favorites") {
+      filtered = filtered.filter((f) => f.isFavorite);
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((f) => {
+        const userOnline = isOnline(f._id);
+        const status = (f.availabilityStatus ?? "offline").toLowerCase();
+        
+        if (statusFilter === "online") {
+          return userOnline && status === "available";
+        } else if (statusFilter === "limited") {
+          return userOnline && status === "limited";
+        } else if (statusFilter === "away") {
+          return userOnline && status === "away";
+        } else if (statusFilter === "offline") {
+          return !userOnline;
+        }
+        return true;
+      });
+    }
+
+    // Sort by favorite friends first
+    filtered.sort((a, b) => {
+      const aIsFavorite = a.isFavorite ? 1 : 0;
+      const bIsFavorite = b.isFavorite ? 1 : 0;
+      return bIsFavorite - aIsFavorite;
     });
-  }, [friends, searchQuery]);
+
+    return filtered;
+  }, [friends, searchQuery, statusFilter, favoriteFilter]);
 
   return (
     <div className="p-6 bg-base-100 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-4xl font-bold text-primary mb-2">Friends</h1>
-          <p className="text-base-content opacity-70 mb-3">
-            {searchQuery ? (
-              <span>Showing {filteredFriends.length} of {friends.length} results</span>
+          <p className="text-base-content opacity-70 mb-4">
+            {searchQuery || statusFilter !== "all" ? (
+              <span>Showing {filteredFriends.length} of {friends.length} friends</span>
             ) : (
               <span>
                 {friends.length} {friends.length === 1 ? 'friend' : 'friends'} connected
@@ -388,9 +547,11 @@ const FriendsPage = () => {
             )}
           </p>
 
+          {/* Search Bar with Icon */}
           <div className="mb-4">
             <label htmlFor="friends-search" className="sr-only">Search friends</label>
-            <div className="flex gap-2 items-center">
+            <div className="relative w-full md:w-1/2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
               <input
                 id="friends-search"
                 type="text"
@@ -398,17 +559,86 @@ const FriendsPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name or language"
                 aria-label="Search friends by name or language"
-                className="input input-bordered w-full md:w-1/2"
+                className="input input-bordered w-full pl-10"
               />
-              {searchQuery && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Clear search"
-                >
-                  Clear
-                </button>
-              )}
+            </div>
+          </div>
+
+          {/* Filter and View Toggle */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            {/* Status Filters */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`btn btn-sm gap-2 ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setStatusFilter("online")}
+                className={`btn btn-sm gap-2 ${statusFilter === "online" ? "btn-success" : "btn-outline"}`}
+              >
+                <CheckCircle className="w-4 h-4" />
+                Online
+              </button>
+              <button
+                onClick={() => setStatusFilter("limited")}
+                className={`btn btn-sm gap-2 ${statusFilter === "limited" ? "btn-warning" : "btn-outline"}`}
+              >
+                <AlertCircle className="w-4 h-4" />
+                Limited
+              </button>
+              <button
+                onClick={() => setStatusFilter("away")}
+                className={`btn btn-sm gap-2 ${statusFilter === "away" ? "btn-error" : "btn-outline"}`}
+              >
+                <Clock className="w-4 h-4" />
+                Away
+              </button>
+              <button
+                onClick={() => setStatusFilter("offline")}
+                className={`btn btn-sm gap-2 ${statusFilter === "offline" ? "btn-neutral" : "btn-outline"}`}
+              >
+                <Ban className="w-4 h-4" />
+                Offline
+              </button>
+            </div>
+
+            {/* Favorite Filter */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFavoriteFilter("all")}
+                className={`btn btn-sm gap-2 ${favoriteFilter === "all" ? "btn-primary" : "btn-outline"}`}
+              >
+                All Friends
+              </button>
+              <button
+                onClick={() => setFavoriteFilter("favorites")}
+                className={`btn btn-sm gap-2 ${favoriteFilter === "favorites" ? "btn-error" : "btn-outline"}`}
+              >
+                <Heart className="w-4 h-4" />
+                Favorites
+              </button>
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex gap-2 bg-base-300 p-1 rounded-lg">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`btn btn-sm btn-circle ${viewMode === "grid" ? "btn-primary" : "btn-ghost"}`}
+                title="Grid view"
+                aria-label="Switch to grid view"
+              >
+                <Grid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`btn btn-sm btn-circle ${viewMode === "list" ? "btn-primary" : "btn-ghost"}`}
+                title="List view"
+                aria-label="Switch to list view"
+              >
+                <List className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -433,10 +663,25 @@ const FriendsPage = () => {
           <div className="card bg-base-200 p-12 text-center">
             <p className="text-lg opacity-70">No friends yet. Start connecting with users!</p>
           </div>
-        ) : (
+        ) : filteredFriends.length === 0 ? (
+          <div className="card bg-base-200 p-12 text-center">
+            <p className="text-lg opacity-70">No friends match your filters.</p>
+          </div>
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredFriends.map((friend) => (
               <FriendCard 
+                friend={friend} 
+                key={friend._id || friend.id}
+                onUnfriend={(friendId) => unfriendMutation.mutate(friendId)}
+                currentUserId={authUser?._id}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredFriends.map((friend) => (
+              <FriendListItem 
                 friend={friend} 
                 key={friend._id || friend.id}
                 onUnfriend={(friendId) => unfriendMutation.mutate(friendId)}
