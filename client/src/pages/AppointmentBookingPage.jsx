@@ -613,23 +613,6 @@ const AppointmentBookingPage = () => {
                       {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
                     </div>
                   )}
-                  <div className={`absolute -bottom-1 -right-1 w-16 h-6 rounded-full flex items-center justify-center text-sm font-medium text-white badge ${
-                    friendAvailability?.availabilityStatus === 'away'
-                      ? 'badge-error'
-                      : friendAvailability?.availabilityStatus === 'limited'
-                      ? 'badge-warning'
-                      : friendAvailability?.availabilityStatus === 'offline'
-                      ? 'badge-neutral'
-                      : 'badge-success'
-                  }`}>
-                    {friendAvailability?.availabilityStatus === 'away'
-                      ? '✕ Away'
-                      : friendAvailability?.availabilityStatus === 'limited'
-                      ? '⚠ Limited'
-                      : friendAvailability?.availabilityStatus === 'offline'
-                      ? 'Offline'
-                      : '✓ Available'}
-                  </div>
                 </div>
                 <div className="flex-1">
                   <div className="mb-2">

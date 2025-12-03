@@ -133,7 +133,6 @@ const HomePage = () => {
     const realFriends = uniqueFriends.filter((f) => Boolean(f.fullName));
 
     const mainFriends = realFriends.slice(0, 10);
-    const otherFriends = realFriends.slice(10, 20);
 
   const totalAppointments = appointments.length;
   const completedCalls = appointments.filter((apt) => apt.status === "completed").length;
@@ -370,56 +369,19 @@ const HomePage = () => {
                     ) : (
                       <div className="mt-3 text-base font-semibold text-transparent">&nbsp;</div>
                     )}
-                    {idx === 9 && realFriends.length > 10 && (
-                      <div className="mt-3">
-                        <Link to="/friends" className="btn btn-outline btn-sm">View All Friends</Link>
-                      </div>
-                    )}
                   </div>
                 );
               })}
+              {realFriends.length > 10 && (
+                <div className="flex flex-col items-center justify-end w-20">
+                  <Link to="/friends" className="btn btn-primary btn-sm gap-1">
+                    <UsersIcon className="size-4" />
+                    More
+                  </Link>
+                  <div className="mt-3 text-xs font-semibold text-center">+{realFriends.length - 10}</div>
+                </div>
+              )}
             </div>
-
-            {otherFriends.length > 0 && (
-              <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {otherFriends.map((f) => {
-                  const initials = (f.fullName || "").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase();
-                  const status = (f.availabilityStatus ?? "offline").toLowerCase();
-                  const statusClass = status === "available"
-                    ? "bg-success"
-                    : status === "limited"
-                    ? "bg-warning"
-                    : status === "offline"
-                    ? "bg-neutral-500"
-                    : "bg-error";
-                  return (
-                    <div key={f._id || f.fullName} className="flex flex-col items-center w-16">
-                      <Link to={`/profile/${f._id}`} className="relative">
-                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/20 bg-base-300 cursor-pointer">
-                          {f.profilePic ? (
-                            <img 
-                              src={f.profilePic} 
-                              alt={f.fullName || 'friend avatar'} 
-                              className="w-full h-full object-cover rounded-full"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                if (e.target.nextElementSibling) {
-                                  e.target.nextElementSibling.style.display = 'flex';
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-sm font-semibold text-base-content">{initials}</div>
-                          )}
-                        </div>
-                        <span className={`absolute top-0 right-0 -translate-x-1/2 translate-y-1/2 w-3 h-3 rounded-full border-2 border-base-100 ${statusClass} z-10`} />
-                      </Link>
-                      <div className="mt-2 text-sm font-medium text-center truncate w-full">{f.fullName}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
             </>
           )}
         </div>
@@ -493,8 +455,10 @@ const HomePage = () => {
                   >
                     <div className="card-body p-5 space-y-4">
                       <div className="flex items-center gap-3">
-                        <div className="avatar size-16 rounded-full">
-                          <img src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} alt={user.fullName} />
+                        <div className="avatar">
+                          <div className="size-16 rounded-full overflow-hidden">
+                            <img src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} alt={user.fullName} className="w-full h-full object-cover" />
+                          </div>
                         </div>
 
                         <div>
