@@ -13,11 +13,12 @@ import { Link } from "react-router";
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon } from "lucide-react";
 
 import { capitialize } from "../lib/utils";
+import usePresence from "../hooks/usePresence";
+import useMultiplePresence from "../hooks/useMultiplePresence";
 
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 import useAuthUser from "../hooks/useAuthUser";
-import { isOnline } from '../lib/presence';
 
 const HomePage = () => {
   const queryClient = useQueryClient();
@@ -132,7 +133,23 @@ const HomePage = () => {
 
     const realFriends = uniqueFriends.filter((f) => Boolean(f.fullName));
 
-    const mainFriends = realFriends.slice(0, 10);
+    // Get online statuses for ALL friends (not just top 10)
+    const friendIds = realFriends.map(f => f._id);
+    const onlineStatuses = useMultiplePresence(friendIds);
+    
+    // Sort all friends with online friends first, then show top 10 (or more if online)
+    const mainFriends = useMemo(() => {
+      const sorted = [...realFriends].sort((a, b) => {
+        const aOnline = onlineStatuses.get(a._id.toString()) || false;
+        const bOnline = onlineStatuses.get(b._id.toString()) || false;
+        if (aOnline === bOnline) return 0;
+        return aOnline ? -1 : 1;
+      });
+      // Show top 10, or all online friends if more than 10
+      const onlineFriendsCount = sorted.filter(f => onlineStatuses.get(f._id.toString())).length;
+      const displayCount = Math.max(10, onlineFriendsCount);
+      return sorted.slice(0, displayCount);
+    }, [realFriends, onlineStatuses]);
 
   const totalAppointments = appointments.length;
   const completedCalls = appointments.filter((apt) => apt.status === "completed").length;
@@ -327,58 +344,24 @@ const HomePage = () => {
             <NoFriendsFound />
           ) : (
             <>
+            <style>{`
+              .friend-circle-wrapper {
+                transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+              }
+            `}</style>
             <div className="flex flex-wrap items-left justify-start gap-6">
-              {mainFriends.map((f, idx) => {
-                const initials = (f.fullName || "").split(" ").map((s) => s[0]).slice(0,2).join("").toUpperCase();
-                const status = (f.availabilityStatus ?? "offline").toLowerCase();
-                // If the user is not currently connected, show offline (neutral) regardless of their availability.
-                // If they are connected, reflect their availability: available -> green, limited -> warning, away -> error.
-                const statusClass = !isOnline(f._id)
-                  ? 'bg-neutral-500'
-                  : status === 'available'
-                  ? 'bg-success'
-                  : status === 'limited'
-                  ? 'bg-warning'
-                  : status === 'away'
-                  ? 'bg-error'
-                  : 'bg-neutral-500';
-                return (
-                  <div key={f._id || f.fullName} className="flex flex-col items-center group w-20">
-                    <Link to={`/profile/${f._id}`} className="relative">
-                      <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 transition-all duration-300 transform group-hover:scale-105 bg-base-300 cursor-pointer">
-                        {f.profilePic ? (
-                          <img 
-                            src={f.profilePic} 
-                            alt={f.fullName || 'friend avatar'} 
-                            className="w-full h-full object-cover rounded-full"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              if (e.target.nextElementSibling) {
-                                e.target.nextElementSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-lg font-semibold text-base-content">{initials}</div>
-                        )}
-                      </div>
-                      <span className={`absolute top-0 right-0 -translate-x-0 translate-y-1 w-4 h-4 rounded-full border-2 border-base-100 ${statusClass} z-10`} />
-                    </Link>
-                    {f.fullName ? (
-                      <div className="mt-3 text-base font-semibold text-white group-hover:text-primary transition-colors text-center truncate w-full">{f.fullName}</div>
-                    ) : (
-                      <div className="mt-3 text-base font-semibold text-transparent">&nbsp;</div>
-                    )}
-                  </div>
-                );
-              })}
-              {realFriends.length > 10 && (
+              {mainFriends.map((f) => (
+                <div key={f._id || f.fullName} className="friend-circle-wrapper">
+                  <FriendCircle friend={f} />
+                </div>
+              ))}
+              {realFriends.length > mainFriends.length && (
                 <div className="flex flex-col items-center justify-end w-20">
                   <Link to="/friends" className="btn btn-primary btn-sm gap-1">
                     <UsersIcon className="size-4" />
                     More
                   </Link>
-                  <div className="mt-3 text-xs font-semibold text-center">+{realFriends.length - 10}</div>
+                  <div className="mt-3 text-xs font-semibold text-center">+{realFriends.length - mainFriends.length}</div>
                 </div>
               )}
             </div>
@@ -569,6 +552,52 @@ const HomePage = () => {
           animation: fadeOut 0.3s ease-in-out forwards;
         }
       `}</style>
+    </div>
+  );
+};
+
+const FriendCircle = ({ friend }) => {
+  const initials = (friend.fullName || "").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  const status = (friend.availabilityStatus ?? "offline").toLowerCase();
+  const userOnline = usePresence(friend._id); // Subscribe to presence updates
+  
+  const statusClass = !userOnline
+    ? 'bg-neutral-500'
+    : status === 'available'
+    ? 'bg-success'
+    : status === 'limited'
+    ? 'bg-warning'
+    : status === 'away'
+    ? 'bg-error'
+    : 'bg-neutral-500';
+
+  return (
+    <div className="flex flex-col items-center group w-20">
+      <Link to={`/profile/${friend._id}`} className="relative">
+        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/20 transition-all duration-300 transform group-hover:scale-105 bg-base-300 cursor-pointer">
+          {friend.profilePic ? (
+            <img 
+              src={friend.profilePic} 
+              alt={friend.fullName || 'friend avatar'} 
+              className="w-full h-full object-cover rounded-full"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                if (e.target.nextElementSibling) {
+                  e.target.nextElementSibling.style.display = 'flex';
+                }
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-lg font-semibold text-base-content">{initials}</div>
+          )}
+        </div>
+        <span className={`absolute top-0 right-0 -translate-x-0 translate-y-1 w-4 h-4 rounded-full border-2 border-base-100 ${statusClass} z-10`} />
+      </Link>
+      {friend.fullName ? (
+        <div className="mt-3 text-base font-semibold text-white group-hover:text-primary transition-colors text-center truncate w-full">{friend.fullName}</div>
+      ) : (
+        <div className="mt-3 text-base font-semibold text-transparent">&nbsp;</div>
+      )}
     </div>
   );
 };
