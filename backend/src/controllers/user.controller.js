@@ -9,14 +9,25 @@ export async function getRecommendedUsers(req, res) {
     const currentUserId = req.user.id;
     const currentUser = req.user;
 
-    const recommendedUsers = await User.find({
+    // Get all users who are not the current user, not already friends, onboarded, and not pending deletion
+    let recommendedUsers = await User.find({
       $and: [
         { _id: { $ne: currentUserId } },
         { _id: { $nin: currentUser.friends } },
         { isOnboarded: true },
         { isDeletionPending: { $ne: true } },
       ],
+    }).lean();
+
+    // Filter out users with profileVisibility: 'private' unless the viewer is a friend
+    recommendedUsers = recommendedUsers.filter(user => {
+      if (user.preferences?.privacy?.profileVisibility === "private") {
+        // Only show if current user is a friend
+        return user.friends?.map(f => f.toString()).includes(currentUserId.toString());
+      }
+      return true; // public profiles
     });
+
     res.status(200).json(recommendedUsers);
   } catch (error) {
     console.error("Error in getRecommendedUsers controller", error.message);
@@ -28,8 +39,8 @@ export async function getUserById(req, res) {
   try {
     const { id } = req.params;
     const currentUserId = req.user?.id;
+    const viewerId = req.user?._id?.toString() || req.user?.id?.toString();
     const user = await User.findById(id).select("-password -email");
-    
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -41,6 +52,15 @@ export async function getUserById(req, res) {
     }
     
     res.status(200).json(userData);
+    // Privacy enforcement
+    if (user.preferences?.privacy?.profileVisibility === "private") {
+      const isFriend = user.friends?.map(f => f.toString()).includes(viewerId);
+      const isSelf = viewerId === user._id.toString();
+      if (!isFriend && !isSelf) {
+        return res.status(403).json({ message: "This profile is private." });
+      }
+    }
+    res.status(200).json(user);
   } catch (error) {
     console.error("Error in getUserById controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -305,6 +325,51 @@ export async function updateMySettings(req, res) {
   }
 }
 
+export async function updatePrivacyPreferences(req, res) {
+  try {
+    const userId = req.user.id;
+    const { appointmentRequestsFrom, showAvailability, profileVisibility } = req.body;
+
+    const validAppointmentRequestsFrom = ["everyone", "friends"];
+    const validShowAvailability = ["everyone", "friends", "nobody"];
+    const validProfileVisibility = ["public", "private"];
+
+    if (appointmentRequestsFrom && !validAppointmentRequestsFrom.includes(appointmentRequestsFrom)) {
+      return res.status(400).json({ message: "Invalid appointmentRequestsFrom value" });
+    }
+
+    if (showAvailability && !validShowAvailability.includes(showAvailability)) {
+      return res.status(400).json({ message: "Invalid showAvailability value" });
+    }
+
+    if (profileVisibility && !validProfileVisibility.includes(profileVisibility)) {
+      return res.status(400).json({ message: "Invalid profileVisibility value" });
+    }
+
+    // Use upsert-style update to ensure preferences object exists
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          "preferences.privacy.appointmentRequestsFrom": appointmentRequestsFrom || "everyone",
+          "preferences.privacy.showAvailability": showAvailability || "everyone",
+          "preferences.privacy.profileVisibility": profileVisibility || "public",
+        },
+      },
+      { new: true, upsert: false }
+    ).select("preferences");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ privacy: user.preferences?.privacy });
+  } catch (error) {
+    console.error("Error in updatePrivacyPreferences controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function changePassword(req, res) {
   try {
     const userId = req.user.id;
@@ -448,8 +513,16 @@ export async function getMyProfile(req, res) {
       location: user.location,
       phone: user.phone,
       twitter: user.twitter,
+      github: user.github,
       pinterest: user.pinterest,
       linkedin: user.linkedin,
+      portfolio: user.portfolio,
+      jobTitle: user.jobTitle,
+      company: user.company,
+      yearsExperience: user.yearsExperience,
+      appointmentsCompleted: user.appointmentsCompleted,
+      rating: user.rating,
+      successRate: user.successRate,
       skills: user.skills || [],
     });
   } catch (error) {
@@ -461,7 +534,10 @@ export async function getMyProfile(req, res) {
 export async function updateMyProfile(req, res) {
   try {
     const userId = req.user.id;
-    const { fullName, bio, location, phone, twitter, pinterest, linkedin, skills } = req.body;
+    const { 
+      fullName, bio, location, phone, twitter, github, pinterest, linkedin, portfolio,
+      skills, jobTitle, company, yearsExperience, appointmentsCompleted, rating, successRate 
+    } = req.body;
 
     const updates = {};
     if (fullName !== undefined) updates.fullName = fullName;
@@ -469,8 +545,16 @@ export async function updateMyProfile(req, res) {
     if (location !== undefined) updates.location = location;
     if (phone !== undefined) updates.phone = phone;
     if (twitter !== undefined) updates.twitter = twitter;
+    if (github !== undefined) updates.github = github;
     if (pinterest !== undefined) updates.pinterest = pinterest;
     if (linkedin !== undefined) updates.linkedin = linkedin;
+    if (portfolio !== undefined) updates.portfolio = portfolio;
+    if (jobTitle !== undefined) updates.jobTitle = jobTitle;
+    if (company !== undefined) updates.company = company;
+    if (yearsExperience !== undefined) updates.yearsExperience = yearsExperience;
+    if (appointmentsCompleted !== undefined) updates.appointmentsCompleted = appointmentsCompleted;
+    if (rating !== undefined) updates.rating = rating;
+    if (successRate !== undefined) updates.successRate = successRate;
     if (skills !== undefined) updates.skills = Array.isArray(skills) ? skills : [];
 
     if (Object.keys(updates).length === 0) {
@@ -488,14 +572,22 @@ export async function updateMyProfile(req, res) {
     }
 
     try {
-      await upsertStreamUser({
+      // Only send essential data to Stream to avoid 5KB limit
+      const streamUserData = {
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
-      });
+      };
+      
+      // Only include image if it's a URL (not base64 to avoid size limit)
+      if (updatedUser.profilePic && !updatedUser.profilePic.startsWith('data:')) {
+        streamUserData.image = updatedUser.profilePic;
+      }
+      
+      await upsertStreamUser(streamUserData);
       console.log(`Stream user updated for ${updatedUser.fullName}`);
     } catch (streamError) {
       console.log("Error updating Stream user:", streamError.message);
+      // Continue anyway - Stream update is not critical for profile updates
     }
 
     res.status(200).json({
@@ -507,8 +599,16 @@ export async function updateMyProfile(req, res) {
         location: updatedUser.location,
         phone: updatedUser.phone,
         twitter: updatedUser.twitter,
+        github: updatedUser.github,
         pinterest: updatedUser.pinterest,
         linkedin: updatedUser.linkedin,
+        portfolio: updatedUser.portfolio,
+        jobTitle: updatedUser.jobTitle,
+        company: updatedUser.company,
+        yearsExperience: updatedUser.yearsExperience,
+        appointmentsCompleted: updatedUser.appointmentsCompleted,
+        rating: updatedUser.rating,
+        successRate: updatedUser.successRate,
         skills: updatedUser.skills || [],
       },
     });

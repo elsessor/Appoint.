@@ -22,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "mern-project": "file:..",
     "mongoose": "^8.13.2",
+    "node-cron": "^4.2.1",
     "socket.io": "^4.8.1",
     "stream-chat": "^8.60.0",
     "streamify": "file:.."
