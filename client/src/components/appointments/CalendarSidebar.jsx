@@ -95,8 +95,8 @@ const CalendarSidebar = ({
 
         {/* Day Headers */}
         <div className="grid grid-cols-7 gap-0.5 mb-1">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day) => (
-            <div key={day} className="text-center text-xs font-medium text-base-content/60 py-1">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+            <div key={`day-header-${index}`} className="text-center text-xs font-medium text-base-content/60 py-1">
               {day}
             </div>
           ))}
@@ -180,14 +180,17 @@ const CalendarSidebar = ({
                 <div className={`w-3 h-3 rounded-full ${color.dot} flex-shrink-0`}></div>
 
                 {/* Profile Picture */}
-                <img
-                  src={friend.profilePic || '/default-profile.svg'}
-                  alt={friend.fullName || friend.name}
-                  className="w-5 h-5 rounded-full object-cover flex-shrink-0"
-                  onError={(e) => {
-                    e.target.src = '/default-profile.svg';
-                  }}
-                />
+                {friend.profilePic ? (
+                  <img
+                    src={friend.profilePic}
+                    alt={friend.fullName || friend.name}
+                    className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {(friend.name || friend.fullName || 'U')[0].toUpperCase()}
+                  </div>
+                )}
 
                 {/* Name */}
                 <span className="text-xs text-base-content truncate">

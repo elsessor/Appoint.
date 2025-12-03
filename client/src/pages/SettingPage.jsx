@@ -195,15 +195,18 @@ const SettingPage = () => {
 
     try {
       setIsDeletingAccount(true);
-      await deleteMyAccount({ confirmation: deleteConfirmation });
-      toast.success("Account deleted");
+      // Backend should interpret this as: schedule deletion in 14 days, not immediate delete
+      await deleteMyAccount({ confirmation: deleteConfirmation, gracePeriodDays: 14 });
+      toast.success(
+        "Your account is scheduled for deletion in 14 days. You can sign back in before then to cancel."
+      );
       logoutMutation();
       setTimeout(() => {
         window.location.href = "/login";
       }, 500);
     } catch (err) {
       console.error(err);
-      const message = err?.response?.data?.message || "Failed to delete account";
+      const message = err?.response?.data?.message || "Failed to schedule account deletion";
       toast.error(message);
     } finally {
       setIsDeletingAccount(false);
@@ -444,16 +447,19 @@ const SettingPage = () => {
           <h2 className="font-semibold mb-3">Danger zone</h2>
           <div className="rounded-lg border border-error/50 p-4 space-y-3 bg-base-100">
             <p className="text-sm text-error">
-              Permanently delete your account and all related data. This action cannot be undone.
+              Deactivate your account and schedule it for permanent deletion in 14 days. You can still
+              sign in again within 14 days to cancel. After that, your data will be permanently deleted
+              and cannot be recovered.
             </p>
             {!isDeleteConfirmVisible ? (
               <button className="btn btn-outline btn-error" onClick={startDeleteProcess}>
-                Delete account
+                Schedule account deletion
               </button>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm">
-                  Step 2: Type <span className="font-semibold">DELETE</span> to confirm you understand this is permanent.
+                  Step 2: Type <span className="font-semibold">DELETE</span> to confirm you understand
+                  your account will be permanently deleted after 14 days.
                 </p>
                 <input
                   type="text"
@@ -469,7 +475,7 @@ const SettingPage = () => {
                     onClick={handleDeleteAccount}
                     disabled={isDeletingAccount || deleteConfirmation !== "DELETE"}
                   >
-                    {isDeletingAccount ? "Deleting..." : "Confirm delete"}
+                    {isDeletingAccount ? "Scheduling..." : "Confirm schedule delete"}
                   </button>
                   <button className="btn btn-ghost" onClick={cancelDeleteProcess} disabled={isDeletingAccount}>
                     Cancel

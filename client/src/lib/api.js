@@ -136,6 +136,11 @@ export async function getUserAvailability(userId) {
   return response.data;
 }
 
+export const getFriendAppointments = async (friendId) => {
+  const response = await axiosInstance.get(`/appointments/friend/${friendId}`);
+  return response.data;
+};
+
 export async function acceptFriendRequest(requestId) {
   const response = await axiosInstance.put(`/users/friend-request/${requestId}/accept`);
   return response.data;
@@ -143,6 +148,11 @@ export async function acceptFriendRequest(requestId) {
 
 export async function getUserFriends() {
   const response = await axiosInstance.get("/users/friends");
+  return response.data;
+}
+
+export async function unfriendUser(friendId) {
+  const response = await axiosInstance.delete(`/users/friend/${friendId}`);
   return response.data;
 }
 
@@ -171,6 +181,25 @@ export const logout = async () => {
   return response.data;
 };
 
+export const createMeetingMinutes = async (minutesData) => {
+  const response = await axiosInstance.post("/meetings/minutes", minutesData);
+  return response.data;
+};
+
+export const getUserMeetingMinutes = async () => {
+  const response = await axiosInstance.get("/meetings/my-minutes");
+  return response.data;
+};
+
+export const getMeetingMinutesById = async (id) => {
+  const response = await axiosInstance.get(`/meetings/minutes/${id}`);
+  return response.data;
+};
+
+export const deleteMeetingMinutes = async (id) => {
+  const response = await axiosInstance.delete(`/meetings/minutes/${id}`);
+  return response.data;
+};
 export async function getMySettings() {
   const response = await axiosInstance.get("/users/me/settings");
   return response.data;

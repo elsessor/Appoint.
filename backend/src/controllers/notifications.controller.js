@@ -67,4 +67,4 @@ export async function createNotification(data) {
     throw error;
   }
 }
-
+  

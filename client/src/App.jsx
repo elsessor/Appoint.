@@ -6,14 +6,18 @@ import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
-import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
+import FriendsPage from "./pages/FriendsPage.jsx";
+import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
+import ChatsPage from "./pages/ChatsPage.jsx";
 import SettingPage from "./pages/SettingPage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import FriendProfilePage from "./pages/FriendProfilePage.jsx";
+
 
 import { Toaster } from "react-hot-toast";
 
@@ -41,6 +45,20 @@ const App = () => {
         <Route
           path="/"
           element={
+            !isAuthenticated ? (
+              <LandingPage />
+            ) : !isOnboarded ? (
+              <Navigate to="/onboarding" />
+            ) : (
+              <Navigate to="/homepage" />
+            )
+          }
+        />
+        <Route path="/landing" element={<LandingPage />} />
+
+        <Route
+          path="/homepage"
+          element={
             isAuthenticated ? (
               isAdmin ? (
                 <Layout showSidebar={true}>
@@ -55,10 +73,15 @@ const App = () => {
               )
             ) : (
               <LandingPage />
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <HomePage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
             )
           }
         />
-        <Route path="/landing" element={<LandingPage />} />
         <Route
           path="/friends"
           element={
@@ -79,6 +102,7 @@ const App = () => {
             ) : (
               <Navigate to={isAdmin ? "/" : isOnboarded ? "/" : "/onboarding"} />
             )
+            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
@@ -89,6 +113,7 @@ const App = () => {
             ) : (
               <Navigate to={isAdmin ? "/" : isOnboarded ? "/" : "/onboarding"} />
             )
+            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
           }
         />
         <Route
@@ -126,6 +151,30 @@ const App = () => {
             )
           }
         />
+<Route
+  path="/chats"
+  element={
+    isAuthenticated && isOnboarded ? (
+      <Layout showSidebar={true}>  {/* ✅ Change to true */}
+        <ChatsPage />
+      </Layout>
+    ) : (
+      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+    )
+  }
+/>
+<Route
+  path="/chats/:id"
+  element={
+    isAuthenticated && isOnboarded ? (
+      <Layout showSidebar={true}>  {/* ✅ Change to true */}
+        <ChatsPage />
+      </Layout>
+    ) : (
+      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+    )
+  }
+/>
 
 
         <Route
@@ -163,7 +212,7 @@ const App = () => {
               ) : !isOnboarded ? (
                 <OnboardingPage />
               ) : (
-                <Navigate to="/" />
+                <Navigate to="/homepage" />
               )
             ) : (
               <Navigate to="/login" />
@@ -180,6 +229,19 @@ const App = () => {
               </Layout>
             ) : (
               <Navigate to={!isAuthenticated ? "/login" : "/"} />
+            )
+          }
+          } 
+        />
+                <Route
+          path="/meeting-minutes"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar>
+                <MeetingMinutesPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
             )
           }
         />
@@ -207,6 +269,65 @@ const App = () => {
             )
           }
         />
+        <Route 
+          path="/profile/:id" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <FriendProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+
+        <Route
+          path="/call/:channelId"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <CallPage />
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+            )
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            isAuthenticated && isAdmin ? (
+              <Layout showSidebar={true}>
+                <AdminDashboard />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/"} />
+            )
+          }
+        />
+        <Route 
+          path="/profile/:id" 
+          element={
+            isAuthenticated ? (
+              <Layout showSidebar>
+                <FriendProfilePage />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+
+        <Route
+          path="/call/:channelId"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <CallPage />
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+        
       </Routes>
 
       <Toaster />

@@ -120,6 +120,81 @@ export async function createAppointment(req, res) {
       });
     }
 
+    // ⚠️ CRITICAL: Check for overlapping/double-booking appointments
+    // This prevents BOTH users from booking the same time slot
+    const overlappingAppointments = await Appointment.find({
+      // Only check non-cancelled appointments
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      // Time overlap check: appointment starts before new one ends AND ends after new one starts
+      startTime: { $lt: end },
+      endTime: { $gt: start },
+      // Check both participants (either party could have a conflict)
+      $or: [
+        { userId: friendId },      // Friend's appointments
+        { friendId: friendId },    // Friend as recipient
+        { userId: userId },        // Current user's appointments
+        { friendId: userId }       // Current user as recipient
+      ]
+    });
+
+    // Check for conflicts - but exclude the case where they already have an appointment together
+    // (this would be an update scenario)
+    const conflict = overlappingAppointments.find(existingAppt => {
+      const existingUserId = (existingAppt.userId._id || existingAppt.userId).toString();
+      const existingFriendId = (existingAppt.friendId._id || existingAppt.friendId).toString();
+      
+      // Skip if this is already an appointment between these two users (update/reschedule case)
+      const isSameAppointmentPair = 
+        (existingUserId === userId && existingFriendId === friendId) ||
+        (existingUserId === friendId && existingFriendId === userId);
+      
+      if (isSameAppointmentPair) {
+        return false;
+      }
+      
+      // Return true if there's a conflict involving either the friend or current user
+      return (existingUserId === friendId || existingFriendId === friendId) ||
+             (existingUserId === userId || existingFriendId === userId);
+    });
+
+    if (conflict) {
+      const conflictTime = new Date(conflict.startTime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return res.status(409).json({
+        message: `This time slot conflicts with an existing appointment at ${conflictTime}. Please choose a different time.`,
+        conflictingAppointmentId: conflict._id,
+        conflictTime: conflict.startTime
+      });
+    }
+
+    // Check max appointments per day constraint
+    const maxPerDay = friendAvailability.maxPerDay || 5;
+    const startOfDay = new Date(start);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(start);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const appointmentsOnSameDay = await Appointment.countDocuments({
+      $or: [
+        { userId: friendId },
+        { friendId: friendId }
+      ],
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (appointmentsOnSameDay >= maxPerDay) {
+      return res.status(400).json({
+        message: `Maximum ${maxPerDay} appointments per day reached for this user. Please choose a different date.`,
+        maxPerDay,
+        appointmentsOnDate: appointmentsOnSameDay
+      });
+    }
+
     const appointment = new Appointment({
       userId,
       friendId,
@@ -131,7 +206,7 @@ export async function createAppointment(req, res) {
       status: "pending",
       bookedBy: bookedBy || {},
       availability: availability || {},
-      appointmentDuration: appointmentDuration || durationMinutes,
+      duration: appointmentDuration || durationMinutes,
     });
 
     await appointment.save();
@@ -177,9 +252,64 @@ export async function getAppointments(req, res) {
       .populate("friendId", "fullName profilePic email")
       .sort({ startTime: 1 });
 
+    // Auto-mark past appointments as completed (if not already completed/cancelled/declined)
+    try {
+      const now = new Date();
+      const updates = appointments.map(async (apt) => {
+        if (
+          apt.endTime &&
+          new Date(apt.endTime) < now &&
+          !["completed", "cancelled", "declined"].includes(apt.status)
+        ) {
+          apt.status = "completed";
+          await apt.save();
+        }
+      });
+      await Promise.all(updates);
+    } catch (err) {
+      console.warn("Failed to auto-complete appointments:", err?.message || err);
+    }
+
     res.status(200).json(appointments);
   } catch (error) {
     console.error("Error in getAppointments controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getFriendAppointments(req, res) {
+  try {
+    const { friendId } = req.params;
+
+    // Get ALL appointments for a specific friend (show their complete availability)
+    const appointments = await Appointment.find({
+      $or: [{ userId: friendId }, { friendId: friendId }],
+    })
+      .populate("userId", "fullName profilePic email")
+      .populate("friendId", "fullName profilePic email")
+      .sort({ startTime: 1 });
+
+    // Auto-mark past appointments as completed
+    try {
+      const now = new Date();
+      const updates = appointments.map(async (apt) => {
+        if (
+          apt.endTime &&
+          new Date(apt.endTime) < now &&
+          !["completed", "cancelled", "declined"].includes(apt.status)
+        ) {
+          apt.status = "completed";
+          await apt.save();
+        }
+      });
+      await Promise.all(updates);
+    } catch (err) {
+      console.warn("Failed to auto-complete friend appointments:", err?.message || err);
+    }
+
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error("Error in getFriendAppointments controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -195,6 +325,20 @@ export async function getAppointmentById(req, res) {
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Auto-mark single appointment as completed if its endTime has passed
+    try {
+      if (
+        appointment.endTime &&
+        new Date(appointment.endTime) < new Date() &&
+        !["completed", "cancelled", "declined"].includes(appointment.status)
+      ) {
+        appointment.status = "completed";
+        await appointment.save();
+      }
+    } catch (err) {
+      console.warn("Failed to auto-complete appointment:", err?.message || err);
     }
 
     // Check if user has access to this appointment
@@ -239,17 +383,103 @@ export async function updateAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
+    // Validate status transitions if status is being changed
+    if (status && status !== appointment.status) {
+      const currentStatus = appointment.status;
+      const validTransitions = {
+        pending: ['confirmed', 'declined', 'cancelled'],
+        confirmed: ['cancelled', 'completed'],
+        scheduled: ['cancelled', 'completed'],
+        completed: [], // Terminal state
+        cancelled: [], // Terminal state
+        declined: []   // Terminal state
+      };
+
+      if (!validTransitions[currentStatus] || !validTransitions[currentStatus].includes(status)) {
+        return res.status(400).json({
+          message: `Cannot transition from '${currentStatus}' to '${status}'. Valid transitions: ${validTransitions[currentStatus].join(', ') || 'none'}`,
+          currentStatus,
+          attemptedStatus: status,
+          validTransitions: validTransitions[currentStatus]
+        });
+      }
+    }
+
     if (startTime) appointment.startTime = new Date(startTime);
     if (endTime) appointment.endTime = new Date(endTime);
     if (title) appointment.title = title;
     if (description) appointment.description = description;
     if (meetingType) appointment.meetingType = meetingType;
     if (status) appointment.status = status;
+    // If client indicates they joined the meeting, add them to attendedBy
+    if (req.body.join === true) {
+      const already = appointment.attendedBy?.map(String).includes(userId);
+      if (!already) {
+        appointment.attendedBy = appointment.attendedBy || [];
+        appointment.attendedBy.push(userId);
+      }
+    }
+    // Handle rating + feedback (rating is number 1-5, feedback is string)
+    if (typeof req.body.rating !== 'undefined') {
+      const ratingValue = Number(req.body.rating);
+      const feedbackText = typeof req.body.feedback === 'string' ? req.body.feedback : '';
+
+      // ensure ratings array exists
+      appointment.ratings = appointment.ratings || [];
+
+      // check if current user already rated
+      const existingIndex = appointment.ratings.findIndex(r => (r.userId && r.userId.toString()) === userId);
+      if (existingIndex >= 0) {
+        // update existing
+        appointment.ratings[existingIndex].rating = ratingValue;
+        appointment.ratings[existingIndex].feedback = feedbackText;
+        appointment.ratings[existingIndex].createdAt = new Date();
+      } else {
+        // push new rating
+        appointment.ratings.push({ userId, rating: ratingValue, feedback: feedbackText, createdAt: new Date() });
+      }
+    }
     if (declinedReason) appointment.declinedReason = declinedReason;
     if (bookedBy) appointment.bookedBy = { ...appointment.bookedBy, ...bookedBy };
 
     await appointment.save();
     await appointment.populate(["userId", "friendId"]);
+
+    // If rating was provided in this update, create a notification for the other participant
+    try {
+      if (typeof req.body.rating !== 'undefined') {
+        const ratingValue = Number(req.body.rating);
+        const feedbackText = typeof req.body.feedback === 'string' ? req.body.feedback : '';
+
+        // Determine recipient (the other participant)
+        const apptUserId = (appointment.userId && appointment.userId._id) ? appointment.userId._id.toString() : (appointment.userId ? appointment.userId.toString() : null);
+        const apptFriendId = (appointment.friendId && appointment.friendId._id) ? appointment.friendId._id.toString() : (appointment.friendId ? appointment.friendId.toString() : null);
+        const currentUserId = userId;
+        let recipientId = null;
+        if (apptUserId && apptFriendId) {
+          recipientId = apptUserId === currentUserId ? apptFriendId : apptUserId;
+        }
+
+        if (recipientId) {
+          const sender = await User.findById(userId).select('fullName');
+          const shortFeedback = feedbackText ? (feedbackText.length > 120 ? feedbackText.slice(0, 117) + '...' : feedbackText) : '';
+          const message = shortFeedback
+            ? `${sender.fullName} rated the meeting ${ratingValue}⭐ — "${shortFeedback}"`
+            : `${sender.fullName} rated the meeting ${ratingValue}⭐`;
+
+          await createNotification({
+            recipientId,
+            senderId: userId,
+            type: 'rating',
+            title: 'New meeting rating',
+            message,
+            appointmentId: appointment._id,
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to create rating notification:', err?.message || err);
+    }
 
     res.status(200).json(appointment);
   } catch (error) {
@@ -277,13 +507,41 @@ export async function deleteAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to delete this appointment" });
     }
 
-    await Appointment.findByIdAndDelete(id);
+    // Prevent cancellation of already completed, cancelled, or declined appointments
+    if (['completed', 'cancelled', 'declined'].includes(appointment.status)) {
+      return res.status(400).json({ 
+        message: `Cannot cancel an appointment that is already ${appointment.status}` 
+      });
+    }
 
-    res.status(200).json({ message: "Appointment deleted successfully" });
+    // Check cancel notice requirement
+    // The cancelNotice is stored in the appointment's availability snapshot
+    const cancelNoticeMinutes = appointment.availability?.cancelNotice || 0;
+    if (cancelNoticeMinutes > 0) {
+      const now = new Date();
+      const appointmentStart = new Date(appointment.startTime);
+      const minutesUntilAppointment = (appointmentStart - now) / (1000 * 60);
+
+      if (minutesUntilAppointment < cancelNoticeMinutes) {
+        const hoursNotice = Math.ceil(cancelNoticeMinutes / 60);
+        return res.status(400).json({
+          message: `This appointment requires ${hoursNotice} hour${hoursNotice > 1 ? 's' : ''} notice to cancel. Please contact the organizer.`,
+          requiredNoticeMinutes: cancelNoticeMinutes,
+          minutesUntilAppointment: Math.max(0, minutesUntilAppointment)
+        });
+      }
+    }
+
+    // Mark as cancelled instead of hard delete (better for history/auditing)
+    appointment.status = 'cancelled';
+    await appointment.save();
+
+    res.status(200).json({ message: "Appointment cancelled successfully" });
   } catch (error) {
     console.error("Error in deleteAppointment controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
+}
 }
 
 export async function saveCustomAvailability(req, res) {
