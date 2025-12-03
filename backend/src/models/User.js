@@ -45,6 +45,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    github: {
+      type: String,
+      default: "",
+    },
     pinterest: {
       type: String,
       default: "",
@@ -52,6 +56,38 @@ const userSchema = new mongoose.Schema(
     linkedin: {
       type: String,
       default: "",
+    },
+    portfolio: {
+      type: String,
+      default: "",
+    },
+    jobTitle: {
+      type: String,
+      default: "",
+    },
+    company: {
+      type: String,
+      default: "",
+    },
+    yearsExperience: {
+      type: Number,
+      default: 0,
+    },
+    appointmentsCompleted: {
+      type: Number,
+      default: 0,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    successRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
     skills: {
       type: [String],
