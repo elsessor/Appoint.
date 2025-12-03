@@ -554,42 +554,43 @@ const AppointmentModal = ({
       ></div>
 
       {/* Sliding Modal */}
-      <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
+      <div className="absolute inset-y-0 right-0 pl-2 sm:pl-10 max-w-full flex">
+        <div className="w-full sm:w-screen max-w-md sm:max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-8 py-5 flex items-center justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-base-content">
+          <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-2xl font-semibold text-base-content">
                 {showCancellation 
-                  ? 'Cancel Appointment' 
+                  ? 'Cancel' 
                   : showDeclineForm 
-                  ? 'Decline Appointment' 
-                  : appointment ? 'Edit Appointment' : 'New Appointment'}
+                  ? 'Decline' 
+                  : appointment ? 'Edit' : 'New'}
+                <span className="hidden sm:inline"> Appointment</span>
               </h2>
               
               {!showCancellation && !showDeclineForm && (
-                <div className="flex items-center gap-3 mt-3">
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 1 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                <div className="flex items-center gap-1 sm:gap-3 mt-2 sm:mt-3 overflow-x-auto">
+                  <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${step === 1 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
                       1
                     </span>
-                    Details
+                    <span className="hidden sm:inline">Details</span>
                   </div>
                   <div className={`text-xs ${step === 1 ? 'text-primary/50' : 'text-base-300'}`}>→</div>
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 2 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                  <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${step === 2 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
                       2
                     </span>
-                    Review
+                    <span className="hidden sm:inline">Review</span>
                   </div>
                 </div>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-4 flex-shrink-0"
+              className="p-1.5 sm:p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-2 flex-shrink-0"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 sm:w-5 h-4 sm:h-5" />
             </button>
           </div>
 
@@ -597,11 +598,11 @@ const AppointmentModal = ({
           {!showCancellation && !showDeclineForm ? (
             step === 1 ? (
               // STEP 1: Form Entry
-              <form onSubmit={handleSubmit} className="p-8 space-y-7">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-4 sm:space-y-7">
                 {/* Away Status Warning */}
                 {currentUserStatus === 'away' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-700 font-medium text-sm flex items-start gap-3">
+                  <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 font-medium text-xs sm:text-sm flex items-start gap-2 sm:gap-3">
                       <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
                       <span>You are currently away. Please update your status to schedule appointments.</span>
                     </p>
@@ -610,14 +611,14 @@ const AppointmentModal = ({
 
                 {/* Title */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-base-content">Appointment Title *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-base-content">Appointment Title *</label>
                   <input
                     type="text"
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    placeholder="e.g., Project Discussion, Language Lesson"
-                    className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                    placeholder="e.g., Project Discussion"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-xs sm:text-sm shadow-sm hover:border-base-400"
                   />
                 </div>
 
@@ -1112,51 +1113,52 @@ const AppointmentModal = ({
               </form>
             ) : (
               // STEP 2: Review/Summary
-              <div className="p-6 space-y-4">
-                <div className="bg-success/10 border border-success/30 rounded-lg p-5 space-y-4">
-                  <h4 className="text-lg font-semibold text-base-content flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-success flex items-center justify-center text-success-content font-semibold text-xs">✓</div>
-                    Review
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                <div className="bg-success/10 border border-success/30 rounded-lg p-3 sm:p-5 space-y-3 sm:space-y-4">
+                  <h4 className="text-sm sm:text-lg font-semibold text-base-content flex items-center gap-2 sm:gap-3">
+                    <div className="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-success flex items-center justify-center text-success-content font-semibold text-xs">✓</div>
+                    <span className="hidden sm:inline">Review</span>
+                    <span className="sm:hidden">Check</span>
                   </h4>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {/* Title */}
                     {formData.title && (
-                      <div className="pb-3 border-b border-success/20">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Title</p>
-                        <p className="text-sm font-semibold text-base-content truncate">{formData.title}</p>
+                      <div className="pb-2 sm:pb-3 border-b border-success/20">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Title</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{formData.title}</p>
                       </div>
                     )}
 
-                    {/* Date & Time in one row */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Date</p>
-                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
+                    {/* Date & Time - responsive grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2">
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Date</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
                         <p className="text-xs text-base-content/60 mt-0.5">{format(parseISO(formData.startTime), 'EEE')}</p>
                       </div>
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Time</p>
-                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Time</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
                         <p className="text-xs text-base-content/60 mt-0.5">{formData.duration}m</p>
                       </div>
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Type</p>
-                        <p className="text-sm font-semibold text-base-content truncate">{formData.meetingType}</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Type</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{formData.meetingType}</p>
                       </div>
                     </div>
 
                     {/* With & Location (if applicable) */}
-                    <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-base-content/60 font-medium uppercase mb-1">With</p>
-                          <p className="text-sm font-semibold text-base-content truncate">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
+                          <p className="text-xs text-base-content/60 font-medium uppercase mb-0.5 sm:mb-1">With</p>
+                          <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
                         </div>
                         {formData.meetingType === 'In Person' && formData.location && (
-                          <div className="text-right ml-3 flex-shrink-0">
-                            <p className="text-xs text-base-content/60 font-medium uppercase mb-1">Location</p>
-                            <p className="text-sm font-semibold text-base-content">{formData.location}</p>
+                          <div className="text-left sm:text-right flex-shrink-0">
+                            <p className="text-xs text-base-content/60 font-medium uppercase mb-0.5 sm:mb-1">Location</p>
+                            <p className="text-xs sm:text-sm font-semibold text-base-content">{formData.location}</p>
                           </div>
                         )}
                       </div>
@@ -1164,29 +1166,31 @@ const AppointmentModal = ({
 
                     {/* Notes if present */}
                     {formData.description && (
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Notes</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Notes</p>
                         <p className="text-xs text-base-content leading-relaxed line-clamp-2">{formData.description}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2 border-t border-base-300">
+                {/* Action Buttons - responsive */}
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-2 border-t border-base-300">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="flex-1 px-4 py-2 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2 font-medium rounded-lg transition-all border text-xs sm:text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
                   >
-                    ← Back
+                    <span className="hidden sm:inline">← Back</span>
+                    <span className="sm:hidden">Back</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleConfirmAppointment}
-                    className="flex-1 px-4 py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-sm shadow-sm"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-xs sm:text-sm shadow-sm"
                   >
-                    ✓ Confirm
+                    <span className="hidden sm:inline">✓ Confirm</span>
+                    <span className="sm:hidden">✓ Ok</span>
                   </button>
                 </div>
               </div>

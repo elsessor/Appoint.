@@ -73,6 +73,20 @@ const Calendar = ({
     return [userId, friendId].filter(id => id); // Return both participant IDs
   };
 
+  // Get the friend ID from an appointment (for filtering in multi-calendar mode)
+  const getAppointmentFriendId = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    const currentUserId = currentUser?._id || currentUser?.id;
+    
+    // Return the friend ID (whoever is NOT the current user)
+    if (userId === currentUserId) {
+      return friendId;
+    } else {
+      return userId;
+    }
+  };
+
   // Get primary owner ID for coloring
   const getAppointmentOwnerId = (appointment) => {
     const userId = appointment.userId?._id || appointment.userId;
@@ -97,6 +111,14 @@ const Calendar = ({
     const currentUserId = currentUser?._id || currentUser?.id;
     if (friendId === currentUserId) return true; // Always show current user
     return isMultiCalendarMode ? visibleFriends.includes(friendId) : true;
+  };
+
+  // Check if current user is a participant in an appointment
+  const isUserParticipant = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    return userId === currentUserId || friendId === currentUserId;
   };
 
   // Load Philippine holidays for the current year
@@ -330,49 +352,53 @@ const Calendar = ({
       </div>
       {/* Friend Search Modal */}
       {/* Legend */}
-      <div className="px-6 py-2 bg-base-200 border-b border-base-300">
-        <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
+      <div className="px-3 sm:px-6 py-1 sm:py-2 bg-base-200 border-b border-base-300">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-info"></div>
-            <span className="text-base-content/70">Today</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-info"></div>
+            <span className="text-base-content/70 hidden sm:inline">Today</span>
+            <span className="text-base-content/70 sm:hidden">T</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-success"></div>
-            <span className="text-base-content/70">Available</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-success"></div>
+            <span className="text-base-content/70 hidden sm:inline">Available</span>
+            <span className="text-base-content/70 sm:hidden">A</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded bg-primary/70"></div>
-            <span className="text-base-content/70">Has Appts</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded bg-primary/70"></div>
+            <span className="text-base-content/70 hidden sm:inline">Has Appts</span>
+            <span className="text-base-content/70 sm:hidden">Ap</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded bg-error"></div>
-            <span className="text-base-content/70">Holiday</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded bg-error"></div>
+            <span className="text-base-content/70 hidden sm:inline">Holiday</span>
+            <span className="text-base-content/70 sm:hidden">H</span>
           </div>
         </div>
       </div>
 
       {/* Availability Schedule Info */}
-      <div className="px-6 py-4 bg-base-100 border-b border-base-300">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="px-3 sm:px-6 py-2 sm:py-4 bg-base-100 border-b border-base-300">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {/* Working Hours */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Working Hours</p>
-            <p className="text-sm font-medium text-base-content">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Hours</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
               {availability?.start || '09:00'} - {availability?.end || '17:00'}
             </p>
           </div>
 
           {/* Available Days */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Available Days</p>
-            <div className="flex flex-wrap gap-1">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Days</p>
+            <div className="flex flex-wrap gap-0.5 sm:gap-1">
               {(() => {
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
                 const availableDays = availability?.days || [1, 2, 3, 4, 5];
                 return dayNames.map((day, idx) => (
                   <span
                     key={idx}
-                    className={`text-xs px-2 py-1 rounded font-medium ${
+                    className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium ${
                       availableDays.includes(idx)
                         ? 'bg-success text-success-content'
                         : 'bg-base-300 text-base-content/50 line-through'
@@ -386,33 +412,35 @@ const Calendar = ({
           </div>
 
           {/* Slot Duration */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Slot Duration</p>
-            <p className="text-sm font-medium text-base-content">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Duration</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
               {availability?.slotDuration || 30} min
             </p>
           </div>
 
           {/* Lead Time */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Lead Time</p>
-            <p className="text-sm font-medium text-base-content">
-              {availability?.minLeadTime || 0} hour{(availability?.minLeadTime || 0) !== 1 ? 's' : ''}
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase hidden lg:block">Lead Time</p>
+            <p className="text-xs font-semibold text-base-content/60 uppercase lg:hidden">Lead</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
+              {availability?.minLeadTime || 0}h
             </p>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-px bg-base-300 border-b border-base-300">
+      <div className="grid grid-cols-7 gap-px bg-base-300 border-b border-base-300 overflow-x-auto">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="bg-base-200 py-2 text-center text-xs font-medium text-base-content/70 uppercase tracking-wider">
-            {day}
+          <div key={day} className="bg-base-200 py-1 md:py-2 text-center text-xs font-medium text-base-content/70 uppercase tracking-wider">
+            <span className="hidden sm:inline">{day}</span>
+            <span className="sm:hidden">{day[0]}</span>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-base-300">
+      <div className="grid grid-cols-7 gap-px bg-base-300 overflow-x-auto">
         {daysInMonth.map((day, i) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -432,7 +460,7 @@ const Calendar = ({
           return (
             <div 
               key={i}
-              className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 ${
+              className={`relative ${viewMode === 'month' ? 'min-h-20 sm:min-h-24 md:min-h-28' : 'min-h-32'} p-0.5 sm:p-1 md:p-2 bg-base-100 ${
                 isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : (
                   !isDateAvailableNow && isCurrentMonth ? 'opacity-60 cursor-not-allowed bg-base-300' : (
                     isAtCapacity ? 'bg-error/5 border border-error/20' : 'hover:bg-base-200'
@@ -440,7 +468,7 @@ const Calendar = ({
                 )
               } cursor-pointer ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
-              } ${isSelected ? 'ring-2 ring-primary z-10' : ''} transition-all`}
+              } ${isSelected ? 'ring-2 ring-primary z-10' : ''} transition-all touch-manipulation`}
               onClick={() => isDateAvailableNow && !isViewingFriendAway && handleDateClick(day)}
             >
               <div className="flex flex-col h-full">
@@ -500,12 +528,13 @@ const Calendar = ({
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
                         .filter(appt => {
-                          // In multi-calendar mode, show appointment if any participant is visible
+                          // In multi-calendar mode, show appointment if the friend is visible
                           if (isMultiCalendarMode) {
-                            return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                            const friendId = getAppointmentFriendId(appt);
+                            return isFriendVisible(friendId);
                           }
-                          // In single calendar mode, show all appointments
-                          return true;
+                          // In single calendar mode, only show appointments where user is a participant
+                          return isUserParticipant(appt);
                         })
                         .slice(0, 2)
                         .map((appt) => {
@@ -521,7 +550,7 @@ const Calendar = ({
                           return (
                             <div 
                               key={appt._id || appt.id}
-                              className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm`}
+                              className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm cursor-pointer`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedAppointment(appt);
@@ -539,14 +568,16 @@ const Calendar = ({
                       
                       {getAppointmentsForDate(day).filter(appt => {
                         if (isMultiCalendarMode) {
-                          return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                          const friendId = getAppointmentFriendId(appt);
+                          return isFriendVisible(friendId);
                         }
                         return true;
                       }).length > 2 && (
                         <div className="text-xs text-gray-400 text-center">
                           +{getAppointmentsForDate(day).filter(appt => {
                             if (isMultiCalendarMode) {
-                              return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                              const friendId = getAppointmentFriendId(appt);
+                              return isFriendVisible(friendId);
                             }
                             return true;
                           }).length - 2} more

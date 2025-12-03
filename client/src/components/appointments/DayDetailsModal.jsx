@@ -59,6 +59,17 @@ const DayDetailsModal = ({
     }
   };
 
+  // Check if current user is a participant in an appointment
+  const isUserParticipant = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    return userId === currentUserId || friendId === currentUserId;
+  };
+
+  // Filter appointments to only show those where user is a participant
+  const filteredAppointments = appointments.filter(isUserParticipant);
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       scheduled: { bg: 'bg-blue-500', text: 'text-white', label: 'Scheduled' },
@@ -143,52 +154,64 @@ const DayDetailsModal = ({
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
           
           {/* Modal */}
-          <div className="relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col mx-4">
-          <div className="bg-base-100 px-6 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-base-300/40">
-            <div className="flex justify-between items-start">
+          <div className="relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full sm:max-h-[90vh] max-h-[95vh] flex flex-col mx-2 sm:mx-4">
+          <div className="bg-base-100 px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-4 border-b border-base-300/40">
+            <div className="flex justify-between items-start gap-2">
               <div>
-                <h3 className="text-lg leading-6 font-bold text-base-content">
-                  {format(date, 'EEEE, MMMM d')}
+                <h3 className="text-base sm:text-lg leading-6 font-bold text-base-content">
+                  {format(date, 'EEE, MMM d')}
                 </h3>
                 {isHoliday && (
-                  <p className="mt-1.5 text-xs font-semibold text-warning uppercase tracking-wide">{isHoliday}</p>
+                  <p className="mt-1 text-xs font-semibold text-warning uppercase tracking-wide">{isHoliday}</p>
                 )}
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content flex-shrink-0"
+                className="p-1.5 sm:p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content flex-shrink-0"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="h-4 sm:h-5 w-4 sm:w-5" aria-hidden="true" />
               </button>
             </div>
           </div>
 
           {appointments.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="bg-base-200/30 rounded-lg p-8 space-y-4">
-                <Calendar className="mx-auto h-12 w-12 text-base-content/40" />
+            <div className="p-4 sm:p-8 text-center">
+              <div className="bg-base-200/30 rounded-lg p-4 sm:p-8 space-y-3 sm:space-y-4">
+                <Calendar className="mx-auto h-10 sm:h-12 w-10 sm:w-12 text-base-content/40" />
                 <div>
-                  <h3 className="text-sm font-bold text-base-content">No appointments</h3>
-                  <p className="mt-1 text-xs text-base-content/60">
+                  <h3 className="text-xs sm:text-sm font-bold text-base-content">No appointments</h3>
+                  <p className="mt-0.5 sm:mt-1 text-xs text-base-content/60">
                     You don't have any appointments scheduled for this day.
                   </p>
                 </div>
-                <div className="pt-4">
+                <div className="pt-2 sm:pt-4">
                   <button
                     type="button"
                     onClick={handleCreateAppointment}
-                    className="inline-flex items-center px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-all text-sm shadow-sm"
+                    className="inline-flex items-center px-3 sm:px-4 py-2 sm:py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-all text-xs sm:text-sm shadow-sm"
                   >
                     Schedule Appointment
                   </button>
                 </div>
               </div>
             </div>
+          ) : filteredAppointments.length === 0 ? (
+            <div className="p-4 sm:p-8 text-center">
+              <div className="bg-base-200/30 rounded-lg p-4 sm:p-8 space-y-3 sm:space-y-4">
+                <Calendar className="mx-auto h-10 sm:h-12 w-10 sm:w-12 text-base-content/40" />
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-base-content">No accessible appointments</h3>
+                  <p className="mt-0.5 sm:mt-1 text-xs text-base-content/60">
+                    You don't have access to appointments on this day.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-3">
-                {appointments
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+              <div className="space-y-2 sm:space-y-3">
+                {filteredAppointments
                   .map((appointment) => {
                   const appointmentType = getAppointmentType(appointment);
                   const otherUser = getOtherUser(appointment);
@@ -198,22 +221,22 @@ const DayDetailsModal = ({
                   <button
                     key={appointment._id || appointment.id}
                     onClick={() => setSelectedAppointmentDetail(appointment)}
-                    className={`w-full text-left p-4 rounded-lg transition border ${getStatusCardColor(appointment.status)} hover:border-primary/30 group`}
+                    className={`w-full text-left p-2 sm:p-4 rounded-lg transition border ${getStatusCardColor(appointment.status)} hover:border-primary/30 group`}
                   >
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <div className="flex items-start justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-base-content truncate group-hover:text-primary transition-colors">
+                          <p className="text-xs sm:text-sm font-bold text-base-content truncate group-hover:text-primary transition-colors">
                             {appointment.title}
                           </p>
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-1.5 flex-wrap">
+                            <div className="flex items-center gap-1">
                               {isRequested ? (
-                                <Send className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                <Send className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-primary flex-shrink-0" />
                               ) : (
-                                <ArrowDown className="w-3.5 h-3.5 text-warning flex-shrink-0" />
+                                <ArrowDown className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-warning flex-shrink-0" />
                               )}
-                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              <span className={`text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full ${
                                 isRequested 
                                   ? 'bg-primary/15 text-primary' 
                                   : 'bg-warning/15 text-warning'
@@ -222,41 +245,43 @@ const DayDetailsModal = ({
                               </span>
                             </div>
                             {otherUser && (
-                              <span className="text-xs text-base-content/60">
+                              <span className="text-xs text-base-content/60 truncate">
                                 with <span className="text-base-content font-semibold">{otherUser.fullName || otherUser.name}</span>
                               </span>
                             )}
                           </div>
                         </div>
-                        {getStatusBadge(appointment.status)}
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(appointment.status)}
+                        </div>
                       </div>
                       
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2 text-xs text-base-content/70">
-                          <Clock className="w-3.5 h-3.5 text-base-content/50 flex-shrink-0" />
-                          <span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-xs text-base-content/70">
+                          <Clock className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-base-content/50 flex-shrink-0" />
+                          <span className="truncate">
                             {formatTime(appointment.startTime)}
                             {appointment.endTime && (
                               <>
-                                <span className="mx-1">-</span>
+                                <span className="mx-0.5">-</span>
                                 {formatTime(appointment.endTime)}
-                                <span className="text-base-content/50 mx-1">•</span>
+                                <span className="text-base-content/50 mx-0.5">•</span>
                                 <span>{formatDuration(appointment.startTime, appointment.endTime)}</span>
                               </>
                             )}
                           </span>
                         </div>
                         {appointment.participant && (
-                          <div className="flex items-center gap-2 text-xs text-base-content/70">
-                            <User className="w-3.5 h-3.5 text-base-content/50 flex-shrink-0" />
-                            {appointment.participant.name || appointment.participant.email}
+                          <div className="flex items-center gap-1.5 text-xs text-base-content/70 truncate">
+                            <User className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-base-content/50 flex-shrink-0" />
+                            <span className="truncate">{appointment.participant.name || appointment.participant.email}</span>
                           </div>
                         )}
                       </div>
                       {appointment.message && (
-                        <div className="flex items-start gap-2 text-xs text-base-content/70 pt-2 border-t border-base-300/30">
-                          <MessageSquare className="w-3.5 h-3.5 text-base-content/50 mt-0.5 flex-shrink-0" />
-                          <p className="whitespace-pre-line line-clamp-2">{appointment.message}</p>
+                        <div className="flex items-start gap-1.5 text-xs text-base-content/70 pt-1 sm:pt-2 border-t border-base-300/30">
+                          <MessageSquare className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-base-content/50 mt-0.5 flex-shrink-0" />
+                          <p className="whitespace-pre-line line-clamp-2 text-xs">{appointment.message}</p>
                         </div>
                       )}
                     </div>
@@ -267,19 +292,20 @@ const DayDetailsModal = ({
             </div>
           )}
           
-          {appointments.length > 0 && (
-            <div className="bg-base-100 border-t border-base-300/40 px-6 py-3 flex flex-row-reverse gap-3 flex-shrink-0">
+          {filteredAppointments.length > 0 && (
+            <div className="bg-base-100 border-t border-base-300/40 px-3 sm:px-6 py-2 sm:py-3 flex flex-col-reverse sm:flex-row-reverse gap-2 sm:gap-3 flex-shrink-0">
               <button
                 type="button"
                 onClick={handleCreateAppointment}
-                className="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
+                className="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
               >
-                New Appointment
+                <span className="hidden sm:inline">New Appointment</span>
+                <span className="sm:hidden">New</span>
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 inline-flex justify-center rounded-lg border border-base-300/50 shadow-sm px-4 py-2.5 bg-base-200/50 text-base-content text-sm font-semibold hover:bg-base-200 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
+                className="flex-1 inline-flex justify-center rounded-lg border border-base-300/50 shadow-sm px-3 sm:px-4 py-2 sm:py-2.5 bg-base-200/50 text-base-content text-xs sm:text-sm font-semibold hover:bg-base-200 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
               >
                 Close
               </button>

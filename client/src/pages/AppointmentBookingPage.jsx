@@ -11,7 +11,7 @@ const MemoizedCalendar = memo(Calendar);
 const MemoizedCalendarSidebar = memo(CalendarSidebar);
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ThemeSelector from '../components/ThemeSelector';
-import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability } from '../lib/api';
+import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability, getFriendAppointments } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
@@ -69,6 +69,14 @@ const AppointmentBookingPage = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  // Get friend's appointments when viewing them
+  const { data: friendAppointmentsData = [] } = useQuery({
+    queryKey: ['friendAppointments', viewingFriendId],
+    queryFn: () => getFriendAppointments(viewingFriendId),
+    enabled: !!viewingFriendId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
   // Get viewing friend's availability status
   const { data: friendAvailability } = useQuery({
     queryKey: ['friendAvailability', viewingFriendId],
@@ -84,6 +92,17 @@ const AppointmentBookingPage = () => {
     enabled: !!(currentUser?._id && !viewingFriendId),
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
+
+  // Auto-check all friends by default
+  useEffect(() => {
+    if (friends.length > 0 && visibleFriends.length === 0) {
+      const friendIds = friends.map(f => f._id || f.id);
+      setVisibleFriends(friendIds);
+    }
+  }, [friends]);
+
+  // Determine which appointments to display based on viewing state
+  const displayAppointments = viewingFriendId ? friendAppointmentsData : appointments;
 
   // Default availability for all users - Monday to Friday, 9 AM to 5 PM
   const defaultAvailability = {
@@ -370,21 +389,8 @@ const AppointmentBookingPage = () => {
     return appointment.status === 'pending' && appointmentFriendId === currentUserId;
   }, [currentUser]);
 
-  // Get appointments for the viewed friend
-  const friendAppointments = useMemo(() => {
-    if (!viewingFriendId) return appointments;
-    
-    // Filter appointments where the viewed friend is involved
-    return appointments.filter(apt => {
-      const friendId = apt.friendId?._id || apt.friendId;
-      const userId = apt.userId?._id || apt.userId;
-      
-      return friendId === viewingFriendId || userId === viewingFriendId;
-    });
-  }, [viewingFriendId, appointments]);
-
-  // Filter today's appointments (use friendAppointments if viewing a friend, otherwise all appointments)
-  const todayAppointments = (viewingFriendId ? friendAppointments : appointments).filter(appt => {
+  // Filter today's appointments
+  const todayAppointments = displayAppointments.filter(appt => {
     const apptDate = typeof appt.startTime === 'string' 
       ? parseISO(appt.startTime)
       : new Date(appt.startTime);
@@ -700,7 +706,7 @@ const AppointmentBookingPage = () => {
         {/* Calendar Component */}
         <div className="rounded-lg shadow-2xl overflow-hidden mb-8 transition-all">
           <MemoizedCalendar
-            appointments={viewingFriendId ? friendAppointments : appointments}
+            appointments={displayAppointments}
             friends={friends}
             currentUser={currentUser}
             onAppointmentCreate={handleCreateAppointment}
