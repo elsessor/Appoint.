@@ -151,6 +151,11 @@ export async function getUserFriends() {
   return response.data;
 }
 
+export async function getFriendProfile(id) {
+  const response = await axiosInstance.get(`/users/${id}`);
+  return response.data;
+}
+
 export async function unfriendUser(friendId) {
   const response = await axiosInstance.delete(`/users/friend/${friendId}`);
   return response.data;

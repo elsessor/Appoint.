@@ -269,7 +269,7 @@ export async function getAppointments(req, res) {
     } catch (err) {
       console.warn("Failed to auto-complete appointments:", err?.message || err);
     }
-
+    
     res.status(200).json(appointments);
   } catch (error) {
     console.error("Error in getAppointments controller", error.message);
@@ -542,7 +542,6 @@ export async function deleteAppointment(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
-}
 
 export async function saveCustomAvailability(req, res) {
   try {
@@ -609,7 +608,7 @@ export async function saveCustomAvailability(req, res) {
     console.error("❌ Error in saveCustomAvailability:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+      }
 
 export async function getUserAvailability(req, res) {
   try {

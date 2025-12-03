@@ -26,6 +26,7 @@ const AdminDashboard = () => {
   const [appointmentPage, setAppointmentPage] = useState(1);
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("");
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
   const { data: dashboardData, isLoading: isLoadingDashboard } = useQuery({
     queryKey: ["adminDashboard"],
@@ -33,14 +34,16 @@ const AdminDashboard = () => {
   });
 
   const { data: usersData, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["adminUsers", userPage, userSearch, userRoleFilter],
-    queryFn: () =>
-      getAdminUsers({
-        page: userPage,
-        limit: 8,
+    queryKey: ["adminUsers", userPage, userSearch, userRoleFilter, showAllUsers],
+    queryFn: () => {
+      const limit = showAllUsers ? (dashboardData?.stats?.totalUsers || 1000) : 8;
+      return getAdminUsers({
+        page: showAllUsers ? 1 : userPage,
+        limit,
         search: userSearch,
         role: userRoleFilter,
-      }),
+      });
+    },
   });
 
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useQuery({
@@ -136,33 +139,44 @@ const AdminDashboard = () => {
                     <div>
                       <p className="text-sm uppercase text-base-content/60">Users</p>
                       <h2 className="text-xl font-semibold">Manage Learners</h2>
+                      <p className="text-sm text-base-content/60 mt-1">Showing {usersData?.users?.length || 0} of {stats.totalUsers || 0} users</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <label className="input input-bordered flex items-center gap-2">
-                        <Search className="w-4 h-4 opacity-70" />
-                        <input
-                          className="grow"
-                          placeholder="Search by name or email"
-                          value={userSearch}
+                      <div className="flex items-center gap-3">
+                        <label className="input input-bordered flex items-center gap-2">
+                          <Search className="w-4 h-4 opacity-70" />
+                          <input
+                            className="grow"
+                            placeholder="Search by name or email"
+                            value={userSearch}
+                            onChange={(e) => {
+                              setUserSearch(e.target.value);
+                              setUserPage(1);
+                            }}
+                          />
+                        </label>
+
+                        <select
+                          className="select select-bordered"
+                          value={userRoleFilter}
                           onChange={(e) => {
-                            setUserSearch(e.target.value);
+                            setUserRoleFilter(e.target.value);
                             setUserPage(1);
                           }}
-                        />
-                      </label>
-                      <select
-                        className="select select-bordered"
-                        value={userRoleFilter}
-                        onChange={(e) => {
-                          setUserRoleFilter(e.target.value);
-                          setUserPage(1);
-                        }}
-                      >
-                        <option value="">All Roles</option>
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
+                        >
+                          <option value="">All users</option>
+                          <option value="admin">Admins</option>
+                        </select>
+
+                        <button
+                          className={`btn btn-sm ml-2 ${showAllUsers ? 'btn-primary' : 'btn-ghost'}`}
+                          onClick={() => {
+                            setShowAllUsers((s) => !s);
+                            setUserPage(1);
+                          }}
+                        >
+                          {showAllUsers ? 'Showing all' : 'Show all'}
+                        </button>
+                      </div>
                   </div>
 
                   {isLoadingUsers ? (
@@ -225,7 +239,7 @@ const AdminDashboard = () => {
                         )}
                       </div>
 
-                      {usersData?.pagination?.pages > 1 && (
+                      {!showAllUsers && usersData?.pagination?.pages > 1 && (
                         <Pagination
                           page={usersData.pagination.page}
                           totalPages={usersData.pagination.pages}

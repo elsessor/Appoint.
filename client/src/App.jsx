@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import HomePage from "./pages/Homepage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
@@ -6,18 +6,16 @@ import SignUpPage from "./pages/SignUpPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
+import ChatsPage from "./pages/ChatsPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import AppointmentBookingPage from "./pages/AppointmentBookingPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import FriendsPage from "./pages/FriendsPage.jsx";
 import MeetingMinutesPage from "./pages/MeetingMinutesPage.jsx";
-import ChatsPage from "./pages/ChatsPage.jsx";
 import SettingPage from "./pages/SettingPage.jsx";
-import FriendsPage from "./pages/FriendsPage.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import FriendProfilePage from "./pages/FriendProfilePage.jsx";
-
 
 import { Toaster } from "react-hot-toast";
 
@@ -49,39 +47,29 @@ const App = () => {
               <LandingPage />
             ) : !isOnboarded ? (
               <Navigate to="/onboarding" />
+            ) : isAdmin ? (
+              <Navigate to="/admin" />
             ) : (
               <Navigate to="/homepage" />
             )
           }
         />
+
         <Route path="/landing" element={<LandingPage />} />
 
         <Route
           path="/homepage"
           element={
-            isAuthenticated ? (
-              isAdmin ? (
-                <Layout showSidebar={true}>
-                  <AdminDashboard />
-                </Layout>
-              ) : isOnboarded ? (
-                <Layout showSidebar={true}>
-                  <HomePage />
-                </Layout>
-              ) : (
-                <Navigate to="/onboarding" />
-              )
-            ) : (
-              <LandingPage />
-            isAuthenticated && isOnboarded ? (
+            isAuthenticated && isOnboarded && !isAdmin ? (
               <Layout showSidebar={true}>
                 <HomePage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
+
         <Route
           path="/friends"
           element={
@@ -90,32 +78,21 @@ const App = () => {
                 <FriendsPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
+
         <Route
           path="/signup"
-          element={
-            !isAuthenticated ? (
-              <SignUpPage />
-            ) : (
-              <Navigate to={isAdmin ? "/" : isOnboarded ? "/" : "/onboarding"} />
-            )
-            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
-          }
+          element={!isAuthenticated ? <SignUpPage /> : <Navigate to={isAdmin ? "/admin" : isOnboarded ? "/homepage" : "/onboarding"} />}
         />
+
         <Route
           path="/login"
-          element={
-            !isAuthenticated ? (
-              <LoginPage />
-            ) : (
-              <Navigate to={isAdmin ? "/" : isOnboarded ? "/" : "/onboarding"} />
-            )
-            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/homepage" : "/onboarding"} />
-          }
+          element={!isAuthenticated ? <LoginPage /> : <Navigate to={isAdmin ? "/admin" : isOnboarded ? "/homepage" : "/onboarding"} />}
         />
+
         <Route
           path="/notifications"
           element={
@@ -124,58 +101,47 @@ const App = () => {
                 <NotificationsPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
+
         <Route
           path="/call/:id"
           element={
             isAuthenticated && isOnboarded && !isAdmin ? (
               <CallPage />
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
 
         <Route
-          path="/chat/:id"
+          path="/chats/:id"
           element={
             isAuthenticated && isOnboarded && !isAdmin ? (
               <Layout showSidebar={false}>
-                <ChatPage />
+                <ChatsPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
-<Route
-  path="/chats"
-  element={
-    isAuthenticated && isOnboarded ? (
-      <Layout showSidebar={true}>  {/* ✅ Change to true */}
-        <ChatsPage />
-      </Layout>
-    ) : (
-      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-    )
-  }
-/>
-<Route
-  path="/chats/:id"
-  element={
-    isAuthenticated && isOnboarded ? (
-      <Layout showSidebar={true}>  {/* ✅ Change to true */}
-        <ChatsPage />
-      </Layout>
-    ) : (
-      <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-    )
-  }
-/>
 
+        <Route
+          path="/chats"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <ChatsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
 
         <Route
           path="/booking"
@@ -185,7 +151,7 @@ const App = () => {
                 <AppointmentBookingPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
@@ -198,7 +164,7 @@ const App = () => {
                 <AppointmentsPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
@@ -208,7 +174,7 @@ const App = () => {
           element={
             isAuthenticated ? (
               isAdmin ? (
-                <Navigate to="/" />
+                <Navigate to="/admin" />
               ) : !isOnboarded ? (
                 <OnboardingPage />
               ) : (
@@ -231,9 +197,9 @@ const App = () => {
               <Navigate to={!isAuthenticated ? "/login" : "/"} />
             )
           }
-          } 
         />
-                <Route
+
+        <Route
           path="/meeting-minutes"
           element={
             isAuthenticated && isOnboarded ? (
@@ -245,6 +211,7 @@ const App = () => {
             )
           }
         />
+
         <Route
           path="/settings"
           element={
@@ -253,10 +220,11 @@ const App = () => {
                 <SettingPage />
               </Layout>
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
         />
+
         <Route
           path="/admin"
           element={
@@ -269,8 +237,9 @@ const App = () => {
             )
           }
         />
-        <Route 
-          path="/profile/:id" 
+
+        <Route
+          path="/profile/:id"
           element={
             isAuthenticated ? (
               <Layout showSidebar>
@@ -279,7 +248,7 @@ const App = () => {
             ) : (
               <Navigate to="/login" />
             )
-          } 
+          }
         />
 
         <Route
@@ -288,46 +257,11 @@ const App = () => {
             isAuthenticated && isOnboarded ? (
               <CallPage />
             ) : (
-              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/" : "/onboarding"} />
+              <Navigate to={!isAuthenticated ? "/login" : isAdmin ? "/admin" : "/onboarding"} />
             )
           }
-        />
-        <Route
-          path="/admin"
-          element={
-            isAuthenticated && isAdmin ? (
-              <Layout showSidebar={true}>
-                <AdminDashboard />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/"} />
-            )
-          }
-        />
-        <Route 
-          path="/profile/:id" 
-          element={
-            isAuthenticated ? (
-              <Layout showSidebar>
-                <FriendProfilePage />
-              </Layout>
-            ) : (
-              <Navigate to="/login" />
-            )
-          } 
         />
 
-        <Route
-          path="/call/:channelId"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <CallPage />
-            ) : (
-              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
-            )
-          }
-        />
-        
       </Routes>
 
       <Toaster />
