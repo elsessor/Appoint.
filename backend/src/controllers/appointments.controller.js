@@ -558,6 +558,7 @@ export async function saveCustomAvailability(req, res) {
       minLeadTime,
       cancelNotice,
       appointmentDuration,
+      defaultReminderTime,
       availabilityStatus,
     } = req.body;
 
@@ -565,6 +566,14 @@ export async function saveCustomAvailability(req, res) {
       return res
         .status(400)
         .json({ message: "Missing required fields: days, start, end" });
+    }
+
+    // Validate defaultReminderTime if provided
+    if (defaultReminderTime !== undefined) {
+      const validReminderTimes = [0, 5, 10, 15, 30, 60, 120, 1440];
+      if (!validReminderTimes.includes(defaultReminderTime)) {
+        return res.status(400).json({ message: 'Invalid defaultReminderTime value' });
+      }
     }
 
     // Update user availability settings using findByIdAndUpdate
@@ -585,6 +594,7 @@ export async function saveCustomAvailability(req, res) {
             min: 15,
             max: 120,
           },
+          defaultReminderTime: defaultReminderTime !== undefined ? defaultReminderTime : 15,
         },
         // Also save maxPerDay to top-level field for appointment creation validation
         maxAppointmentsPerDay: maxPerDay || 5,

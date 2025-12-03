@@ -102,13 +102,23 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
       console.log('✅ Save successful, server returned:', {
         days: data.availability.days,
         start: data.availability.start,
+        status: data.availabilityStatus,
       });
+      
+      // Update local state
+      setAvailability(data.availability);
+      setAvailabilityStatus(data.availabilityStatus);
       
       // Update React Query cache with the server response
       queryClient.setQueryData(['userAvailability', currentUser._id], {
         availability: data.availability,
         availabilityStatus: data.availabilityStatus,
       });
+      
+      // Invalidate all availability-related queries to ensure UI updates everywhere
+      queryClient.invalidateQueries({ queryKey: ['availabilityStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['userAvailability'] });
+      queryClient.invalidateQueries({ queryKey: ['authUser'] });
       
       toast.success('Availability saved successfully!');
       

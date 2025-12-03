@@ -66,17 +66,6 @@ const Sidebar = () => {
           <span>Book Appointment</span>
         </Link>
 
-
-        <Link
-          to="/settings"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/settings" ? "btn-active" : ""
-          }`}
-        >
-          <SettingsIcon className="size-5 text-base-content opacity-70" />
-          <span>Settings</span>
-        </Link>
-
         <Link
          to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
         <FileText className="size-5 text-base-content opacity-70" />
@@ -93,8 +82,18 @@ const Sidebar = () => {
 </Link>
       </nav>
 
-      <div className="p-4 border-t border-base-300 mt-auto">
-        <div className="flex items-center gap-3">
+      <div className="p-4 border-t border-base-300 mt-auto space-y-2">
+        <Link
+          to="/settings"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/settings" ? "btn-active" : ""
+          }`}
+        >
+          <SettingsIcon className="size-5 text-base-content opacity-70" />
+          <span>Settings</span>
+        </Link>
+        
+        <div className="flex items-center gap-3 pt-2">
           <Link to="/profile" className="avatar">
             <div className="w-10 rounded-full cursor-pointer">
               <img 

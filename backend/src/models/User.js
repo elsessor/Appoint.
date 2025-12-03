@@ -49,9 +49,45 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    pinterest: {
+      type: String,
+      default: "",
+    },
     linkedin: {
       type: String,
       default: "",
+    },
+    portfolio: {
+      type: String,
+      default: "",
+    },
+    jobTitle: {
+      type: String,
+      default: "",
+    },
+    company: {
+      type: String,
+      default: "",
+    },
+    yearsExperience: {
+      type: Number,
+      default: 0,
+    },
+    appointmentsCompleted: {
+      type: Number,
+      default: 0,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    successRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
     skills: {
       type: [String],
@@ -120,6 +156,11 @@ const userSchema = new mongoose.Schema(
           default: 120,
         },
       },
+      defaultReminderTime: {
+        type: Number,
+        default: 15,
+        enum: [0, 5, 10, 15, 30, 60, 120, 1440], // minutes before appointment
+      },
     },
     // Availability status: available, limited, or away
     availabilityStatus: {
@@ -127,28 +168,12 @@ const userSchema = new mongoose.Schema(
       enum: ["available", "limited", "away"],
       default: "available",
     },
-    settings: {
-      notifications: {
-        appointmentReminders: { type: Boolean, default: true },
-        newMessages: { type: Boolean, default: true },
-        appointmentRequests: { type: Boolean, default: true },
-        emailNotifications: { type: Boolean, default: true },
-        smsNotifications: { type: Boolean, default: false },
-        reminderTiming: { type: String, default: "15 minutes before" },
-      },
+    // User Preferences (functional settings)
+    preferences: {
       privacy: {
-        profileVisible: { type: Boolean, default: true },
-        onlineStatus: { type: Boolean, default: true },
-        readReceipts: { type: Boolean, default: true },
-      },
-      videoAudio: {
-        camera: { type: String, default: "Default Camera" },
-        microphone: { type: String, default: "Default Microphone" },
-        speaker: { type: String, default: "Default Speaker" },
-        hdVideo: { type: Boolean, default: false },
-        noiseCancellation: { type: Boolean, default: false },
-        autoStartVideo: { type: Boolean, default: false },
-        mirrorVideo: { type: Boolean, default: false },
+        appointmentRequestsFrom: { type: String, default: "everyone", enum: ["everyone", "friends"] },
+        showAvailability: { type: String, default: "everyone", enum: ["everyone", "friends", "nobody"] },
+        profileVisibility: { type: String, default: "public", enum: ["public", "private"] },
       },
     },
     // Soft delete / scheduled deletion
