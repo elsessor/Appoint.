@@ -75,12 +75,24 @@ const DayDetailsModal = ({
     return userId === currentUserId || friendId === currentUserId;
   };
 
-  // Filter appointments based on context:
-  // - If viewing friend's calendar (viewingFriendId exists), show ALL their appointments
-  // - Otherwise, show only appointments where current user is a participant
-  const filteredAppointments = viewingFriendId 
-    ? appointments // Show all appointments when viewing friend's calendar
-    : appointments.filter(isUserParticipant);
+  // Filter appointments based on context and status
+  const filteredAppointments = appointments.filter((appt) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const appointmentUserId = appt.userId?._id || appt.userId;
+    const appointmentFriendId = appt.friendId?._id || appt.friendId;
+    const status = appt.status?.toLowerCase();
+    
+    if (viewingFriendId) {
+      // When viewing friend's calendar: show only confirmed, scheduled, completed
+      // (hide pending requests for privacy, and cancelled/declined for cleanliness)
+      return ['confirmed', 'scheduled', 'completed'].includes(status);
+    } else {
+      // Own calendar: must be participant AND have active status
+      const isParticipant = appointmentUserId === currentUserId || appointmentFriendId === currentUserId;
+      const isActiveStatus = ['confirmed', 'scheduled', 'pending', 'completed'].includes(status);
+      return isParticipant && isActiveStatus;
+    }
+  });
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -374,6 +386,7 @@ const DayDetailsModal = ({
         <AppointmentDetailsView
           appointment={selectedAppointmentDetail}
           currentUser={currentUser}
+          friends={friends}
           onClose={() => setSelectedAppointmentDetail(null)}
           onDelete={() => setSelectedAppointmentDetail(null)}
           onEdit={() => {

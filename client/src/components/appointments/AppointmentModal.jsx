@@ -841,8 +841,9 @@ const AppointmentModal = ({
                           {/* Max Appointments & Current Count */}
                           {(() => {
                             const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            // Use CURRENT USER's maxPerDay setting from availability
-                            const maxPerDay = availability?.maxPerDay || 5;
+                            // Use the FRIEND's maxPerDay setting when scheduling with them
+                            const friendAvailability = formData.friendId ? friendsAvailability[formData.friendId] : null;
+                            const maxPerDay = friendAvailability?.maxPerDay || availability?.maxPerDay || 5;
                             // Use ALL appointments for maxPerDay validation (not filtered by friend)
                             const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
                             const isFull = allApptsOnDate.length >= maxPerDay;

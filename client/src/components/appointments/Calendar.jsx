@@ -164,8 +164,17 @@ const Calendar = ({
     const map = new Map();
     
     appointments.forEach(appointment => {
-      // Don't filter any appointments here - show all for calendar reference
       if (!appointment.startTime) return;
+      
+      // Filter by status based on viewing context
+      const status = appointment.status?.toLowerCase();
+      if (viewingFriendId) {
+        // When viewing friend's calendar: show only confirmed, scheduled, completed (hide pending, cancelled, declined)
+        if (!['confirmed', 'scheduled', 'completed'].includes(status)) return;
+      } else {
+        // Own calendar: show confirmed, scheduled, pending, completed (hide cancelled, declined)
+        if (!['confirmed', 'scheduled', 'pending', 'completed'].includes(status)) return;
+      }
       
       try {
         const date = typeof appointment.startTime === 'string' 
@@ -187,7 +196,7 @@ const Calendar = ({
     });
     
     return map;
-  }, [appointments]);
+  }, [appointments, viewingFriendId]);
 
   // Check if a date has appointments
   const hasAppointments = (date) => {
