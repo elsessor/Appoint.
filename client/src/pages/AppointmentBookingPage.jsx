@@ -139,14 +139,19 @@ const AppointmentBookingPage = () => {
       for (const friend of friends) {
         try {
           const response = await getUserAvailability(friend._id);
-          // Properly extract availabilityStatus from response
-          // If user has no custom settings, backend returns default availability with 'available' status
-          const status = response?.availabilityStatus || 'available';
-          availabilityMap[friend._id] = status;
+          // Store full availability object including maxPerDay
+          availabilityMap[friend._id] = {
+            status: response?.availabilityStatus || 'available',
+            maxPerDay: response?.availability?.maxPerDay || 5,
+            ...response?.availability
+          };
         } catch (error) {
           console.error(`Failed to fetch availability for friend ${friend._id}:`, error);
           // Default to available on error (user has not set custom availability)
-          availabilityMap[friend._id] = 'available';
+          availabilityMap[friend._id] = {
+            status: 'available',
+            maxPerDay: 5
+          };
         }
       }
       
@@ -632,11 +637,11 @@ const AppointmentBookingPage = () => {
         {/* Selected Friend Info */}
         {viewingFriendId && selectedFriend && (
           <div className={`mb-6 border-2 rounded-lg p-5 ${
-            friendAvailability?.availabilityStatus === 'away'
+            (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'away'
               ? 'bg-error/10 border-error/30'
-              : friendAvailability?.availabilityStatus === 'limited'
+              : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'limited'
               ? 'bg-warning/10 border-warning/30'
-              : friendAvailability?.availabilityStatus === 'offline'
+              : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'offline'
               ? 'bg-neutral/10 border-neutral/30'
               : 'bg-primary/10 border-primary/30'
           }`}>
@@ -672,19 +677,19 @@ const AppointmentBookingPage = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-2 mt-3">
                     <span className={`badge font-medium ${
-                      friendAvailability?.availabilityStatus === 'away'
+                      (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'away'
                         ? 'badge-error'
-                        : friendAvailability?.availabilityStatus === 'limited'
+                        : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'limited'
                         ? 'badge-warning'
-                        : friendAvailability?.availabilityStatus === 'offline'
+                        : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'offline'
                         ? 'badge-neutral'
                         : 'badge-success'
                     }`}>
-                      {friendAvailability?.availabilityStatus === 'away'
+                      {(friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'away'
                         ? '✕ Away'
-                        : friendAvailability?.availabilityStatus === 'limited'
+                        : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'limited'
                         ? '⚠ Limited Availability'
-                        : friendAvailability?.availabilityStatus === 'offline'
+                        : (friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'offline'
                         ? 'Offline'
                         : '✓ Available'}
                     </span>
@@ -724,9 +729,10 @@ const AppointmentBookingPage = () => {
             availability={getAvailabilityForCalendar}
             visibleFriends={visibleFriends}
             isMultiCalendarMode={isMultiCalendarMode}
-            isViewingFriendAway={friendAvailability?.availabilityStatus === 'away'}
+            isViewingFriendAway={(friendsAvailability[viewingFriendId]?.status || friendAvailability?.availabilityStatus) === 'away'}
             viewingFriendId={viewingFriendId}
             friendsAvailability={friendsAvailability}
+            currentUserAvailability={currentUserAvailability}
           />
         </div>
 

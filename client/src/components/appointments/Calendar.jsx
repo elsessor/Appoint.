@@ -27,6 +27,7 @@ const Calendar = ({
   isViewingFriendAway = false,
   viewingFriendId = null,
   friendsAvailability = {},
+  currentUserAvailability = null,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -470,10 +471,9 @@ const Calendar = ({
           const isDayToday = isToday(day);
           const dayHoliday = isHoliday(day, phHolidays) ? getHolidayName(day, phHolidays) : null;
           
-          // Get max appointments for the current user (or viewed friend if applicable)
-          const maxPerDay = viewingFriendId 
-            ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
-            : (currentUser?.availability?.maxPerDay || 5);
+          // Get max appointments - use the availability prop which contains the correct maxPerDay
+          // for both current user and viewed friend (populated by getAvailabilityForCalendar)
+          const maxPerDay = availability?.maxPerDay || 5;
           
           // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);

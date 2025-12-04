@@ -832,8 +832,8 @@ const AppointmentModal = ({
                           {/* Max Appointments & Current Count */}
                           {(() => {
                             const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            // Use CURRENT USER's maxAppointmentsPerDay setting
-                            const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
+                            // Use CURRENT USER's maxPerDay setting from availability
+                            const maxPerDay = availability?.maxPerDay || 5;
                             // Use ALL appointments for maxPerDay validation (not filtered by friend)
                             const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
                             const isFull = allApptsOnDate.length >= maxPerDay;
@@ -1120,7 +1120,7 @@ const AppointmentModal = ({
                       type="submit"
                       disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away') || (() => {
                         if (!formData.startTime || !formData.friendId) return false;
-                        const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
+                        const maxPerDay = availability?.maxPerDay || 5;
                         const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
                         return allApptsOnDate.length >= maxPerDay;
                       })()}
