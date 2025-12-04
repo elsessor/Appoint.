@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { format, parseISO, isToday, isBefore } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Clock, User, MessageSquare, Calendar, X, Send, ArrowDown } from 'lucide-react';
-import AppointmentModal from './AppointmentModal';
 import AppointmentDetailsView from './AppointmentDetailsView';
 
 const DayDetailsModal = ({
@@ -20,8 +19,16 @@ const DayDetailsModal = ({
   viewingFriendId = null,
 }) => {
   const navigate = useNavigate();
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedAppointmentDetail, setSelectedAppointmentDetail] = useState(null);
+  const [isClosing, setIsClosing] = useState(false);
+
+  // Handle close with animation
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300); // Match animation duration
+  };
 
   // Hide page scrollbar and prevent interaction when modal is open
   React.useEffect(() => {
@@ -70,11 +77,9 @@ const DayDetailsModal = ({
   // Filter appointments based on context:
   // - If viewing friend's calendar (viewingFriendId exists), show ALL their appointments
   // - Otherwise, show only appointments where current user is a participant
-  // - Only show CONFIRMED appointments (hide pending, declined, cancelled, completed)
-  const filteredAppointments = (viewingFriendId 
+  const filteredAppointments = viewingFriendId 
     ? appointments // Show all appointments when viewing friend's calendar
-    : appointments.filter(isUserParticipant)
-  ).filter(appt => appt.status === 'confirmed');
+    : appointments.filter(isUserParticipant);
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -159,34 +164,26 @@ const DayDetailsModal = ({
   };
 
   const handleCreateAppointment = () => {
-    setShowAppointmentModal(true);
-  };
-
-  const handleAppointmentModalClose = () => {
-    setShowAppointmentModal(false);
-  };
-
-  const handleAppointmentSubmit = (formData) => {
-    // Call the same handler as in Calendar/AppointmentBookingPage
     if (onCreateAppointment) {
-      onCreateAppointment(formData);
+      // Close this modal first
+      onClose();
+      // Small delay to allow modal close animation before opening new modal
+      setTimeout(() => {
+        onCreateAppointment({ date });
+      }, 200);
     }
-    
-    // Close both the appointment modal and day details modal after submission
-    setShowAppointmentModal(false);
-    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      {/* Only show backdrop and modal if appointment modal and details view are not open */}
-      {!showAppointmentModal && !selectedAppointmentDetail && (
+    <div className={`fixed inset-0 z-[60] flex items-center justify-center ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+      {/* Only show backdrop and modal if details view is not open */}
+      {!selectedAppointmentDetail && (
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
+          <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosing ? 'opacity-0' : 'opacity-100'}`} onClick={handleClose}></div>
           
           {/* Modal */}
-          <div className="relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full sm:max-h-[90vh] max-h-[95vh] flex flex-col mx-2 sm:mx-4">
+          <div className={`relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full sm:max-h-[90vh] max-h-[95vh] flex flex-col mx-2 sm:mx-4 ${isClosing ? 'animate-slide-out-down' : 'animate-slide-in-up'}`}>
           <div className="bg-base-100 px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-4 border-b border-base-300/40">
             <div className="flex justify-between items-start gap-2">
               <div>
@@ -199,7 +196,7 @@ const DayDetailsModal = ({
               </div>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-1.5 sm:p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content flex-shrink-0"
               >
                 <X className="h-4 sm:h-5 w-4 sm:w-5" aria-hidden="true" />
@@ -351,7 +348,7 @@ const DayDetailsModal = ({
               </button>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="flex-1 inline-flex justify-center rounded-lg border border-base-300/50 shadow-sm px-3 sm:px-4 py-2 sm:py-2.5 bg-base-200/50 text-base-content text-xs sm:text-sm font-semibold hover:bg-base-200 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
               >
                 Close
@@ -360,24 +357,6 @@ const DayDetailsModal = ({
           )}
           </div>
         </>
-      )}
-
-      {/* Appointment Modal */}
-      {showAppointmentModal && (
-        <AppointmentModal
-          isOpen={showAppointmentModal}
-          onClose={handleAppointmentModalClose}
-          onSubmit={handleAppointmentSubmit}
-          initialDate={date}
-          initialTime={undefined}
-          initialFriendId={viewingFriendId}
-          friends={friends}
-          currentUser={currentUser}
-          appointments={appointments}
-          availability={availability}
-          friendsAvailability={friendsAvailability}
-          currentUserStatus={currentUser?.availabilityStatus || 'available'}
-        />
       )}
 
       {/* Appointment Details Side Panel */}

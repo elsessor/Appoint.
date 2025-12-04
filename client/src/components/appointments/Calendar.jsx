@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import DayDetailsModal from './DayDetailsModal';
-import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -27,13 +26,9 @@ const Calendar = ({
   isViewingFriendAway = false,
   viewingFriendId = null,
   friendsAvailability = {},
-  currentUserAvailability = null,
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
   const [phHolidays, setPhHolidays] = useState([]);
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
 
@@ -231,27 +226,9 @@ const Calendar = ({
       }
       return;
     }
-    setSelectedDate(date);
-    setSelectedTime(time);
-    setSelectedAppointment(null);
-    setShowAppointmentModal(true);
-  };
-
-  // Handle form submission
-  const handleAppointmentSubmit = (appointmentData) => {
-    if (selectedAppointment) {
-      // Update existing appointment
-      onAppointmentUpdate && onAppointmentUpdate({
-        ...selectedAppointment,
-        ...appointmentData,
-      });
-    } else {
-      // Create new appointment
-      onAppointmentCreate && onAppointmentCreate(appointmentData);
+    if (onAppointmentCreate) {
+      onAppointmentCreate({ date, time });
     }
-    
-    setShowAppointmentModal(false);
-    setSelectedAppointment(null);
   };
 
   // Check if a date is available for booking
@@ -360,10 +337,9 @@ const Calendar = ({
           {!viewingFriendId && (
             <button
               onClick={() => {
-                setSelectedDate(new Date());
-                setSelectedTime(null);
-                setSelectedAppointment(null);
-                setShowAppointmentModal(true);
+                if (onAppointmentCreate) {
+                  onAppointmentCreate({ date: new Date() });
+                }
               }}
               className="btn btn-primary btn-xs md:btn-sm"
             >
@@ -471,9 +447,10 @@ const Calendar = ({
           const isDayToday = isToday(day);
           const dayHoliday = isHoliday(day, phHolidays) ? getHolidayName(day, phHolidays) : null;
           
-          // Get max appointments - use the availability prop which contains the correct maxPerDay
-          // for both current user and viewed friend (populated by getAvailabilityForCalendar)
-          const maxPerDay = availability?.maxPerDay || 5;
+          // Get max appointments for the current user (or viewed friend if applicable)
+          const maxPerDay = viewingFriendId 
+            ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
+            : (currentUser?.availability?.maxPerDay || 5);
           
           // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);
@@ -681,7 +658,7 @@ const Calendar = ({
       </div>
 
       {/* Day Details Modal */}
-      {selectedDate && !showAppointmentModal && (
+      {selectedDate && (
         <DayDetailsModal
           date={selectedDate}
           appointments={getAppointmentsForDate(selectedDate)}
@@ -696,28 +673,6 @@ const Calendar = ({
         />
       )}
 
-      {/* Appointment Modal */}
-      {showAppointmentModal && (
-        <AppointmentModal
-          isOpen={showAppointmentModal}
-          onClose={() => {
-            setShowAppointmentModal(false);
-            setSelectedAppointment(null);
-            setSelectedTime(null);
-            setSelectedDate(null);
-          }}
-          onSubmit={handleAppointmentSubmit}
-          initialDate={selectedDate || new Date()}
-          initialTime={selectedTime}
-          friends={friends}
-          currentUser={currentUser}
-          availability={availability}
-          friendsAvailability={friendsAvailability}
-          currentUserStatus={currentUser?.availabilityStatus || 'available'}
-          appointments={appointments}
-          selectedDate={selectedDate}
-        />
-      )}
     </div>
   );
 };

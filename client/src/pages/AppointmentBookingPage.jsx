@@ -5,6 +5,7 @@ import Calendar from '../components/appointments/Calendar';
 import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
 import TodaysAppointmentsModal from '../components/appointments/TodaysAppointmentsModal';
+import AppointmentModal from '../components/appointments/AppointmentModal';
 
 // Memoize components for performance
 const MemoizedCalendar = memo(Calendar);
@@ -39,6 +40,8 @@ const AppointmentBookingPage = () => {
   const [expandSearchResults, setExpandSearchResults] = useState(false);
   const [showTodaysAppointmentsModal, setShowTodaysAppointmentsModal] = useState(false);
   const [friendsAvailability, setFriendsAvailability] = useState({});
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [appointmentModalData, setAppointmentModalData] = useState(null);
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -264,6 +267,14 @@ const AppointmentBookingPage = () => {
 
   // Callback handlers
   const handleCreateAppointment = useCallback((appointmentData) => {
+    // Open modal with initial data (date, time, etc.)
+    console.log('📅 Opening appointment modal with data:', appointmentData);
+    setAppointmentModalData(appointmentData);
+    setShowAppointmentModal(true);
+  }, []);
+
+  // Handle actual appointment submission from modal
+  const handleAppointmentSubmit = useCallback((appointmentData) => {
     // Validate appointment data
     if (!appointmentData.title || !appointmentData.title.trim()) {
       toast.error('Please enter an appointment title');
@@ -283,6 +294,12 @@ const AppointmentBookingPage = () => {
       ...appointmentData,
       userId,
       status: 'pending'  // Create as pending - waiting for recipient response
+    }, {
+      onSuccess: () => {
+        // Close modal after successful submission
+        setShowAppointmentModal(false);
+        setAppointmentModalData(null);
+      }
     });
   }, [createAppointmentMutation, currentUser]);
 
@@ -905,6 +922,30 @@ const AppointmentBookingPage = () => {
           setShowTodaysAppointmentsModal(false);
         }}
       />
+
+      {/* Appointment Modal */}
+      {showAppointmentModal && (
+        <AppointmentModal
+          isOpen={showAppointmentModal}
+          onClose={() => {
+            setShowAppointmentModal(false);
+            setAppointmentModalData(null);
+          }}
+          onSubmit={handleAppointmentSubmit}
+          currentUser={currentUser}
+          friends={friends}
+          availability={viewingFriendId 
+            ? (friendAvailability || defaultAvailability)
+            : (currentUser?.availability || defaultAvailability)
+          }
+          friendsAvailability={friendsAvailability}
+          appointments={displayAppointments}
+          initialFriendId={viewingFriendId}
+          selectedDate={appointmentModalData?.date}
+          initialTime={appointmentModalData?.time}
+          initialDate={appointmentModalData?.date}
+        />
+      )}
     </div>
   );
 };

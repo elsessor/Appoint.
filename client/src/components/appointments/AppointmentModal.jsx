@@ -63,7 +63,16 @@ const AppointmentModal = ({
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
   const [phHolidays, setPhHolidays] = useState([]);
+  const [isClosing, setIsClosing] = useState(false);
   const { theme } = useThemeStore();
+
+  // Handle close with animation
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300); // Match animation duration
+  };
 
   // Load holidays on component mount
   useEffect(() => {
@@ -532,7 +541,7 @@ const AppointmentModal = ({
       location: '',
     });
     setStep(1);
-    onClose();
+    handleClose();
   };
 
   const handleCancelAppointment = () => {
@@ -555,7 +564,7 @@ const AppointmentModal = ({
       setShowCancellation(false);
       setCancellationReason('');
       setCustomReason('');
-      onClose();
+      handleClose();
     }
   };
 
@@ -564,16 +573,16 @@ const AppointmentModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className={`fixed inset-0 z-50 overflow-hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out ${isClosing ? 'opacity-0' : 'opacity-100'}`}
+        onClick={handleClose}
       ></div>
 
       {/* Sliding Modal */}
-      <div className="absolute inset-y-0 right-0 pl-2 sm:pl-10 max-w-full flex">
-        <div className="w-full sm:w-screen max-w-md sm:max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
+      <div className={`absolute inset-y-0 right-0 pl-2 sm:pl-10 max-w-full flex ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+        <div className="w-full sm:w-screen max-w-md sm:max-w-2xl bg-base-100 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out">
           {/* Header */}
           <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -605,7 +614,7 @@ const AppointmentModal = ({
               )}
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 sm:p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-2 flex-shrink-0"
             >
               <X className="w-4 sm:w-5 h-4 sm:h-5" />
@@ -664,7 +673,7 @@ const AppointmentModal = ({
                           return (f.fullName || f.name || '').toLowerCase().includes(search) ||
                                  (f.email || '').toLowerCase().includes(search);
                         }).map(friend => {
-                          const friendStatus = friendsAvailability[friend._id] || 'available';
+                          const friendStatus = friendsAvailability[friend._id]?.status || 'available';
                           const isAway = friendStatus === 'away';
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
@@ -672,7 +681,7 @@ const AppointmentModal = ({
                             away: { badge: 'badge badge-error', label: 'Away' }
                           };
                           
-                          const config = statusConfig[friendStatus];
+                          const config = statusConfig[friendStatus] || statusConfig.available;
                           
                           return (
                             <button
@@ -749,13 +758,13 @@ const AppointmentModal = ({
                           const selectedFriend = friends.find(f => f._id === formData.friendId);
                           if (!selectedFriend) return null;
                           
-                          const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
+                          const friendStatus = friendsAvailability[selectedFriend._id]?.status || 'available';
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
                             limited: { badge: 'badge badge-warning', label: 'Limited' },
                             away: { badge: 'badge badge-error', label: 'Away' }
                           };
-                          const config = statusConfig[friendStatus];
+                          const config = statusConfig[friendStatus] || statusConfig.available;
 
                           return (
                             <>
@@ -1111,14 +1120,14 @@ const AppointmentModal = ({
                   <div className="flex-1 flex gap-3 justify-end">
                     <button
                       type="button"
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="px-5 py-2.5 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
                     >
                       Close
                     </button>
                     <button
                       type="submit"
-                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away') || (() => {
+                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId]?.status === 'away') || (() => {
                         if (!formData.startTime || !formData.friendId) return false;
                         const maxPerDay = availability?.maxPerDay || 5;
                         const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
