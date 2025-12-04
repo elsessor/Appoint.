@@ -358,7 +358,12 @@ const Calendar = ({
           </div>
           {!viewingFriendId && (
             <button
-              onClick={() => handleCreateAppointment(new Date())}
+              onClick={() => {
+                setSelectedDate(new Date());
+                setSelectedTime(null);
+                setSelectedAppointment(null);
+                setShowAppointmentModal(true);
+              }}
               className="btn btn-primary btn-xs md:btn-sm"
             >
               New +
@@ -469,7 +474,20 @@ const Calendar = ({
           const maxPerDay = viewingFriendId 
             ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
             : (currentUser?.availability?.maxPerDay || 5);
-          const dayAppointmentsCount = getAppointmentsForDate(day).length;
+          
+          // Get appointments for this specific day
+          const dayAppointments = getAppointmentsForDate(day);
+          
+          // Filter by the viewed user if viewing a friend's calendar
+          const relevantAppointments = viewingFriendId 
+            ? dayAppointments.filter(appt => {
+                const apptUserId = String(appt.userId?._id || appt.userId);
+                const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                return apptUserId === viewingFriendId || apptFriendId === viewingFriendId;
+              })
+            : dayAppointments;
+          
+          const dayAppointmentsCount = relevantAppointments.length;
           const isAtCapacity = dayAppointmentsCount >= maxPerDay;
           const capacityPercentage = Math.min((dayAppointmentsCount / maxPerDay) * 100, 100);
           
@@ -644,6 +662,7 @@ const Calendar = ({
           currentUserStatus={currentUser?.availabilityStatus || 'available'}
           appointments={appointments}
           selectedDate={selectedDate}
+          viewingFriendId={viewingFriendId}
         />
       )}
     </div>

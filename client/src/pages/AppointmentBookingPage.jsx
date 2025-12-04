@@ -139,14 +139,20 @@ const AppointmentBookingPage = () => {
       for (const friend of friends) {
         try {
           const response = await getUserAvailability(friend._id);
-          // Properly extract availabilityStatus from response
-          // If user has no custom settings, backend returns default availability with 'available' status
-          const status = response?.availabilityStatus || 'available';
-          availabilityMap[friend._id] = status;
+          // Store the full response with both status and availability settings
+          availabilityMap[friend._id] = {
+            status: response?.availabilityStatus || 'available',
+            maxPerDay: response?.availability?.maxPerDay || 5,
+            availability: response?.availability || defaultAvailability,
+          };
         } catch (error) {
           console.error(`Failed to fetch availability for friend ${friend._id}:`, error);
           // Default to available on error (user has not set custom availability)
-          availabilityMap[friend._id] = 'available';
+          availabilityMap[friend._id] = {
+            status: 'available',
+            maxPerDay: 5,
+            availability: defaultAvailability,
+          };
         }
       }
       
@@ -560,7 +566,8 @@ const AppointmentBookingPage = () => {
                 {expandSearchResults && (
               <div className="max-h-80 overflow-y-auto">
                 {(searchQuery ? filteredFriends : friends.slice(0, 3)).map(friend => {
-                  const friendStatus = friendsAvailability[friend._id] || 'available';
+                  const friendData = friendsAvailability[friend._id] || { status: 'available' };
+                  const friendStatus = friendData.status || friendData; // Handle both old and new format
                   const isAway = friendStatus === 'away';
                   
                   return (

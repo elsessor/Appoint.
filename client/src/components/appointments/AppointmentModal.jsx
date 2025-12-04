@@ -38,6 +38,7 @@ const AppointmentModal = ({
   currentUser = null,
   appointments = [],
   selectedDate = null,
+  viewingFriendId = null,
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -127,6 +128,7 @@ const AppointmentModal = ({
       const selectedFriend = friends.find(f => f._id === formData.friendId);
       
       if (selectedFriend) {
+        // Fetch friend's availability settings
         getUserAvailability(selectedFriend._id)
           .then(data => {
             setSelectedFriendAvailability(data);
@@ -360,7 +362,7 @@ const AppointmentModal = ({
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Exclude declined and cancelled appointments from capacity calculation
+        // Exclude declined and cancelled appointments from display
         if (['declined', 'cancelled'].includes(appt.status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
@@ -372,6 +374,8 @@ const AppointmentModal = ({
         // If no friend is selected, show all appointments on that date
         if (!friendIdStr) return true;
         
+        // Show ALL appointments where the selected friend is involved
+        // This includes appointments they made with others, not just with current user
         const apptUserId = String(appt.userId?._id || appt.userId);
         const apptFriendId = String(appt.friendId?._id || appt.friendId);
         
@@ -412,6 +416,8 @@ const AppointmentModal = ({
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      const currentUserId = currentUser?._id || currentUser?.id;
+      
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
@@ -422,7 +428,14 @@ const AppointmentModal = ({
           ? appt.startTime.split('T')[0]
           : format(new Date(appt.startTime), 'yyyy-MM-dd');
         
-        return apptDateStr === dateStr;
+        if (apptDateStr !== dateStr) return false;
+        
+        // Include appointments where current user is either sender or receiver
+        const apptUserId = String(appt.userId?._id || appt.userId);
+        const apptFriendId = String(appt.friendId?._id || appt.friendId);
+        const currentUserIdStr = String(currentUserId);
+        
+        return apptUserId === currentUserIdStr || apptFriendId === currentUserIdStr;
       });
     } catch (e) {
       return [];
@@ -455,7 +468,8 @@ const AppointmentModal = ({
     }
 
     const selectedFriend = friends.find(f => f._id === formData.friendId);
-    const friendStatus = friendsAvailability[selectedFriend?._id] || 'available';
+    const friendData = friendsAvailability[selectedFriend?._id] || { status: 'available' };
+    const friendStatus = friendData.status || friendData;
     
     if (friendStatus === 'away') {
       toast.error('This friend is currently away');
@@ -508,6 +522,24 @@ const AppointmentModal = ({
 
     if (friendConflict) {
       toast.error('This time slot is already booked. Please choose another time.');
+      return;
+    }
+
+    // Check daily capacity limit for the friend being booked
+    const friendMaxPerDay = selectedFriendAvailability?.availability?.maxPerDay || 5;
+    const allApptsOnDate = getAllAppointmentsForDate(startDateTime);
+    
+    // Filter appointments that involve the selected friend (as either user or friend)
+    const friendApptsOnDate = allApptsOnDate.filter(appt => {
+      const apptUserId = String(appt.userId?._id || appt.userId);
+      const apptFriendId = String(appt.friendId?._id || appt.friendId);
+      const selectedFriendIdStr = String(formData.friendId);
+      
+      return apptUserId === selectedFriendIdStr || apptFriendId === selectedFriendIdStr;
+    });
+
+    if (friendApptsOnDate.length >= friendMaxPerDay) {
+      toast.error(`This friend has reached their daily appointment limit (${friendMaxPerDay} appointments). Please select another date.`);
       return;
     }
 
@@ -661,7 +693,8 @@ const AppointmentModal = ({
                           return (f.fullName || f.name || '').toLowerCase().includes(search) ||
                                  (f.email || '').toLowerCase().includes(search);
                         }).map(friend => {
-                          const friendStatus = friendsAvailability[friend._id] || 'available';
+                          const friendData = friendsAvailability[friend._id] || { status: 'available' };
+                          const friendStatus = friendData.status || friendData;
                           const isAway = friendStatus === 'away';
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
@@ -726,7 +759,8 @@ const AppointmentModal = ({
                     <div className="space-y-3 pt-3">
                       {(() => {
                         const selectedFriend = friends.find(f => f._id === formData.friendId);
-                        const friendStatus = friendsAvailability[selectedFriend?._id] || 'available';
+                        const friendData = friendsAvailability[selectedFriend?._id] || { status: 'available' };
+                        const friendStatus = friendData.status || friendData;
                         
                         if (friendStatus === 'away') {
                           return (
@@ -746,7 +780,8 @@ const AppointmentModal = ({
                           const selectedFriend = friends.find(f => f._id === formData.friendId);
                           if (!selectedFriend) return null;
                           
-                          const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
+                          const friendData = friendsAvailability[selectedFriend._id] || { status: 'available' };
+                          const friendStatus = friendData.status || friendData;
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
                             limited: { badge: 'badge badge-warning', label: 'Limited' },
@@ -786,7 +821,7 @@ const AppointmentModal = ({
                       ) : (
                         <AvailabilityInfo 
                           availability={selectedFriendAvailability?.availability || {}} 
-                          availabilityStatus={selectedFriendAvailability?.availabilityStatus || friendsAvailability[formData.friendId] || 'available'}
+                          availabilityStatus={selectedFriendAvailability?.availabilityStatus || (friendsAvailability[formData.friendId]?.status || friendsAvailability[formData.friendId]) || 'available'}
                         />
                       )}
                     </div>
@@ -829,11 +864,18 @@ const AppointmentModal = ({
                           {/* Max Appointments & Current Count */}
                           {(() => {
                             const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            // Use CURRENT USER's maxAppointmentsPerDay setting
-                            const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
-                            // Use ALL appointments for maxPerDay validation (not filtered by friend)
+                            // Use the SELECTED FRIEND's maxPerDay setting
+                            const maxPerDay = selectedFriendAvailability?.availability?.maxPerDay || 5;
+                            // Get all appointments on the date
                             const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
-                            const isFull = allApptsOnDate.length >= maxPerDay;
+                            // Filter appointments involving the selected friend
+                            const friendApptsOnDate = allApptsOnDate.filter(appt => {
+                              const apptUserId = String(appt.userId?._id || appt.userId);
+                              const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                              const selectedFriendIdStr = String(formData.friendId);
+                              return apptUserId === selectedFriendIdStr || apptFriendId === selectedFriendIdStr;
+                            });
+                            const isFull = friendApptsOnDate.length >= maxPerDay;
                             
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">
@@ -846,17 +888,17 @@ const AppointmentModal = ({
                                         ? 'bg-error/20 text-error' 
                                         : 'bg-success/20 text-success'
                                     }`}>
-                                      {allApptsOnDate.length} / {maxPerDay}
+                                      {friendApptsOnDate.length} / {maxPerDay}
                                     </span>
                                   </div>
                                   {/* Capacity bar */}
                                   <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
                                     <div 
                                       className={`h-full transition-all ${
-                                        allApptsOnDate.length === 0 ? 'bg-success' :
+                                        friendApptsOnDate.length === 0 ? 'bg-success' :
                                         isFull ? 'bg-error' : 'bg-warning'
                                       }`}
-                                      style={{ width: `${Math.min((allApptsOnDate.length / maxPerDay) * 100, 100)}%` }}
+                                      style={{ width: `${Math.min((friendApptsOnDate.length / maxPerDay) * 100, 100)}%` }}
                                     ></div>
                                   </div>
                                   {isFull && (
@@ -1115,11 +1157,19 @@ const AppointmentModal = ({
                     </button>
                     <button
                       type="submit"
-                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away') || (() => {
+                      disabled={currentUserStatus === 'away' || (formData.friendId && (friendsAvailability[formData.friendId]?.status || friendsAvailability[formData.friendId]) === 'away') || (() => {
                         if (!formData.startTime || !formData.friendId) return false;
-                        const maxPerDay = currentUser?.maxAppointmentsPerDay || 5;
+                        // Check the selected friend's capacity
+                        const maxPerDay = selectedFriendAvailability?.availability?.maxPerDay || 5;
                         const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
-                        return allApptsOnDate.length >= maxPerDay;
+                        // Filter to only the friend's appointments
+                        const friendApptsOnDate = allApptsOnDate.filter(appt => {
+                          const apptUserId = String(appt.userId?._id || appt.userId);
+                          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                          const selectedFriendIdStr = String(formData.friendId);
+                          return apptUserId === selectedFriendIdStr || apptFriendId === selectedFriendIdStr;
+                        });
+                        return friendApptsOnDate.length >= maxPerDay;
                       })()}
                       className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-content font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
                     >
