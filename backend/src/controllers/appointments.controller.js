@@ -270,7 +270,7 @@ export async function getAppointments(req, res) {
     } catch (err) {
       console.warn("Failed to auto-complete appointments:", err?.message || err);
     }
-
+    
     res.status(200).json(appointments);
   } catch (error) {
     console.error("Error in getAppointments controller", error.message);
@@ -311,6 +311,30 @@ export async function getFriendAppointments(req, res) {
     res.status(200).json(appointments);
   } catch (error) {
     console.error("Error in getFriendAppointments controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getCompletedAppointments(req, res) {
+  try {
+    const { friendId } = req.params;
+
+    // Get all completed appointments for the friend (with any user)
+    const completedAppointments = await Appointment.find({
+      status: "completed",
+      $or: [
+        { userId: friendId },
+        { friendId: friendId }
+      ]
+    })
+      .populate("userId", "fullName profilePic email")
+      .populate("friendId", "fullName profilePic email")
+      .sort({ startTime: -1 })
+      .limit(5);
+
+    res.status(200).json(completedAppointments);
+  } catch (error) {
+    console.error("Error in getCompletedAppointments controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -621,7 +645,7 @@ export async function saveCustomAvailability(req, res) {
     console.error("❌ Error in saveCustomAvailability:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
-}
+      }
 
 export async function getUserAvailability(req, res) {
   try {
@@ -666,6 +690,71 @@ export async function getUserAvailability(req, res) {
     });
   } catch (error) {
     console.error("Error in getUserAvailability controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getUpcomingAppointmentsCount(req, res) {
+  try {
+    const { friendId } = req.params;
+    const { days = 7 } = req.query;
+
+    if (!friendId) {
+      return res.status(400).json({ message: "friendId is required" });
+    }
+
+    // Get today's date at midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get date 7 days from now
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + parseInt(days));
+    endDate.setHours(23, 59, 59, 999);
+
+    // Find all appointments for the friend in the next 7 days
+    const appointments = await Appointment.find({
+      $or: [
+        { userId: friendId },
+        { friendId: friendId },
+      ],
+      startTime: {
+        $gte: today,
+        $lt: endDate,
+      },
+      status: { $in: ['confirmed', 'pending'] }, // Only count confirmed/pending appointments
+    }).populate('userId friendId', 'fullName');
+
+    // Count bookings per day
+    const bookingsByDay = {};
+
+    // Initialize all days with 0 bookings
+    for (let i = 0; i < parseInt(days); i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + i);
+      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      bookingsByDay[dateKey] = 0;
+    }
+
+    // Count appointments for each day
+    appointments.forEach((appointment) => {
+      const appDate = new Date(appointment.startTime);
+      appDate.setHours(0, 0, 0, 0);
+      const dateKey = appDate.toISOString().split('T')[0];
+      if (bookingsByDay.hasOwnProperty(dateKey)) {
+        bookingsByDay[dateKey]++;
+      }
+    });
+
+    // Convert to array format for frontend
+    const bookingsArray = Object.values(bookingsByDay);
+
+    res.status(200).json({
+      bookingsByDay: bookingsArray,
+      totalAppointments: appointments.length,
+    });
+  } catch (error) {
+    console.error("Error in getUpcomingAppointmentsCount controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

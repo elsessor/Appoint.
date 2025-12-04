@@ -38,11 +38,13 @@ export async function getRecommendedUsers(req, res) {
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
+    const currentUserId = req.user?.id;
     const viewerId = req.user?._id?.toString() || req.user?.id?.toString();
     const user = await User.findById(id).select("-password -email");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+    
     // Privacy enforcement
     if (user.preferences?.privacy?.profileVisibility === "private") {
       const isFriend = user.friends?.map(f => f.toString()).includes(viewerId);
@@ -51,7 +53,14 @@ export async function getUserById(req, res) {
         return res.status(403).json({ message: "This profile is private." });
       }
     }
-    res.status(200).json(user);
+    
+    const userData = user.toObject();
+    if (currentUserId) {
+      const currentUser = await User.findById(currentUserId).select("favorites");
+      userData.isFavorite = currentUser?.favorites?.includes(id) || false;
+    }
+    
+    res.status(200).json(userData);
   } catch (error) {
     console.error("Error in getUserById controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -61,10 +70,16 @@ export async function getUserById(req, res) {
 export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
-      .select("friends")
+      .select("friends favorites")
       .populate("friends", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
 
-    res.status(200).json(user.friends);
+    const friendsWithFavoriteStatus = user.friends.map(friend => {
+      const friendObj = friend.toObject();
+      friendObj.isFavorite = user.favorites.includes(friend._id);
+      return friendObj;
+    });
+
+    res.status(200).json(friendsWithFavoriteStatus);
   } catch (error) {
     console.error("Error in getMyFriends controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -184,6 +199,36 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function cancelFriendRequest(req, res) {
+  try {
+    const myId = req.user.id;
+    const { id: requestId } = req.params;
+
+    const friendRequest = await FriendRequest.findById(requestId);
+
+    if (!friendRequest) {
+      return res.status(404).json({ message: "Friend request not found" });
+    }
+
+    if (friendRequest.sender.toString() !== myId) {
+      return res.status(403).json({ message: "You are not authorized to cancel this request" });
+    }
+
+    if (friendRequest.status !== "pending") {
+      return res.status(400).json({ message: "Cannot cancel a request that is not pending" });
+    }
+
+    await FriendRequest.findByIdAndDelete(requestId);
+
+    emitNotificationUpdate(friendRequest.recipient);
+
+    res.status(200).json({ message: "Friend request cancelled successfully" });
+  } catch (error) {
+    console.error("Error in cancelFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -527,14 +572,22 @@ export async function updateMyProfile(req, res) {
     }
 
     try {
-      await upsertStreamUser({
+      // Only send essential data to Stream to avoid 5KB limit
+      const streamUserData = {
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
-      });
+      };
+      
+      // Only include image if it's a URL (not base64 to avoid size limit)
+      if (updatedUser.profilePic && !updatedUser.profilePic.startsWith('data:')) {
+        streamUserData.image = updatedUser.profilePic;
+      }
+      
+      await upsertStreamUser(streamUserData);
       console.log(`Stream user updated for ${updatedUser.fullName}`);
     } catch (streamError) {
       console.log("Error updating Stream user:", streamError.message);
+      // Continue anyway - Stream update is not critical for profile updates
     }
 
     res.status(200).json({
@@ -582,6 +635,51 @@ export async function markNotificationsRead(req, res) {
     res.status(200).json({ success: true, message: "Notifications marked as read" });
   } catch (error) {
     console.error("Error in markNotificationsRead controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function toggleFavorite(req, res) {
+  try {
+    const userId = req.user.id;
+    const { id: friendId } = req.params;
+
+    if (!friendId || !mongoose.Types.ObjectId.isValid(friendId)) {
+      return res.status(400).json({ message: "Invalid friend ID" });
+    }
+
+    // Check if friend exists
+    const friend = await User.findById(friendId);
+    if (!friend) {
+      return res.status(404).json({ message: "Friend not found" });
+    }
+
+    // Get current user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if friendId is in favorites
+    const isFavorited = user.favorites.includes(friendId);
+
+    if (isFavorited) {
+      // Remove from favorites
+      user.favorites = user.favorites.filter(id => id.toString() !== friendId);
+    } else {
+      // Add to favorites
+      user.favorites.push(friendId);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      isFavorite: !isFavorited,
+      message: isFavorited ? "Removed from favorites" : "Added to favorites",
+    });
+  } catch (error) {
+    console.error("Error in toggleFavorite controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

@@ -191,8 +191,11 @@ const ConversationItem = ({ friend, isActive, chatClient }) => {
         <div className="avatar">
           <div className="w-12 h-12 rounded-full">
             <img
-              src={friend.profilePic || "/default-avatar.png"}
+              src={friend.profilePic || "/default-profile.svg"}
               alt={friend.fullName}
+              onError={(e) => {
+                e.target.src = '/default-profile.svg';
+              }}
             />
           </div>
         </div>

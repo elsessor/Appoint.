@@ -202,6 +202,9 @@ const ProfilePage = () => {
     }
 
     const toSave = draftRef.current || draft;
+    console.log('=== SAVING PROFILE ===');
+    console.log('Draft data:', toSave);
+    console.log('GitHub in draft:', toSave.github);
     
     try {
       setIsEditing(false);
@@ -224,17 +227,47 @@ const ProfilePage = () => {
         rating: toSave.rating || 0,
         successRate: toSave.successRate || 0,
       };
+      
+      console.log('Payload being sent:', updatePayload);
+      console.log('GitHub in payload:', updatePayload.github);
 
       await updateMyProfile(updatePayload);
       
-      setProfile(toSave);
-      if (Array.isArray(toSave.skills)) setSkills(toSave.skills);
+      // Reload profile from backend to ensure we have the saved data
+      const updatedProfileData = await getMyProfile();
+      console.log('Profile data from backend:', updatedProfileData);
+      console.log('GitHub from backend:', updatedProfileData.github);
+      
+      const profileUpdate = {
+        name: updatedProfileData.fullName || authUser?.fullName || '',
+        profilePicture: updatedProfileData.profilePic || authUser?.profilePic || '',
+        about: updatedProfileData.bio || '',
+        location: updatedProfileData.location || '',
+        phone: updatedProfileData.phone || '',
+        email: authUser?.email || '',
+        portfolio: updatedProfileData.portfolio || '',
+        twitter: updatedProfileData.twitter || '',
+        github: updatedProfileData.github || '',
+        pinterest: updatedProfileData.pinterest || '',
+        linkedin: updatedProfileData.linkedin || '',
+        skills: updatedProfileData.skills || [],
+        jobTitle: updatedProfileData.jobTitle || '',
+        company: updatedProfileData.company || '',
+        yearsExperience: updatedProfileData.yearsExperience || 0,
+        appointmentsCompleted: updatedProfileData.appointmentsCompleted || 0,
+        rating: updatedProfileData.rating || 0,
+        successRate: updatedProfileData.successRate || 0,
+      };
+      
+      setProfile(profileUpdate);
+      setDraft(profileUpdate);
+      if (Array.isArray(updatedProfileData.skills)) setSkills(updatedProfileData.skills);
       
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
       
       try {
         const key = `profile_${authUser._id}`;
-        localStorage.setItem(key, JSON.stringify(toSave));
+        localStorage.setItem(key, JSON.stringify(profileUpdate));
       } catch (e) {
         console.warn('Failed to cache profile in localStorage', e);
       }
@@ -672,7 +705,16 @@ const ProfilePage = () => {
                     />
                   ) : profile.github ? (
                     <a href={profile.github} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
-                      {profile.github.replace(/^https?:\/\/(www\.)?(github\.com\/)?/, '').split('/')[0] || 'GitHub'}
+                      {(() => {
+                        try {
+                          let cleaned = profile.github.replace(/^https?:\/\/(www\.)?/, '');
+                          cleaned = cleaned.replace(/^github\.com\//, '');
+                          const username = cleaned.split('/')[0];
+                          return username || 'GitHub';
+                        } catch {
+                          return 'GitHub';
+                        }
+                      })()}
                     </a>
                   ) : (
                     <span className="text-sm text-base-content/50">Add GitHub</span>

@@ -9,6 +9,8 @@ import {
   saveCustomAvailability,
   getUserAvailability,
   getFriendAppointments,
+  getCompletedAppointments,
+  getUpcomingAppointmentsCount,
 } from "../controllers/appointments.controller.js";
 
 const router = express.Router();
@@ -20,6 +22,8 @@ router.get("/availability/:userId", getUserAvailability);
 
 router.post("/", createAppointment);
 router.get("/", getAppointments);
+router.get("/completed/:friendId", getCompletedAppointments);
+router.get("/upcoming/:friendId", getUpcomingAppointmentsCount);
 router.get("/friend/:friendId", getFriendAppointments);
 router.get("/:id", getAppointmentById);
 router.put("/:id", updateAppointment);

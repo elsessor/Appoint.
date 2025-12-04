@@ -1,21 +1,28 @@
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, Settings as SettingsIcon, CalendarIcon, CalendarCheckIcon, FileText, MessageCircle } from "lucide-react";
+import {
+  BellIcon,
+  LayoutDashboard,
+  ShipWheelIcon,
+  UsersIcon,
+  Settings as SettingsIcon,
+  CalendarIcon,
+  CalendarCheckIcon,
+  FileText,
+  MessageCircle,
+  Shield,
+} from "lucide-react";
 import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
-  const navigate = useNavigate();
   const currentPath = location.pathname;
 
-  const handleHomeClick = (e) => {
-    e.preventDefault();
-    navigate("/homepage");
-  };
+  const isAdmin = authUser?.role === "admin";
 
   return (
-    <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
+    <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen fixed top-0 left-0 z-30">
       <div className="p-5 border-b border-base-300">
         <Link to="/" className="flex items-center gap-2.5">
           <ShipWheelIcon className="size-9 text-primary" />
@@ -26,45 +33,59 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        <button
-          onClick={handleHomeClick}
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/homepage" ? "btn-active" : ""
-          }`}
-        >
-          <HomeIcon className="size-5 text-base-content opacity-70" />
-          <span>Home</span>
-        </button>
+        {/* Home intentionally hidden from sidebar menu */}
+        {isAdmin ? (
+          <Link
+            to="/admin"
+            className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+              currentPath === "/admin" ? "btn-active" : ""
+            }`}
+          >
+            <Shield className="size-5 text-base-content opacity-70" />
+            <span>Admin Dashboard</span>
+          </Link>
+        ) : (
+          <>
+            {/* Home link */}
+            <Link
+              to="/homepage"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/homepage" ? "btn-active" : ""
+              }`}
+            >
+              <LayoutDashboard className="size-5 text-base-content opacity-70" />
+              <span>Dashboard</span>
+            </Link>
 
-        <Link
-          to="/friends"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/friends" ? "btn-active" : ""
-          }`}
-        >
-          <UsersIcon className="size-5 text-base-content opacity-70" />
-          <span>Friends</span>
-        </Link>
+            <Link
+              to="/friends"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/friends" ? "btn-active" : ""
+              }`}
+            >
+              <UsersIcon className="size-5 text-base-content opacity-70" />
+              <span>Friends</span>
+            </Link>
 
-        <Link
-          to="/appointments"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/appointments" ? "btn-active" : ""
-          }`}
-        >
-          <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
-          <span>Appointments</span>
-        </Link> 
+            <Link
+              to="/appointments"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/appointments" ? "btn-active" : ""
+              }`}
+            >
+              <CalendarCheckIcon className="size-5 text-base-content opacity-70" />
+              <span>Appointments</span>
+            </Link>
 
-        <Link
-          to="/booking"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-            currentPath === "/booking" ? "btn-active" : ""
-          }`}
-        >
-          <CalendarIcon className="size-5 text-base-content opacity-70" />
-          <span>Book Appointment</span>
-        </Link>
+            <Link
+              to="/booking"
+              className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+                currentPath === "/booking" ? "btn-active" : ""
+              }`}
+            >
+              <CalendarIcon className="size-5 text-base-content opacity-70" />
+              <span>Book Appointment</span>
+            </Link>
 
         <Link
          to="/meeting-minutes" className="flex items-center gap-3 p-3 rounded-lg hover:bg-base-300">
@@ -72,14 +93,16 @@ const Sidebar = () => {
         <span className="font-medium">Meeting Log</span>
         </Link>
         <Link
-  to="/chats"
-  className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
-    currentPath.startsWith("/chats") ? "btn-active" : ""  // ✅ Highlight if on /chats
-  }`}
->
-  <MessageCircle className="size-5 text-base-content opacity-70" />
-  <span>Messages</span>
-</Link>
+          to="/chats"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath.startsWith("/chats") ? "btn-active" : ""
+          }`}
+        >
+          <MessageCircle className="size-5 text-base-content opacity-70" />
+          <span>Messages</span>
+        </Link>
+          </>
+        )}
       </nav>
 
       <div className="p-4 border-t border-base-300 mt-auto space-y-2">
@@ -96,25 +119,33 @@ const Sidebar = () => {
         <div className="flex items-center gap-3 pt-2">
           <Link to="/profile" className="avatar">
             <div className="w-10 rounded-full cursor-pointer">
-              <img 
-                src={authUser?.profilePic || '/default-profile.svg'} 
-                alt="User Avatar"
-                onError={(e) => {
-                  e.target.src = '/default-profile.svg';
-                }}
-              />
+              {authUser?.profilePic && authUser.profilePic.trim() ? (
+                <img src={authUser.profilePic} alt="User Avatar" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold">
+                  {(authUser?.fullName || 'U')[0].toUpperCase()}
+                </div>
+              )}
             </div>
           </Link>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate">{authUser?.fullName}</p>
-            <p className="text-xs text-success flex items-center gap-1 mt-1">
-              <span className="size-2 rounded-full bg-success inline-block" />
-              Online
+            <p className="text-xs text-base-content/70 flex items-center gap-1 mt-1">
+              {isAdmin ? (
+                <>
+                  <Shield className="size-3" />
+                  Admin
+                </>
+              ) : (
+                <>
+                  <span className="size-2 rounded-full bg-success inline-block" />
+                  Online
+                </>
+              )}
             </p>
           </div>
-          
-          {/* Availability Status Toggle */}
-          <AvailabilityStatusToggle currentUser={authUser} />
+
+          {!isAdmin && <AvailabilityStatusToggle currentUser={authUser} />}
         </div>
       </div>
     </aside>

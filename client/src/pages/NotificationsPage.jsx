@@ -36,9 +36,8 @@ const NotificationsPage = () => {
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
 
-  // Filter appointment notifications from the notifications array
   const appointmentNotifications = useMemo(() => {
-    return notifications.filter((notification) => notification.type === 'appointment' || notification.type === 'rating');
+    return notifications.filter((notification) => notification.type === "appointment") || [];
   }, [notifications]);
 
   const { mutate: markAsRead } = useMutation({
@@ -95,8 +94,9 @@ const NotificationsPage = () => {
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
+                              src={notification.senderId?.profilePic && notification.senderId.profilePic.trim() ? notification.senderId.profilePic : '/default-profile.png'}
                               alt={notification.senderId?.fullName || 'User'}
+                              className="rounded-full"
                               onError={(e) => {
                                 e.target.src = '/default-profile.svg';
                               }}
@@ -139,13 +139,7 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img 
-                                src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
-                                alt={request.sender.fullName}
-                                onError={(e) => {
-                                  e.target.src = '/default-profile.svg';
-                                }}
-                              />
+                              <img src={request.sender.profilePic && request.sender.profilePic.trim() ? request.sender.profilePic : '/default-profile.png'} alt={request.sender.fullName} />
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
@@ -189,11 +183,9 @@ const NotificationsPage = () => {
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
-                              alt={notification.recipient?.fullName}
-                              onError={(e) => {
-                                e.target.src = '/default-profile.svg';
-                              }}
+                              src={notification.recipient.profilePic && notification.recipient.profilePic.trim() ? notification.recipient.profilePic : '/default-profile.png'}
+                              alt={notification.recipient.fullName}
+                              className="rounded-full"
                             />
                           </div>
                           <div className="flex-1">
