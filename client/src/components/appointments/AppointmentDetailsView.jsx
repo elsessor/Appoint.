@@ -65,12 +65,8 @@ const AppointmentDetails = ({
 
   // Only the receiver (friendId) can perform actions like reschedule and cancel
   const isReceiver = appointmentFriendId === currentUserId;
-  const canPerformActions = isReceiver;
-
-  // If not a participant, don't show this appointment
-  if (!isParticipant) {
-    return null;
-  }
+  // Can only perform actions if user is a participant and is the receiver
+  const canPerformActions = isReceiver && isParticipant;
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/50" data-theme={theme}>
