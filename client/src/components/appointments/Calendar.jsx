@@ -475,17 +475,19 @@ const Calendar = ({
             ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
             : (currentUser?.availability?.maxPerDay || 5);
           
-          // Get appointments for this specific day
+          // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);
           
-          // Filter by the viewed user if viewing a friend's calendar
+          // Filter by the viewed user if viewing a friend's calendar, and show only CONFIRMED
           const relevantAppointments = viewingFriendId 
             ? dayAppointments.filter(appt => {
+                // ✅ Only count CONFIRMED appointments for capacity
+                if (appt.status !== 'confirmed') return false;
                 const apptUserId = String(appt.userId?._id || appt.userId);
                 const apptFriendId = String(appt.friendId?._id || appt.friendId);
                 return apptUserId === viewingFriendId || apptFriendId === viewingFriendId;
               })
-            : dayAppointments;
+            : dayAppointments.filter(appt => appt.status === 'confirmed');
           
           const dayAppointmentsCount = relevantAppointments.length;
           const isAtCapacity = dayAppointmentsCount >= maxPerDay;
@@ -562,24 +564,56 @@ const Calendar = ({
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
                         .filter(appt => {
+                          // ✅ Only show CONFIRMED appointments in calendar view
+                          if (appt.status !== 'confirmed') return false;
+                          
                           // In multi-calendar mode, show appointment if the friend is visible
                           if (isMultiCalendarMode) {
                             const friendId = getAppointmentFriendId(appt);
                             return isFriendVisible(friendId);
                           }
-                          // In single calendar mode, only show appointments where user is a participant
+                          // In single calendar mode:
+                          // - If viewing friend's calendar, show ALL their appointments
+                          // - Otherwise, show only appointments where current user is a participant
+                          if (viewingFriendId) {
+                            const apptUserId = String(appt.userId?._id || appt.userId);
+                            const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                            const viewingFriendIdStr = String(viewingFriendId);
+                            return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+                          }
                           return isUserParticipant(appt);
                         })
-                        .slice(0, 2)
+                        .slice(0, 3)
                         .map((appt) => {
                           const ownerId = getAppointmentOwnerId(appt);
                           const ownerColor = isMultiCalendarMode ? getColorForFriend(ownerId) : null;
                           const statusBadgeColor = getStatusBadgeColor(appt.status);
                           
+                          // Check if current user is involved in this appointment
+                          const currentUserId = currentUser?._id || currentUser?.id;
+                          const apptUserId = String(appt.userId?._id || appt.userId);
+                          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                          const currentUserIdStr = String(currentUserId);
+                          const isCurrentUserInvolved = apptUserId === currentUserIdStr || apptFriendId === currentUserIdStr;
+                          
                           // Use owner color for multi-calendar mode background, theme colors for single mode
                           const apptBgClass = isMultiCalendarMode && ownerColor ? ownerColor.apptBg : 'bg-base-100';
                           const apptTextClass = isMultiCalendarMode && ownerColor ? ownerColor.apptText : 'text-base-content';
                           const apptBorderClass = isMultiCalendarMode && ownerColor ? ownerColor.apptBorder : 'border-base-300';
+                          
+                          // Determine display text based on viewing context
+                          let displayText = appt.title;
+                          let tooltipText = appt.title;
+                          
+                          if (viewingFriendId && !isCurrentUserInvolved) {
+                            // Appointment between other people - show title with participant info in tooltip
+                            const userName = appt.userId?.fullName || appt.userId?.name || 'User';
+                            const friendName = appt.friendId?.fullName || appt.friendId?.name || 'Friend';
+                            displayText = appt.title; // Show the appointment title
+                            tooltipText = `${appt.title} (${userName} with ${friendName})`;
+                          } else if (isMultiCalendarMode) {
+                            tooltipText = `${appt.title} (${getAppointmentOwner(appt)})`;
+                          }
                           
                           return (
                             <div 
@@ -590,31 +624,51 @@ const Calendar = ({
                                 setSelectedAppointment(appt);
                                 setSelectedDate(day);
                               }}
-                              title={isMultiCalendarMode ? `${appt.title} (${getAppointmentOwner(appt)})` : appt.title}
+                              title={tooltipText}
                             >
                               {isMultiCalendarMode && (
                                 <span className="font-semibold">{getAppointmentOwner(appt)[0]}</span>
                               )}
-                              {' '}{appt.title}
+                              {isMultiCalendarMode && ' '}{displayText}
                             </div>
                           );
                         })}
                       
                       {getAppointmentsForDate(day).filter(appt => {
+                        // ✅ Only show CONFIRMED appointments in calendar view
+                        if (appt.status !== 'confirmed') return false;
+                        
                         if (isMultiCalendarMode) {
                           const friendId = getAppointmentFriendId(appt);
                           return isFriendVisible(friendId);
                         }
-                        return true;
-                      }).length > 2 && (
+                        // Use same filtering logic as above
+                        if (viewingFriendId) {
+                          const apptUserId = String(appt.userId?._id || appt.userId);
+                          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                          const viewingFriendIdStr = String(viewingFriendId);
+                          return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+                        }
+                        return isUserParticipant(appt);
+                      }).length > 3 && (
                         <div className="text-xs text-gray-400 text-center">
                           +{getAppointmentsForDate(day).filter(appt => {
+                            // ✅ Only show CONFIRMED appointments in calendar view
+                            if (appt.status !== 'confirmed') return false;
+                            
                             if (isMultiCalendarMode) {
                               const friendId = getAppointmentFriendId(appt);
                               return isFriendVisible(friendId);
                             }
-                            return true;
-                          }).length - 2} more
+                            // Use same filtering logic as above
+                            if (viewingFriendId) {
+                              const apptUserId = String(appt.userId?._id || appt.userId);
+                              const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                              const viewingFriendIdStr = String(viewingFriendId);
+                              return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+                            }
+                            return isUserParticipant(appt);
+                          }).length - 3} more
                         </div>
                       )}
                     </div>
@@ -662,7 +716,6 @@ const Calendar = ({
           currentUserStatus={currentUser?.availabilityStatus || 'available'}
           appointments={appointments}
           selectedDate={selectedDate}
-          viewingFriendId={viewingFriendId}
         />
       )}
     </div>

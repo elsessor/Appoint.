@@ -70,9 +70,11 @@ const DayDetailsModal = ({
   // Filter appointments based on context:
   // - If viewing friend's calendar (viewingFriendId exists), show ALL their appointments
   // - Otherwise, show only appointments where current user is a participant
-  const filteredAppointments = viewingFriendId 
+  // - Only show CONFIRMED appointments (hide pending, declined, cancelled, completed)
+  const filteredAppointments = (viewingFriendId 
     ? appointments // Show all appointments when viewing friend's calendar
-    : appointments.filter(isUserParticipant);
+    : appointments.filter(isUserParticipant)
+  ).filter(appt => appt.status === 'confirmed');
 
   const getStatusBadge = (status) => {
     const statusConfig = {
@@ -187,72 +189,13 @@ const DayDetailsModal = ({
           <div className="relative z-[61] bg-base-100 rounded-lg shadow-xl max-w-lg w-full sm:max-h-[90vh] max-h-[95vh] flex flex-col mx-2 sm:mx-4">
           <div className="bg-base-100 px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-4 border-b border-base-300/40">
             <div className="flex justify-between items-start gap-2">
-              <div className="flex-1">
+              <div>
                 <h3 className="text-base sm:text-lg leading-6 font-bold text-base-content">
                   {format(date, 'EEE, MMM d')}
                 </h3>
                 {isHoliday && (
                   <p className="mt-1 text-xs font-semibold text-warning uppercase tracking-wide">{isHoliday}</p>
                 )}
-                
-                {/* Daily Capacity Bar - Synchronized with Calendar */}
-                {(() => {
-                  // Get max appointments for the viewed user or current user
-                  const maxPerDay = viewingFriendId 
-                    ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
-                    : (currentUser?.availability?.maxPerDay || 5);
-                  
-                  // Filter appointments for the specific user on this date (same logic as Calendar)
-                  const userAppointments = viewingFriendId 
-                    ? appointments.filter(appt => {
-                        if (['declined', 'cancelled'].includes(appt.status)) return false;
-                        const apptUserId = String(appt.userId?._id || appt.userId);
-                        const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                        const viewingFriendIdStr = String(viewingFriendId);
-                        return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
-                      })
-                    : appointments.filter(appt => {
-                        if (['declined', 'cancelled'].includes(appt.status)) return false;
-                        const currentUserId = currentUser?._id || currentUser?.id;
-                        const apptUserId = String(appt.userId?._id || appt.userId);
-                        const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                        const currentUserIdStr = String(currentUserId);
-                        return apptUserId === currentUserIdStr || apptFriendId === currentUserIdStr;
-                      });
-                  
-                  const appointmentCount = userAppointments.length;
-                  const isFull = appointmentCount >= maxPerDay;
-                  const capacityPercentage = Math.min((appointmentCount / maxPerDay) * 100, 100);
-                  
-                  return (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          isFull 
-                            ? 'bg-error/20 text-error' 
-                            : appointmentCount > 0 
-                              ? 'bg-warning/20 text-warning'
-                              : 'bg-success/20 text-success'
-                        }`}>
-                          {appointmentCount} / {maxPerDay}
-                        </span>
-                      </div>
-                      <div className="w-full bg-base-300 rounded-full h-1.5 overflow-hidden">
-                        <div 
-                          className={`h-full transition-all ${
-                            appointmentCount === 0 ? 'bg-success' :
-                            isFull ? 'bg-error' : 'bg-warning'
-                          }`}
-                          style={{ width: `${capacityPercentage}%` }}
-                        ></div>
-                      </div>
-                      {isFull && (
-                        <p className="text-xs text-error font-medium">This day is fully booked</p>
-                      )}
-                    </div>
-                  );
-                })()}
               </div>
               <button
                 type="button"
@@ -434,7 +377,6 @@ const DayDetailsModal = ({
           availability={availability}
           friendsAvailability={friendsAvailability}
           currentUserStatus={currentUser?.availabilityStatus || 'available'}
-          viewingFriendId={viewingFriendId}
         />
       )}
 
