@@ -494,7 +494,12 @@ const AppointmentBookingPage = () => {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-base-content">Book Appointment</h1>
+              <h1 className="text-2xl font-bold text-base-content">
+                {viewingFriendId ? 'Book Appointment' : 'Your Calendar'}
+              </h1>
+              {!viewingFriendId && (
+                <p className="text-sm text-base-content/60 mt-1">Manage your appointments and availability</p>
+              )}
             </div>
             <div className="flex gap-2 flex-wrap">
               {isMultiCalendarMode && (

@@ -203,13 +203,27 @@ const Calendar = ({
 
   // Handle date selection
   const handleDateClick = (day) => {
+    // Always allow viewing appointments on any date, even if not available for booking
+    const dayAppointments = getAppointmentsForDate(day);
+    
+    // If there are appointments on this day, always open the modal to view them
+    if (dayAppointments.length > 0) {
+      setSelectedDate(day);
+      return;
+    }
+    
+    // For empty days, check if the date is available for booking
     if (!isDateAvailable(day)) {
       const holidayName = getHolidayName(day, phHolidays);
       if (holidayName) {
         toast.error(`Cannot book on ${holidayName} - service not available`);
+      } else {
+        toast.error('This day is not available for booking');
       }
       return;
     }
+    
+    // Day is available and empty, open modal
     setSelectedDate(day);
   };
 
@@ -598,7 +612,6 @@ const Calendar = ({
                               className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm cursor-pointer`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedAppointment(appt);
                                 setSelectedDate(day);
                               }}
                               title={tooltipText}
@@ -670,6 +683,7 @@ const Calendar = ({
           availability={availability}
           friendsAvailability={friendsAvailability}
           viewingFriendId={viewingFriendId}
+          isDateAvailableForBooking={isDateAvailable(selectedDate)}
         />
       )}
 
