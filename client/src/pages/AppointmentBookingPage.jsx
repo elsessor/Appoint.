@@ -411,12 +411,25 @@ const AppointmentBookingPage = () => {
     return appointment.status === 'pending' && appointmentFriendId === currentUserId;
   }, [currentUser]);
 
-  // Filter today's appointments
-  const todayAppointments = displayAppointments.filter(appt => {
+  // Filter today's appointments - only show current user's appointments (not friend's)
+  const todayAppointments = appointments.filter(appt => {
     const apptDate = typeof appt.startTime === 'string' 
       ? parseISO(appt.startTime)
       : new Date(appt.startTime);
-    return format(apptDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    const isToday = format(apptDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    
+    // Only show appointments where current user is involved
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const apptUserId = appt.userId?._id || appt.userId;
+    const apptFriendId = appt.friendId?._id || appt.friendId;
+    const isUserInvolved = apptUserId === currentUserId || apptFriendId === currentUserId;
+    
+    // Exclude cancelled and declined appointments from today's view
+    const status = appt.status?.toLowerCase();
+    const excludedStatuses = ['cancelled', 'declined'];
+    const isVisibleStatus = !excludedStatuses.includes(status);
+    
+    return isToday && isUserInvolved && isVisibleStatus;
   });
 
   // Get pending requests for current user (where they are the recipient)
@@ -502,6 +515,16 @@ const AppointmentBookingPage = () => {
               )}
             </div>
             <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  setAppointmentModalData({ date: new Date(), time: null });
+                  setShowAppointmentModal(true);
+                }}
+                className="btn btn-primary btn-sm"
+                title="Create new appointment"
+              >
+                + New Appointment
+              </button>
               {isMultiCalendarMode && (
                 <button
                   onClick={() => setShowSidebar(!showSidebar)}
@@ -746,6 +769,7 @@ const AppointmentBookingPage = () => {
             friends={friends}
             currentUser={currentUser}
             onAppointmentCreate={handleCreateAppointment}
+            onAppointmentSubmit={handleAppointmentSubmit}
             onAppointmentUpdate={handleUpdateAppointment}
             onAppointmentDelete={handleDeleteAppointment}
             availability={getAvailabilityForCalendar}
@@ -900,9 +924,9 @@ const AppointmentBookingPage = () => {
             console.log('Edit appointment:', selectedAppointmentDetail._id);
           }}
           friends={friends}
-          availability={currentUser?.availability || {}}
+          availability={getAvailabilityForCalendar}
           friendsAvailability={friendsAvailability}
-          appointments={appointments}
+          appointments={displayAppointments}
           onUpdateAppointment={(formData) => {
             rescheduleAppointmentMutation.mutate({
               appointmentId: selectedAppointmentDetail._id,

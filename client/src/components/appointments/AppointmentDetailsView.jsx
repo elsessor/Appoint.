@@ -63,10 +63,9 @@ const AppointmentDetails = ({
   // Check if current user is a participant in this appointment
   const isParticipant = appointmentUserId === currentUserId || appointmentFriendId === currentUserId;
 
-  // Only the receiver (friendId) can perform actions like reschedule and cancel
-  const isReceiver = appointmentFriendId === currentUserId;
-  // Can only perform actions if user is a participant and is the receiver
-  const canPerformActions = isReceiver && isParticipant;
+  // Both participants can manage (reschedule/cancel) their appointments
+  // Only pending requests have special rules (only receiver can accept/decline)
+  const canPerformActions = isParticipant;
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/50" data-theme={theme}>
@@ -150,7 +149,7 @@ const AppointmentDetails = ({
                       : 'badge-info'
                   }`}>
                     <CheckCircle2 className="w-3 sm:w-4 h-3 sm:h-4" />
-                    <span className="hidden sm:inline">{appointment.status === 'scheduled' ? 'Confirmed' : appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}</span>
+                    <span className="hidden sm:inline">{appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}</span>
                     <span className="sm:hidden">{appointment.status?.charAt(0).toUpperCase()}</span>
                   </span>
                   <span className="text-base-content/60 text-xs sm:text-sm truncate">ID: #{appointment._id?.slice(-6) || 'N/A'}</span>
@@ -378,7 +377,11 @@ const AppointmentDetails = ({
       {/* Reschedule Appointment Modal */}
       <AppointmentModal
         isOpen={showRescheduleModal}
-        onClose={() => setShowRescheduleModal(false)}
+        onClose={() => {
+          setShowRescheduleModal(false);
+          onClose();
+        }}
+        onSubmit={onUpdateAppointment}
         appointment={appointment}
         friends={friends}
         currentUser={currentUser}

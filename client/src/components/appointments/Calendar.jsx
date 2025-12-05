@@ -11,6 +11,7 @@ const Calendar = ({
   friends = [],
   currentUser,
   onAppointmentCreate,
+  onAppointmentSubmit,
   onAppointmentUpdate,
   onAppointmentDelete,
   availability = {
@@ -31,6 +32,36 @@ const Calendar = ({
   const [selectedDate, setSelectedDate] = useState(null);
   const [phHolidays, setPhHolidays] = useState([]);
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
+
+  // Helper functions to reduce code duplication
+  const extractId = (user) => String(user?._id || user?.id || user);
+  
+  const getDateString = (dateTime) => {
+    if (!dateTime) return null;
+    return typeof dateTime === 'string' 
+      ? dateTime.split('T')[0]
+      : format(new Date(dateTime), 'yyyy-MM-dd');
+  };
+  
+  const getParticipantIds = (appt) => ({
+    userId: extractId(appt.userId),
+    friendId: extractId(appt.friendId)
+  });
+  
+  const isUserParticipantInAppointment = (appt, userId) => {
+    const { userId: apptUser, friendId: apptFriend } = getParticipantIds(appt);
+    const userIdStr = extractId(userId);
+    return apptUser === userIdStr || apptFriend === userIdStr;
+  };
+  
+  // Unified status filtering function
+  const getVisibleStatuses = (isViewingFriend) => {
+    // When viewing friend: show confirmed, scheduled, completed (hide pending for privacy)
+    // When viewing own: show confirmed, scheduled, pending, completed
+    return isViewingFriend 
+      ? ['confirmed', 'scheduled', 'completed']
+      : ['confirmed', 'scheduled', 'pending', 'completed'];
+  };
 
   // Color palette for multi-calendar display
   const colorPalette = [
@@ -162,19 +193,14 @@ const Calendar = ({
   // Group appointments by date for easy lookup
   const appointmentsByDate = useMemo(() => {
     const map = new Map();
+    const visibleStatuses = getVisibleStatuses(!!viewingFriendId);
     
     appointments.forEach(appointment => {
       if (!appointment.startTime) return;
       
-      // Filter by status based on viewing context
+      // Filter by status based on viewing context using unified function
       const status = appointment.status?.toLowerCase();
-      if (viewingFriendId) {
-        // When viewing friend's calendar: show only confirmed, scheduled, completed (hide pending, cancelled, declined)
-        if (!['confirmed', 'scheduled', 'completed'].includes(status)) return;
-      } else {
-        // Own calendar: show confirmed, scheduled, pending, completed (hide cancelled, declined)
-        if (!['confirmed', 'scheduled', 'pending', 'completed'].includes(status)) return;
-      }
+      if (!visibleStatuses.includes(status)) return;
       
       try {
         const date = typeof appointment.startTime === 'string' 
@@ -357,18 +383,6 @@ const Calendar = ({
               </svg>
             </button>
           </div>
-          {!viewingFriendId && (
-            <button
-              onClick={() => {
-                if (onAppointmentCreate) {
-                  onAppointmentCreate({ date: new Date() });
-                }
-              }}
-              className="btn btn-primary btn-xs md:btn-sm"
-            >
-              New +
-            </button>
-          )}
         </div>
       </div>
       {/* Friend Search Modal */}
@@ -478,16 +492,18 @@ const Calendar = ({
           // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);
           
-          // Filter by the viewed user if viewing a friend's calendar, and show only CONFIRMED
+          // Filter by the viewed user if viewing a friend's calendar
+          // Count both confirmed AND scheduled appointments for capacity (they occupy slots)
           const relevantAppointments = viewingFriendId 
             ? dayAppointments.filter(appt => {
-                // ✅ Only count CONFIRMED appointments for capacity
-                if (appt.status !== 'confirmed') return false;
-                const apptUserId = String(appt.userId?._id || appt.userId);
-                const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                return apptUserId === viewingFriendId || apptFriendId === viewingFriendId;
+                const status = appt.status?.toLowerCase();
+                // Count confirmed and scheduled for capacity
+                if (!['confirmed', 'scheduled'].includes(status)) return false;
+                const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                const viewingFriendIdStr = extractId(viewingFriendId);
+                return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
               })
-            : dayAppointments.filter(appt => appt.status === 'confirmed');
+            : dayAppointments.filter(appt => ['confirmed', 'scheduled'].includes(appt.status?.toLowerCase()));
           
           const dayAppointmentsCount = relevantAppointments.length;
           const isAtCapacity = dayAppointmentsCount >= maxPerDay;
@@ -564,8 +580,10 @@ const Calendar = ({
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
                         .filter(appt => {
-                          // ✅ Only show CONFIRMED appointments in calendar view
-                          if (appt.status !== 'confirmed') return false;
+                          // Use unified status filtering
+                          const status = appt.status?.toLowerCase();
+                          const visibleStatuses = getVisibleStatuses(!!viewingFriendId);
+                          if (!visibleStatuses.includes(status)) return false;
                           
                           // In multi-calendar mode, show appointment if the friend is visible
                           if (isMultiCalendarMode) {
@@ -576,9 +594,8 @@ const Calendar = ({
                           // - If viewing friend's calendar, show ALL their appointments
                           // - Otherwise, show only appointments where current user is a participant
                           if (viewingFriendId) {
-                            const apptUserId = String(appt.userId?._id || appt.userId);
-                            const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                            const viewingFriendIdStr = String(viewingFriendId);
+                            const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                            const viewingFriendIdStr = extractId(viewingFriendId);
                             return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
                           }
                           return isUserParticipant(appt);
@@ -634,8 +651,10 @@ const Calendar = ({
                         })}
                       
                       {getAppointmentsForDate(day).filter(appt => {
-                        // ✅ Only show CONFIRMED appointments in calendar view
-                        if (appt.status !== 'confirmed') return false;
+                        // Use unified status filtering
+                        const status = appt.status?.toLowerCase();
+                        const visibleStatuses = getVisibleStatuses(!!viewingFriendId);
+                        if (!visibleStatuses.includes(status)) return false;
                         
                         if (isMultiCalendarMode) {
                           const friendId = getAppointmentFriendId(appt);
@@ -643,17 +662,18 @@ const Calendar = ({
                         }
                         // Use same filtering logic as above
                         if (viewingFriendId) {
-                          const apptUserId = String(appt.userId?._id || appt.userId);
-                          const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                          const viewingFriendIdStr = String(viewingFriendId);
+                          const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                          const viewingFriendIdStr = extractId(viewingFriendId);
                           return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
                         }
                         return isUserParticipant(appt);
                       }).length > 3 && (
                         <div className="text-xs text-gray-400 text-center">
                           +{getAppointmentsForDate(day).filter(appt => {
-                            // ✅ Only show CONFIRMED appointments in calendar view
-                            if (appt.status !== 'confirmed') return false;
+                            // Use unified status filtering
+                            const status = appt.status?.toLowerCase();
+                            const visibleStatuses = getVisibleStatuses(!!viewingFriendId);
+                            if (!visibleStatuses.includes(status)) return false;
                             
                             if (isMultiCalendarMode) {
                               const friendId = getAppointmentFriendId(appt);
@@ -661,9 +681,8 @@ const Calendar = ({
                             }
                             // Use same filtering logic as above
                             if (viewingFriendId) {
-                              const apptUserId = String(appt.userId?._id || appt.userId);
-                              const apptFriendId = String(appt.friendId?._id || appt.friendId);
-                              const viewingFriendIdStr = String(viewingFriendId);
+                              const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                              const viewingFriendIdStr = extractId(viewingFriendId);
                               return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
                             }
                             return isUserParticipant(appt);
@@ -686,6 +705,7 @@ const Calendar = ({
           appointments={getAppointmentsForDate(selectedDate)}
           onClose={() => setSelectedDate(null)}
           onCreateAppointment={onAppointmentCreate}
+          onAppointmentSubmit={onAppointmentSubmit}
           isHoliday={getHolidayName(selectedDate, phHolidays)}
           currentUser={currentUser}
           friends={friends}
@@ -737,6 +757,7 @@ Calendar.propTypes = {
     profilePic: PropTypes.string,
   }),
   onAppointmentCreate: PropTypes.func,
+  onAppointmentSubmit: PropTypes.func,
   onAppointmentUpdate: PropTypes.func,
   onAppointmentDelete: PropTypes.func,
   availability: PropTypes.shape({

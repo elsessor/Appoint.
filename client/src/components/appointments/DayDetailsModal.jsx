@@ -176,17 +176,6 @@ const DayDetailsModal = ({
     );
   };
 
-  const handleCreateAppointment = () => {
-    if (onCreateAppointment) {
-      // Close this modal first
-      onClose();
-      // Small delay to allow modal close animation before opening new modal
-      setTimeout(() => {
-        onCreateAppointment({ date });
-      }, 200);
-    }
-  };
-
   return (
     <div className={`fixed inset-0 z-[60] flex items-center justify-center ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
       {/* Only show backdrop and modal if details view is not open */}
@@ -227,21 +216,16 @@ const DayDetailsModal = ({
                     You don't have any appointments scheduled for this day.
                   </p>
                 </div>
-                {isDateAvailableForBooking && (
-                  <div className="pt-2 sm:pt-4">
-                    <button
-                      type="button"
-                      onClick={handleCreateAppointment}
-                      className="inline-flex items-center px-3 sm:px-4 py-2 sm:py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-all text-xs sm:text-sm shadow-sm"
-                    >
-                      Schedule Appointment
-                    </button>
-                  </div>
-                )}
-                {!isDateAvailableForBooking && (
-                  <p className="text-xs text-base-content/50 pt-2">
-                    This day is not available for new bookings
-                  </p>
+                {isDateAvailableForBooking && onCreateAppointment && (
+                  <button
+                    onClick={() => {
+                      handleClose();
+                      onCreateAppointment({ date, time: null });
+                    }}
+                    className="btn btn-primary btn-sm"
+                  >
+                    New Appointment
+                  </button>
                 )}
               </div>
             </div>
@@ -357,21 +341,23 @@ const DayDetailsModal = ({
           )}
           
           {filteredAppointments.length > 0 && (
-            <div className="bg-base-100 border-t border-base-300/40 px-3 sm:px-6 py-2 sm:py-3 flex flex-col-reverse sm:flex-row-reverse gap-2 sm:gap-3 flex-shrink-0">
-              {isDateAvailableForBooking && (
+            <div className="bg-base-100 border-t border-base-300/40 px-3 sm:px-6 py-2 sm:py-3 flex justify-center gap-3 flex-shrink-0">
+              {isDateAvailableForBooking && onCreateAppointment && (
                 <button
                   type="button"
-                  onClick={handleCreateAppointment}
-                  className="flex-1 inline-flex justify-center rounded-lg border border-transparent shadow-sm px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-white text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
+                  onClick={() => {
+                    handleClose();
+                    onCreateAppointment({ date, time: null });
+                  }}
+                  className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg bg-primary text-primary-content text-xs sm:text-sm font-semibold hover:bg-primary/90 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
                 >
-                  <span className="hidden sm:inline">New Appointment</span>
-                  <span className="sm:hidden">New</span>
+                  New Appointment
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 inline-flex justify-center rounded-lg border border-base-300/50 shadow-sm px-3 sm:px-4 py-2 sm:py-2.5 bg-base-200/50 text-base-content text-xs sm:text-sm font-semibold hover:bg-base-200 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
+                className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg border border-base-300/50 shadow-sm bg-base-200/50 text-base-content text-xs sm:text-sm font-semibold hover:bg-base-200 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50"
               >
                 Close
               </button>
@@ -387,6 +373,8 @@ const DayDetailsModal = ({
           appointment={selectedAppointmentDetail}
           currentUser={currentUser}
           friends={friends}
+          availability={availability}
+          appointments={appointments}
           onClose={() => setSelectedAppointmentDetail(null)}
           onDelete={() => setSelectedAppointmentDetail(null)}
           onEdit={() => {

@@ -66,6 +66,9 @@ const AppointmentModal = ({
   const [isClosing, setIsClosing] = useState(false);
   const { theme } = useThemeStore();
 
+  // Detect if we're in edit mode (reschedule)
+  const isEditMode = !!appointment;
+
   // Handle close with animation
   const handleClose = () => {
     setIsClosing(true);
@@ -136,9 +139,10 @@ const AppointmentModal = ({
       const selectedFriend = friends.find(f => f._id === formData.friendId);
       
       if (selectedFriend) {
+        // Fetch friend's availability only (appointments already provided by parent)
         getUserAvailability(selectedFriend._id)
-          .then(data => {
-            setSelectedFriendAvailability(data);
+          .then((availabilityData) => {
+            setSelectedFriendAvailability(availabilityData);
             setLoadingFriendAvailability(false);
           })
           .catch(error => {
@@ -152,15 +156,18 @@ const AppointmentModal = ({
   }, [formData.friendId, friends]);
 
   const selectedDateAppointments = useMemo(() => {
-    if (!formData.startTime || !formData.friendId || appointments.length === 0) return [];
+    if (!formData.startTime || !formData.friendId) return [];
     
     try {
       const selectedDateStr = formData.startTime.split('T')[0];
+      
+      // Use appointments from prop (parent already provides correct data)
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Only show confirmed appointments
-        if (appt.status !== 'confirmed') return false;
+        // Match Calendar.jsx status filtering - show confirmed, scheduled, completed (hide pending, cancelled, declined)
+        const status = appt.status?.toLowerCase();
+        if (!['confirmed', 'scheduled', 'completed'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -363,17 +370,18 @@ const AppointmentModal = ({
 
   const getAppointmentsForDate = (date) => {
     const friendId = appointment?.friendId?._id || appointment?.friendId || formData.friendId;
-    if (!date || appointments.length === 0) return [];
+    if (!date) return [];
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
       const friendIdStr = friendId ? String(friendId) : null;
       
+      // Use appointments from prop (parent already provides correct data)
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Only show confirmed appointments
-        if (appt.status !== 'confirmed') return false;
+        // Show confirmed, scheduled, and completed appointments in mini calendar (align with main calendar)
+        if (!['confirmed', 'scheduled', 'completed'].includes(appt.status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -398,11 +406,12 @@ const AppointmentModal = ({
   // Get ALL appointments for the selected friend (not just on a specific date)
   const getAllAppointmentsForFriend = () => {
     const friendId = formData.friendId;
-    if (!friendId || appointments.length === 0) return [];
+    if (!friendId) return [];
     
     try {
       const friendIdStr = String(friendId);
       
+      // Use appointments from prop (parent already provides correct data)
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
@@ -420,15 +429,19 @@ const AppointmentModal = ({
 
   // Get ALL appointments on a date (regardless of friend) for maxPerDay validation
   const getAllAppointmentsForDate = (date) => {
-    if (!date || appointments.length === 0) return [];
+    if (!date) return [];
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      
+      // Use appointments from prop (parent already provides correct data)
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Only show confirmed appointments
-        if (appt.status !== 'confirmed') return false;
+        // Count CONFIRMED and SCHEDULED appointments for daily capacity
+        // (Both take up appointment slots)
+        const status = appt.status?.toLowerCase();
+        if (!['confirmed', 'scheduled'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -527,7 +540,23 @@ const AppointmentModal = ({
   };
 
   const handleConfirmAppointment = () => {
-    onSubmit(formData);
+    if (isEditMode) {
+      // For reschedule: include appointmentId
+      onSubmit({
+        appointmentId: appointment._id || appointment.id,
+        title: formData.title,
+        description: formData.description,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        meetingType: formData.meetingType,
+        location: formData.location,
+        duration: formData.duration,
+      });
+    } else {
+      // For new appointment: pass all formData
+      onSubmit(formData);
+    }
+    
     setFormData({
       title: '',
       description: '',
@@ -591,7 +620,7 @@ const AppointmentModal = ({
                   ? 'Cancel' 
                   : showDeclineForm 
                   ? 'Decline' 
-                  : appointment ? 'Edit' : 'New'}
+                  : appointment ? 'Reschedule' : 'New'}
                 <span className="hidden sm:inline"> Appointment</span>
               </h2>
               
@@ -850,10 +879,10 @@ const AppointmentModal = ({
                             
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">
-                                {/* Max appointments capacity bar */}
+                                {/* Max appointments capacity bar - Shows total confirmed appointments on this date */}
                                 <div className="space-y-1.5">
                                   <div className="flex items-center justify-between">
-                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity (Total)</p>
+                                    <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
                                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
                                       isFull 
                                         ? 'bg-error/20 text-error' 
@@ -1219,7 +1248,7 @@ const AppointmentModal = ({
                     onClick={handleConfirmAppointment}
                     className="flex-1 px-3 sm:px-4 py-2 sm:py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-xs sm:text-sm shadow-sm"
                   >
-                    <span className="hidden sm:inline">✓ Confirm</span>
+                    <span className="hidden sm:inline">✓ {isEditMode ? 'Update' : 'Confirm'}</span>
                     <span className="sm:hidden">✓ Ok</span>
                   </button>
                 </div>
