@@ -18,6 +18,7 @@ import { toast } from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
 import { useThemeStore } from '../store/useThemeStore';
 import { Search, X, AlertCircle } from 'lucide-react';
+import { getSocket } from '../lib/socket';
 
 const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
@@ -163,6 +164,179 @@ const AppointmentBookingPage = () => {
 
     fetchFriendsAvailability();
   }, [friends]);
+
+  // Real-time appointment updates via Socket.IO
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) {
+      console.log('[AppointmentBooking] No socket available yet');
+      return;
+    }
+    if (!currentUser) {
+      console.log('[AppointmentBooking] No current user yet');
+      return;
+    }
+
+    console.log('[AppointmentBooking] Setting up socket listeners for appointments', {
+      socketId: socket.id,
+      connected: socket.connected,
+      userId: currentUser._id || currentUser.id
+    });
+
+    // Handle new appointment created
+    const handleAppointmentCreated = (appointment) => {
+      console.log('[AppointmentBooking] Received appointment:created', appointment);
+      
+      // Invalidate queries to refetch appointments
+      queryClient.invalidateQueries(['appointments']);
+      if (viewingFriendId) {
+        queryClient.invalidateQueries(['friendAppointments', viewingFriendId]);
+      }
+      
+      // Show toast notification only if current user is the recipient
+      const currentUserId = currentUser._id || currentUser.id;
+      const recipientId = appointment.friendId?._id || appointment.friendId;
+      
+      if (recipientId === currentUserId) {
+        const senderName = appointment.userId?.fullName || 'Someone';
+        const appointmentTime = new Date(appointment.startTime).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        toast.success(`${senderName} requested an appointment with you!\n${appointmentTime}`, {
+          duration: 5000,
+          icon: '📅',
+          style: {
+            whiteSpace: 'pre-line'
+          }
+        });
+      }
+    };
+
+    // Handle appointment updated
+    const handleAppointmentUpdated = (appointment) => {
+      console.log('[AppointmentBooking] Received appointment:updated', appointment);
+      
+      queryClient.invalidateQueries(['appointments']);
+      if (viewingFriendId) {
+        queryClient.invalidateQueries(['friendAppointments', viewingFriendId]);
+      }
+      
+      toast.info('Appointment updated', { duration: 3000 });
+    };
+
+    // Handle appointment status changed
+    const handleAppointmentStatusChanged = ({ appointment, oldStatus, newStatus }) => {
+      console.log('[AppointmentBooking] Received appointment:statusChanged', { oldStatus, newStatus });
+      
+      queryClient.invalidateQueries(['appointments']);
+      if (viewingFriendId) {
+        queryClient.invalidateQueries(['friendAppointments', viewingFriendId]);
+      }
+      
+      const currentUserId = currentUser._id || currentUser.id;
+      const userId = appointment.userId?._id || appointment.userId;
+      const friendId = appointment.friendId?._id || appointment.friendId;
+      
+      // Show appropriate notification based on status change
+      const appointmentTime = new Date(appointment.startTime).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      if (newStatus === 'confirmed') {
+        if (userId === currentUserId) {
+          const friendName = appointment.friendId?.fullName || 'Your friend';
+          toast.success(`${friendName} accepted your appointment!\n${appointmentTime}`, {
+            duration: 5000,
+            icon: '✅',
+            style: {
+              whiteSpace: 'pre-line'
+            }
+          });
+        }
+      } else if (newStatus === 'declined') {
+        if (userId === currentUserId) {
+          const friendName = appointment.friendId?.fullName || 'Your friend';
+          toast.error(`${friendName} declined your appointment\n${appointmentTime}`, {
+            duration: 5000,
+            icon: '❌',
+            style: {
+              whiteSpace: 'pre-line'
+            }
+          });
+        }
+      } else if (newStatus === 'cancelled') {
+        const otherUserId = userId === currentUserId ? friendId : userId;
+        const otherUser = userId === currentUserId ? appointment.friendId : appointment.userId;
+        const otherName = otherUser?.fullName || 'The other participant';
+        
+        if (otherUserId !== currentUserId) {
+          toast.info(`${otherName} cancelled the appointment\n${appointmentTime}`, {
+            duration: 5000,
+            icon: '🔔',
+            style: {
+              whiteSpace: 'pre-line'
+            }
+          });
+        }
+      }
+    };
+
+    // Handle appointment deleted
+    const handleAppointmentDeleted = ({ appointmentId }) => {
+      console.log('[AppointmentBooking] Received appointment:deleted', appointmentId);
+      
+      queryClient.invalidateQueries(['appointments']);
+      if (viewingFriendId) {
+        queryClient.invalidateQueries(['friendAppointments', viewingFriendId]);
+      }
+    };
+
+    // Wait for socket to be connected before registering listeners
+    if (!socket.connected) {
+      console.log('[AppointmentBooking] Socket not connected yet, waiting...');
+      const onConnect = () => {
+        console.log('[AppointmentBooking] Socket connected, registering listeners');
+        socket.on('appointment:created', handleAppointmentCreated);
+        socket.on('appointment:updated', handleAppointmentUpdated);
+        socket.on('appointment:statusChanged', handleAppointmentStatusChanged);
+        socket.on('appointment:deleted', handleAppointmentDeleted);
+      };
+      
+      socket.once('connect', onConnect);
+      
+      return () => {
+        socket.off('connect', onConnect);
+        socket.off('appointment:created', handleAppointmentCreated);
+        socket.off('appointment:updated', handleAppointmentUpdated);
+        socket.off('appointment:statusChanged', handleAppointmentStatusChanged);
+        socket.off('appointment:deleted', handleAppointmentDeleted);
+      };
+    }
+
+    // Register socket event listeners
+    console.log('[AppointmentBooking] Registering socket event listeners NOW');
+    socket.on('appointment:created', handleAppointmentCreated);
+    socket.on('appointment:updated', handleAppointmentUpdated);
+    socket.on('appointment:statusChanged', handleAppointmentStatusChanged);
+    socket.on('appointment:deleted', handleAppointmentDeleted);
+
+    // Cleanup on unmount
+    return () => {
+      console.log('[AppointmentBooking] Cleaning up socket listeners');
+      socket.off('appointment:created', handleAppointmentCreated);
+      socket.off('appointment:updated', handleAppointmentUpdated);
+      socket.off('appointment:statusChanged', handleAppointmentStatusChanged);
+      socket.off('appointment:deleted', handleAppointmentDeleted);
+    };
+  }, [queryClient, currentUser, viewingFriendId]);
 
   // Scheduling availability - will use friend's actual availability when viewing them
   const getAvailabilityForCalendar = useMemo(() => {

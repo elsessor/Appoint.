@@ -103,3 +103,112 @@ export const emitNotificationUpdate = (userId) => {
   });
 };
 
+// Emit appointment created event to both participants
+export const emitAppointmentCreated = (appointment) => {
+  if (!io || !appointment) return;
+
+  const userId = (appointment.userId._id || appointment.userId).toString();
+  const friendId = (appointment.friendId._id || appointment.friendId).toString();
+
+  console.log(`[Socket] Emitting appointment:created to users ${userId} and ${friendId}`);
+
+  // Emit to creator
+  const userSocketSet = userSockets.get(userId);
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:created", appointment);
+    });
+  }
+
+  // Emit to recipient
+  const friendSocketSet = userSockets.get(friendId);
+  if (friendSocketSet) {
+    friendSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:created", appointment);
+    });
+  }
+};
+
+// Emit appointment updated event to both participants
+export const emitAppointmentUpdated = (appointment) => {
+  if (!io || !appointment) return;
+
+  const userId = (appointment.userId._id || appointment.userId).toString();
+  const friendId = (appointment.friendId._id || appointment.friendId).toString();
+
+  console.log(`[Socket] Emitting appointment:updated to users ${userId} and ${friendId}`);
+
+  // Emit to creator
+  const userSocketSet = userSockets.get(userId);
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:updated", appointment);
+    });
+  }
+
+  // Emit to recipient
+  const friendSocketSet = userSockets.get(friendId);
+  if (friendSocketSet) {
+    friendSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:updated", appointment);
+    });
+  }
+};
+
+// Emit appointment status changed event to both participants
+export const emitAppointmentStatusChanged = (appointment, oldStatus, newStatus) => {
+  if (!io || !appointment) return;
+
+  const userId = (appointment.userId._id || appointment.userId).toString();
+  const friendId = (appointment.friendId._id || appointment.friendId).toString();
+
+  console.log(`[Socket] Emitting appointment:statusChanged (${oldStatus} → ${newStatus}) to users ${userId} and ${friendId}`);
+
+  const eventData = {
+    appointment,
+    oldStatus,
+    newStatus,
+  };
+
+  // Emit to creator
+  const userSocketSet = userSockets.get(userId);
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:statusChanged", eventData);
+    });
+  }
+
+  // Emit to recipient
+  const friendSocketSet = userSockets.get(friendId);
+  if (friendSocketSet) {
+    friendSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:statusChanged", eventData);
+    });
+  }
+};
+
+// Emit appointment deleted/cancelled event to both participants
+export const emitAppointmentDeleted = (appointmentId, userId, friendId) => {
+  if (!io || !appointmentId) return;
+
+  console.log(`[Socket] Emitting appointment:deleted to users ${userId} and ${friendId}`);
+
+  const eventData = { appointmentId, userId, friendId };
+
+  // Emit to creator
+  const userSocketSet = userSockets.get(userId.toString());
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:deleted", eventData);
+    });
+  }
+
+  // Emit to recipient
+  const friendSocketSet = userSockets.get(friendId.toString());
+  if (friendSocketSet) {
+    friendSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:deleted", eventData);
+    });
+  }
+};
+

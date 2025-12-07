@@ -80,7 +80,29 @@ const NotificationsPage = () => {
                 </h2>
 
                 <div className="space-y-3">
-                  {appointmentNotifications.map((notification) => (
+                  {appointmentNotifications.map((notification) => {
+                    // Extract appointment status
+                    const appointmentStatus = notification.appointmentId?.status;
+
+                    // Determine status badge styling
+                    const getStatusBadge = (status) => {
+                      switch(status) {
+                        case 'accepted':
+                        case 'confirmed':
+                          return { text: status.charAt(0).toUpperCase() + status.slice(1), class: 'badge-success' };
+                        case 'declined':
+                        case 'cancelled':
+                          return { text: status.charAt(0).toUpperCase() + status.slice(1), class: 'badge-error' };
+                        case 'pending':
+                          return { text: 'Pending', class: 'badge-warning' };
+                        default:
+                          return null;
+                      }
+                    };
+
+                    const statusBadge = appointmentStatus ? getStatusBadge(appointmentStatus) : null;
+
+                    return (
                     <div
                       key={notification._id}
                       className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
@@ -103,7 +125,14 @@ const NotificationsPage = () => {
                             />
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-semibold">{notification.title}</h3>
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <h3 className="font-semibold">{notification.title}</h3>
+                              {statusBadge && (
+                                <span className={`badge ${statusBadge.class} badge-sm`}>
+                                  {statusBadge.text}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm my-1">{notification.message}</p>
                             <p className="text-xs flex items-center opacity-70">
                               <ClockIcon className="h-3 w-3 mr-1" />
@@ -116,7 +145,8 @@ const NotificationsPage = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}

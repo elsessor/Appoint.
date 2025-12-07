@@ -6,6 +6,12 @@ import {
   checkLeadTime,
   validateAppointmentDuration,
 } from "../utils/availabilityUtils.js";
+import {
+  emitAppointmentCreated,
+  emitAppointmentUpdated,
+  emitAppointmentStatusChanged,
+  emitAppointmentDeleted,
+} from "../lib/socket.js";
 
 export async function createAppointment(req, res) {
   try {
@@ -235,6 +241,9 @@ export async function createAppointment(req, res) {
       appointmentId: appointment._id,
     });
 
+    // Emit socket event for real-time updates
+    emitAppointmentCreated(appointment);
+
     res.status(201).json(appointment);
   } catch (error) {
     console.error("Error in createAppointment controller", error.message);
@@ -408,6 +417,9 @@ export async function updateAppointment(req, res) {
       return res.status(403).json({ message: "Not authorized to update this appointment" });
     }
 
+    // Track old status for socket event
+    const oldStatus = appointment.status;
+
     // Validate status transitions if status is being changed
     if (status && status !== appointment.status) {
       const currentStatus = appointment.status;
@@ -469,6 +481,15 @@ export async function updateAppointment(req, res) {
 
     await appointment.save();
     await appointment.populate(["userId", "friendId"]);
+
+    // Emit socket events for real-time updates
+    if (status && status !== oldStatus) {
+      // Status changed - emit specific status change event
+      emitAppointmentStatusChanged(appointment, oldStatus, status);
+    } else {
+      // General update (time, title, etc.)
+      emitAppointmentUpdated(appointment);
+    }
 
     // If rating was provided in this update, create a notification for the other participant
     try {
@@ -558,8 +579,14 @@ export async function deleteAppointment(req, res) {
     }
 
     // Mark as cancelled instead of hard delete (better for history/auditing)
+    const oldStatus = appointment.status;
     appointment.status = 'cancelled';
     await appointment.save();
+    await appointment.populate(["userId", "friendId"]);
+
+    // Emit socket events for real-time updates
+    emitAppointmentStatusChanged(appointment, oldStatus, 'cancelled');
+    emitAppointmentDeleted(appointment._id, appointmentUserId, appointmentFriendId);
 
     res.status(200).json({ message: "Appointment cancelled successfully" });
   } catch (error) {
