@@ -376,7 +376,7 @@ const DayDetailsModal = ({
           availability={availability}
           appointments={appointments}
           onClose={() => setSelectedAppointmentDetail(null)}
-          onDelete={() => setSelectedAppointmentDetail(null)}
+          onDelete={null}
           onEdit={() => {
             console.log('Edit appointment:', selectedAppointmentDetail._id);
           }}

@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useThemeStore } from '../../store/useThemeStore';
 import AppointmentModal from './AppointmentModal';
+import ConfirmDialog from '../ConfirmDialog';
+import { toast } from 'react-hot-toast';
 
 const AppointmentDetails = ({
   appointment,
@@ -38,6 +40,7 @@ const AppointmentDetails = ({
   const [meetingNotes, setMeetingNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   if (!appointment) {
     return null;
@@ -66,6 +69,22 @@ const AppointmentDetails = ({
   // Both participants can manage (reschedule/cancel) their appointments
   // Only pending requests have special rules (only receiver can accept/decline)
   const canPerformActions = isParticipant;
+  
+  // Only the appointment creator (userId) can cancel the appointment
+  const canCancel = appointmentUserId === currentUserId;
+
+  const handleCancelClick = () => {
+    if (!canCancel) {
+      toast.error('Only the appointment requester can cancel. You can decline instead.');
+      return;
+    }
+    setShowCancelConfirm(true);
+  };
+
+  const handleConfirmCancel = () => {
+    onDelete();
+    setShowCancelConfirm(false);
+  };
 
   return (
     <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/50" data-theme={theme}>
@@ -108,7 +127,7 @@ const AppointmentDetails = ({
                   </div>
                 </div>
                 <div className="flex gap-1 sm:gap-2 flex-shrink-0">
-                  {canPerformActions && (
+                  {canPerformActions && onDelete && (
                     <>
                       <button
                         onClick={() => setShowRescheduleModal(true)}
@@ -119,8 +138,9 @@ const AppointmentDetails = ({
                         <span className="sm:hidden">Edit</span>
                       </button>
                       <button
-                        onClick={onDelete}
+                        onClick={handleCancelClick}
                         className="flex items-center gap-1 px-2 sm:px-4 py-1 sm:py-2 btn btn-outline btn-error btn-sm text-xs sm:text-sm"
+                        disabled={!canCancel}
                       >
                         <Trash2 className="w-3 sm:w-4 h-3 sm:h-4" />
                         <span className="hidden sm:inline">Cancel</span>
@@ -290,24 +310,26 @@ const AppointmentDetails = ({
 
                   <hr className="border-base-300 my-2 sm:my-4" />
 
-                  <div className="space-y-2 sm:space-y-2">
-                    <button 
-                      onClick={() => navigate(`/call/${appointment._id}`)}
-                      className="w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 btn btn-primary btn-sm text-xs sm:text-sm"
-                    >
-                      <Video className="w-3 sm:w-4 h-3 sm:h-4" />
-                      <span className="hidden sm:inline">Join Video Call</span>
-                      <span className="sm:hidden">Join Call</span>
-                    </button>
-                    <button
-                      onClick={() => navigate(`/chat/${professional._id}`)}
-                      className="w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 btn btn-outline btn-sm text-xs sm:text-sm"
-                    >
-                      <MessageSquare className="w-3 sm:w-4 h-3 sm:h-4" />
-                      <span className="hidden sm:inline">Send Message</span>
-                      <span className="sm:hidden">Message</span>
-                    </button>
-                  </div>
+                  {isParticipant && (
+                    <div className="space-y-2 sm:space-y-2">
+                      <button 
+                        onClick={() => navigate(`/call/${appointment._id}`)}
+                        className="w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 btn btn-primary btn-sm text-xs sm:text-sm"
+                      >
+                        <Video className="w-3 sm:w-4 h-3 sm:h-4" />
+                        <span className="hidden sm:inline">Join Video Call</span>
+                        <span className="sm:hidden">Join Call</span>
+                      </button>
+                      <button
+                        onClick={() => navigate(`/chat/${professional._id}`)}
+                        className="w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 btn btn-outline btn-sm text-xs sm:text-sm"
+                      >
+                        <MessageSquare className="w-3 sm:w-4 h-3 sm:h-4" />
+                        <span className="hidden sm:inline">Send Message</span>
+                        <span className="sm:hidden">Message</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -355,20 +377,7 @@ const AppointmentDetails = ({
                 </div>
               </div>
 
-              {/* Meeting Notes */}
-              <div className="bg-base-100 border border-base-300 rounded-lg p-3 sm:p-6 mb-4 sm:mb-8">
-                <h3 className="text-base sm:text-lg font-semibold text-base-content mb-2 sm:mb-4">Meeting Minutes</h3>
-                <textarea
-                  value={meetingNotes}
-                  onChange={(e) => setMeetingNotes(e.target.value)}
-                  placeholder="Add notes during or after the meeting..."
-                  className="w-full p-2 sm:p-3 border border-base-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary textarea textarea-bordered resize-none text-xs sm:text-sm"
-                  rows="4"
-                />
-                <button className="mt-2 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 btn btn-primary btn-sm text-xs sm:text-sm">
-                  Save Minutes
-                </button>
-              </div>
+
             </div>
           </div>
         </div>
@@ -388,6 +397,18 @@ const AppointmentDetails = ({
         availability={availability}
         friendsAvailability={friendsAvailability}
         appointments={appointments}
+      />
+
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={handleConfirmCancel}
+        title="Cancel Appointment"
+        message={`Are you sure you want to cancel this appointment with ${professional?.fullName || 'this person'}? This action cannot be undone.`}
+        confirmText="Yes, Cancel Appointment"
+        cancelText="No, Keep It"
+        variant="danger"
       />
     </div>
   );

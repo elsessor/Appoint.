@@ -486,6 +486,51 @@ export async function updateAppointment(req, res) {
     if (status && status !== oldStatus) {
       // Status changed - emit specific status change event
       emitAppointmentStatusChanged(appointment, oldStatus, status);
+
+      // Create notification for status changes
+      const apptUserId = (appointment.userId._id || appointment.userId).toString();
+      const apptFriendId = (appointment.friendId._id || appointment.friendId).toString();
+      const recipientId = apptUserId === userId ? apptFriendId : apptUserId;
+      const sender = await User.findById(userId).select('fullName');
+
+      const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      let notificationTitle = '';
+      let notificationMessage = '';
+
+      if (status === 'confirmed') {
+        notificationTitle = 'Appointment Confirmed';
+        notificationMessage = `${sender.fullName} has confirmed your appointment scheduled for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'declined') {
+        notificationTitle = 'Appointment Declined';
+        notificationMessage = `${sender.fullName} has declined your appointment request for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'cancelled') {
+        notificationTitle = 'Appointment Cancelled';
+        notificationMessage = `${sender.fullName} has cancelled the appointment scheduled for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'completed') {
+        notificationTitle = 'Appointment Completed';
+        notificationMessage = `Your appointment with ${sender.fullName} scheduled for ${formattedDate} at ${formattedTime} has been marked as completed`;
+      }
+
+      if (notificationTitle && notificationMessage) {
+        await createNotification({
+          recipientId,
+          senderId: userId,
+          type: "appointment",
+          title: notificationTitle,
+          message: notificationMessage,
+          appointmentId: appointment._id,
+        });
+      }
     } else {
       // General update (time, title, etc.)
       emitAppointmentUpdated(appointment);
@@ -545,12 +590,14 @@ export async function deleteAppointment(req, res) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    // Check if user has authorization to delete (either userId or friendId can delete)
+    // Only the appointment requester (userId) can cancel
     const appointmentUserId = appointment.userId.toString();
     const appointmentFriendId = appointment.friendId.toString();
     
-    if (appointmentUserId !== userId && appointmentFriendId !== userId) {
-      return res.status(403).json({ message: "Not authorized to delete this appointment" });
+    if (appointmentUserId !== userId) {
+      return res.status(403).json({ 
+        message: "Only the appointment requester can cancel. Recipients should use the decline option instead." 
+      });
     }
 
     // Prevent cancellation of already completed, cancelled, or declined appointments
@@ -583,6 +630,28 @@ export async function deleteAppointment(req, res) {
     appointment.status = 'cancelled';
     await appointment.save();
     await appointment.populate(["userId", "friendId"]);
+
+    // Create notification for cancellation
+    const sender = await User.findById(userId).select('fullName');
+    const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+    const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    await createNotification({
+      recipientId: appointmentFriendId,
+      senderId: userId,
+      type: "appointment",
+      title: "Appointment Cancelled",
+      message: `${sender.fullName} has cancelled the appointment scheduled for ${formattedDate} at ${formattedTime}`,
+      appointmentId: appointment._id,
+    });
 
     // Emit socket events for real-time updates
     emitAppointmentStatusChanged(appointment, oldStatus, 'cancelled');
