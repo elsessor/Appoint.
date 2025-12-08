@@ -6,12 +6,14 @@ const CalendarSidebar = ({
   friends = [],
   currentUser,
   visibleFriends = [],
+  isCurrentUserVisible = true,
   onToggleFriendVisibility,
   selectedDate = null,
   onDateSelect = () => {},
 }) => {
   const [miniCalendarMonth, setMiniCalendarMonth] = useState(new Date());
   const [expandMyCalendars, setExpandMyCalendars] = useState(true);
+  const [expandFriendsCalendars, setExpandFriendsCalendars] = useState(true);
 
   // Define unique colors for each person
   const colorPalette = [
@@ -56,14 +58,13 @@ const CalendarSidebar = ({
     return [yourColor, ...friendsList];
   }, [friends, currentUser]);
 
-  // Get all visible calendar IDs (always include current user)
-  const allVisibleIds = useMemo(() => {
-    const currentUserId = currentUser?._id || currentUser?.id;
-    return [currentUserId, ...visibleFriends];
-  }, [visibleFriends, currentUser]);
-
+  // Check if a calendar is visible
   const isVisible = (friendId) => {
-    return allVisibleIds.includes(friendId);
+    const currentUserId = currentUser?._id || currentUser?.id;
+    if (friendId === currentUserId) {
+      return isCurrentUserVisible;
+    }
+    return visibleFriends.includes(friendId);
   };
 
   return (
@@ -130,80 +131,134 @@ const CalendarSidebar = ({
         </div>
       </div>
 
-      {/* My Calendars Section */}
-      <div className="flex-1 p-2 sm:p-3 flex flex-col">
+      {/* My Calendar Section */}
+      <div className="p-2 sm:p-3 border-b border-base-300">
         <button
           onClick={() => setExpandMyCalendars(!expandMyCalendars)}
           className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-base-200 transition-colors mb-2 w-full"
           aria-expanded={expandMyCalendars}
         >
           <span className={`text-lg transition-transform duration-200 ${expandMyCalendars ? 'rotate-180' : ''}`}>↓</span>
-          <h3 className="text-xs sm:text-sm font-semibold text-base-content">My calendars</h3>
+          <h3 className="text-xs sm:text-sm font-semibold text-base-content">My Calendar</h3>
         </button>
 
         {expandMyCalendars && (
-        <div className="space-y-1 sm:space-y-1.5 overflow-y-auto">
-          {friendsWithColors.map((friend) => {
-            const isCurrentUser = friend.isCurrentUser;
-            const visible = isVisible(friend._id);
-            const color = friend.color;
+          <div className="space-y-1 sm:space-y-1.5">
+            {friendsWithColors
+              .filter(friend => friend.isCurrentUser)
+              .map((friend) => {
+                const visible = isVisible(friend._id);
+                const color = friend.color;
 
-            return (
-              <div
-                key={friend._id}
-                className={`flex items-center gap-1 sm:gap-2 px-2 py-1.5 rounded text-xs sm:text-sm transition-colors ${
-                  visible ? 'bg-base-200' : 'hover:bg-base-200/50'
-                }`}
-              >
-                {/* Color Indicator Checkbox */}
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={visible}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      if (!isCurrentUser) {
-                        onToggleFriendVisibility(friend._id);
-                      }
-                    }}
-                    disabled={isCurrentUser}
-                    className="w-4 h-4 rounded accent-primary cursor-pointer disabled:opacity-100 disabled:cursor-default"
-                    style={
-                      visible && !isCurrentUser
-                        ? { accentColor: color.dot.replace('bg-', '') }
-                        : {}
-                    }
-                  />
-                </label>
+                return (
+                  <div
+                    key={friend._id}
+                    className={`flex items-center gap-1 sm:gap-2 px-2 py-1.5 rounded text-xs sm:text-sm transition-colors hover:bg-base-200/50`}
+                  >
+                    {/* Color Indicator Checkbox */}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visible}
+                        onChange={() => onToggleFriendVisibility(friend._id)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                        style={{ accentColor: visible ? '#3b82f6' : undefined }}
+                      />
+                    </label>
 
-                {/* Color Dot */}
-                <div className={`w-2 sm:w-3 h-2 sm:h-3 rounded-full ${color.dot} flex-shrink-0`}></div>
+                    {/* Color Dot */}
+                    <div className={`w-2 sm:w-3 h-2 sm:h-3 rounded-full ${color.dot} flex-shrink-0`}></div>
 
-                {/* Profile Picture */}
-                {friend.profilePic ? (
-                  <img
-                    src={friend.profilePic}
-                    alt={friend.fullName || friend.name}
-                    className="w-4 sm:w-5 h-4 sm:h-5 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {(friend.name || friend.fullName || 'U')[0].toUpperCase()}
+                    {/* Profile Picture */}
+                    {friend.profilePic ? (
+                      <img
+                        src={friend.profilePic}
+                        alt={friend.fullName || friend.name}
+                        className="w-4 sm:w-5 h-4 sm:h-5 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        {(friend.name || friend.fullName || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Name */}
+                    <span className="text-xs sm:text-sm text-base-content truncate">
+                      {friend.name || friend.fullName}
+                    </span>
                   </div>
-                )}
+                );
+              })}
+          </div>
+        )}
+      </div>
 
-                {/* Name */}
-                <span className="text-xs sm:text-sm text-base-content truncate">
-                  {friend.name || friend.fullName}
-                  {isCurrentUser && <span className="text-xs opacity-60"> (You)</span>}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      {/* Friends' Calendars Section */}
+      <div className="flex-1 p-2 sm:p-3 flex flex-col overflow-y-auto">
+        <button
+          onClick={() => setExpandFriendsCalendars(!expandFriendsCalendars)}
+          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-base-200 transition-colors mb-2 w-full"
+          aria-expanded={expandFriendsCalendars}
+        >
+          <span className={`text-lg transition-transform duration-200 ${expandFriendsCalendars ? 'rotate-180' : ''}`}>↓</span>
+          <h3 className="text-xs sm:text-sm font-semibold text-base-content">Friends' Calendars</h3>
+        </button>
+
+        {expandFriendsCalendars && (
+          <div className="space-y-1 sm:space-y-1.5 overflow-y-auto">
+            {friendsWithColors
+              .filter(friend => !friend.isCurrentUser)
+              .map((friend) => {
+                const visible = isVisible(friend._id);
+                const color = friend.color;
+
+                return (
+                  <div
+                    key={friend._id}
+                    className={`flex items-center gap-1 sm:gap-2 px-2 py-1.5 rounded text-xs sm:text-sm transition-colors hover:bg-base-200/50`}
+                  >
+                    {/* Color Indicator Checkbox */}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={visible}
+                        onChange={() => onToggleFriendVisibility(friend._id)}
+                        className="w-4 h-4 rounded cursor-pointer"
+                        style={
+                          visible
+                            ? { accentColor: color.dot.replace('bg-', '') }
+                            : undefined
+                        }
+                      />
+                    </label>
+
+                    {/* Color Dot */}
+                    <div className={`w-2 sm:w-3 h-2 sm:h-3 rounded-full ${color.dot} flex-shrink-0`}></div>
+
+                    {/* Profile Picture */}
+                    {friend.profilePic ? (
+                      <img
+                        src={friend.profilePic}
+                        alt={friend.fullName || friend.name}
+                        className="w-4 sm:w-5 h-4 sm:h-5 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-4 sm:w-5 h-4 sm:h-5 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        {(friend.name || friend.fullName || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* Name */}
+                    <span className="text-xs sm:text-sm text-base-content truncate">
+                      {friend.name || friend.fullName}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
         )}
 
-        {expandMyCalendars && friendsWithColors.length === 1 && (
+        {expandFriendsCalendars && friendsWithColors.filter(f => !f.isCurrentUser).length === 0 && (
           <div className="px-2 sm:px-3 py-3 sm:py-4 text-center text-xs text-base-content/50">
             Add friends to see their calendars
           </div>
@@ -232,6 +287,7 @@ CalendarSidebar.propTypes = {
     profilePic: PropTypes.string,
   }),
   visibleFriends: PropTypes.arrayOf(PropTypes.string),
+  isCurrentUserVisible: PropTypes.bool,
   onToggleFriendVisibility: PropTypes.func.isRequired,
   selectedDate: PropTypes.instanceOf(Date),
   onDateSelect: PropTypes.func,

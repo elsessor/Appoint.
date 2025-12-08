@@ -179,13 +179,14 @@ export async function createAppointment(req, res) {
 
     // Check max appointments per day constraint for the logged-in user
     const user = await User.findById(userId);
-    const maxPerDay = user.maxAppointmentsPerDay || 5;
+    const maxPerDay = user.availability?.maxPerDay || 5;
     const startOfDay = new Date(start);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(start);
     endOfDay.setHours(23, 59, 59, 999);
 
     // Count ALL appointments for the logged-in user on this day (with any friend)
+    // Include pending, confirmed, and scheduled statuses
     const appointmentsOnSameDay = await Appointment.countDocuments({
       $or: [
         { userId: userId },
@@ -195,11 +196,37 @@ export async function createAppointment(req, res) {
       startTime: { $gte: startOfDay, $lte: endOfDay }
     });
 
+    console.log(`[Booking Validation] User ${userId} has ${appointmentsOnSameDay} appointments on this day (max: ${maxPerDay})`);
+
     if (appointmentsOnSameDay >= maxPerDay) {
       return res.status(400).json({
-        message: `You have reached the maximum of ${maxPerDay} appointments per day. Please choose a different date.`,
+        message: `You have reached the maximum of ${maxPerDay} appointments per day. You currently have ${appointmentsOnSameDay} appointments scheduled. Please choose a different date.`,
         maxPerDay,
+        currentCount: appointmentsOnSameDay,
         appointmentsOnDate: appointmentsOnSameDay
+      });
+    }
+
+    // Also check if the recipient (friend) has reached their max appointments per day
+    const friendMaxPerDay = friend.availability?.maxPerDay || 5;
+    const friendAppointmentsOnSameDay = await Appointment.countDocuments({
+      $or: [
+        { userId: friendId },
+        { friendId: friendId }
+      ],
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    console.log(`[Booking Validation] Friend ${friendId} has ${friendAppointmentsOnSameDay} appointments on this day (max: ${friendMaxPerDay})`);
+
+    if (friendAppointmentsOnSameDay >= friendMaxPerDay) {
+      return res.status(400).json({
+        message: `${friend.fullName} has reached their maximum of ${friendMaxPerDay} appointments for this day (currently has ${friendAppointmentsOnSameDay}). Please choose a different date.`,
+        maxPerDay: friendMaxPerDay,
+        currentCount: friendAppointmentsOnSameDay,
+        appointmentsOnDate: friendAppointmentsOnSameDay,
+        recipientName: friend.fullName
       });
     }
 

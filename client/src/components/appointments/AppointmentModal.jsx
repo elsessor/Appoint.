@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { X, Calendar, Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO, isToday, isBefore, isAfter, addMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { getUserAvailability } from '../../lib/api';
+import { getUserAvailability, getFriendAppointments } from '../../lib/api';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import AvailabilityInfo from '../AvailabilityInfo';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -59,6 +59,8 @@ const AppointmentModal = ({
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [selectedFriendAvailability, setSelectedFriendAvailability] = useState(null);
   const [loadingFriendAvailability, setLoadingFriendAvailability] = useState(false);
+  const [friendAppointments, setFriendAppointments] = useState([]);
+  const [loadingFriendAppointments, setLoadingFriendAppointments] = useState(false);
   const [step, setStep] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
@@ -136,10 +138,11 @@ const AppointmentModal = ({
   useEffect(() => {
     if (formData.friendId) {
       setLoadingFriendAvailability(true);
+      setLoadingFriendAppointments(true);
       const selectedFriend = friends.find(f => f._id === formData.friendId);
       
       if (selectedFriend) {
-        // Fetch friend's availability only (appointments already provided by parent)
+        // Fetch friend's availability
         getUserAvailability(selectedFriend._id)
           .then((availabilityData) => {
             setSelectedFriendAvailability(availabilityData);
@@ -149,9 +152,28 @@ const AppointmentModal = ({
             console.error('Error fetching friend availability:', error);
             setLoadingFriendAvailability(false);
           });
+
+        // Fetch friend's appointments
+        getFriendAppointments(selectedFriend._id)
+          .then((appointmentsData) => {
+            console.log('[AppointmentModal] Fetched friend appointments:', {
+              friendId: selectedFriend._id,
+              friendName: selectedFriend.fullName || selectedFriend.name,
+              count: appointmentsData.length,
+              appointments: appointmentsData
+            });
+            setFriendAppointments(appointmentsData);
+            setLoadingFriendAppointments(false);
+          })
+          .catch(error => {
+            console.error('Error fetching friend appointments:', error);
+            setFriendAppointments([]);
+            setLoadingFriendAppointments(false);
+          });
       }
     } else {
       setSelectedFriendAvailability(null);
+      setFriendAppointments([]);
     }
   }, [formData.friendId, friends]);
 
@@ -376,8 +398,10 @@ const AppointmentModal = ({
       const dateStr = format(date, 'yyyy-MM-dd');
       const friendIdStr = friendId ? String(friendId) : null;
       
-      // Use appointments from prop (parent already provides correct data)
-      return appointments.filter(appt => {
+      // Use fetched friend appointments if available, otherwise fall back to prop
+      const appointmentsToUse = friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      return appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
         
         // Show confirmed, scheduled, and completed appointments in mini calendar (align with main calendar)
@@ -411,8 +435,10 @@ const AppointmentModal = ({
     try {
       const friendIdStr = String(friendId);
       
-      // Use appointments from prop (parent already provides correct data)
-      return appointments.filter(appt => {
+      // Use fetched friend appointments if available, otherwise fall back to prop
+      const appointmentsToUse = friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      const filtered = appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
         
         // Show all statuses
@@ -421,6 +447,16 @@ const AppointmentModal = ({
         
         return apptFriendId === friendIdStr || apptUserId === friendIdStr;
       });
+      
+      console.log('[AppointmentModal] getAllAppointmentsForFriend:', {
+        friendId: friendIdStr,
+        source: friendAppointments.length > 0 ? 'friendAppointments' : 'appointments prop',
+        totalAvailable: appointmentsToUse.length,
+        filtered: filtered.length,
+        appointments: filtered
+      });
+      
+      return filtered;
     } catch (e) {
       console.error('Error in getAllAppointmentsForFriend:', e);
       return [];
@@ -433,21 +469,34 @@ const AppointmentModal = ({
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
+      const friendId = formData.friendId;
       
-      // Use appointments from prop (parent already provides correct data)
-      return appointments.filter(appt => {
+      // Use fetched friend appointments when scheduling with a friend, otherwise use own appointments
+      const appointmentsToUse = friendId && friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      return appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Count CONFIRMED and SCHEDULED appointments for daily capacity
-        // (Both take up appointment slots)
+        // Count CONFIRMED, SCHEDULED, and PENDING appointments for daily capacity
+        // (All take up appointment slots)
         const status = appt.status?.toLowerCase();
-        if (!['confirmed', 'scheduled'].includes(status)) return false;
+        if (!['confirmed', 'scheduled', 'pending'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
           : format(new Date(appt.startTime), 'yyyy-MM-dd');
         
-        return apptDateStr === dateStr;
+        if (apptDateStr !== dateStr) return false;
+        
+        // When checking friend's capacity, count all their appointments
+        if (friendId) {
+          const friendIdStr = String(friendId);
+          const apptUserId = String(appt.userId?._id || appt.userId);
+          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+          return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+        }
+        
+        return true;
       });
     } catch (e) {
       return [];
