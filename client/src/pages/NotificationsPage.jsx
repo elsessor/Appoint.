@@ -1,12 +1,43 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead } from "../lib/api";
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon } from "lucide-react";
+import { acceptFriendRequest, getFriendRequests, markNotificationsRead, getNotifications, markNotificationAsRead, deleteNotification, getAuthUser } from "../lib/api";
+import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon, CalendarIcon, TrashIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 import { format } from "date-fns";
+import { CheckCircle2 } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
+
+const AllCaughtUpState = () => {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4">
+      <div className="relative">
+        <CheckCircle2 className="h-24 w-24 text-success animate-bounce" />
+        <div className="absolute -top-2 -right-2">
+        </div>
+      </div>
+      <h3 className="text-2xl font-bold mt-6 mb-2">You're All Caught Up!</h3>
+      <p className="text-base-content/70 text-center max-w-md">
+        No unread notifications. You're on top of everything!
+      </p>
+      <div className="mt-6 flex gap-2">
+        <div className="badge badge-success gap-2">
+          <CheckCircle2 className="h-3 w-3" />
+          Inbox Zero
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [activeFilter, setActiveFilter] = useState("all");
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['authUser'],
+    queryFn: getAuthUser,
+  });
 
   const { data: friendRequests, isLoading: isLoadingFriendRequests } = useQuery({
     queryKey: ["friendRequests"],
@@ -28,6 +59,13 @@ const NotificationsPage = () => {
 
   const { mutate: markAsReadMutation } = useMutation({
     mutationFn: markNotificationAsRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const { mutate: deleteNotificationMutation } = useMutation({
+    mutationFn: deleteNotification,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -60,39 +98,155 @@ const NotificationsPage = () => {
     }
   }, [acceptedRequests.length, hasUnread, incomingRequests.length, isLoadingFriendRequests, markAsRead]);
 
+  // Filter logic based on active filter
+  const filteredAppointments = useMemo(() => {
+    if (activeFilter === "all") return appointmentNotifications;
+    if (activeFilter === "unread") return appointmentNotifications.filter(n => !n.isRead);
+    if (activeFilter === "appointments") return appointmentNotifications;
+    return [];
+  }, [appointmentNotifications, activeFilter]);
+
+  const filteredFriendRequests = useMemo(() => {
+    if (activeFilter === "all" || activeFilter === "friends") return incomingRequests;
+    if (activeFilter === "unread") return incomingRequests.filter(req => !req.recipientSeen);
+    return [];
+  }, [incomingRequests, activeFilter]);
+
+  const filteredNewConnections = useMemo(() => {
+    if (activeFilter === "all" || activeFilter === "friends") return acceptedRequests;
+    if (activeFilter === "unread") return acceptedRequests.filter(req => !req.senderSeen);
+    return [];
+  }, [acceptedRequests, activeFilter]);
+
+  // ====== NEW: Combine all notifications into one chronologically sorted feed ======
+  const allNotificationsFeed = useMemo(() => {
+    const combined = [];
+    
+    // Add appointment notifications
+    filteredAppointments.forEach(notif => {
+      combined.push({
+        ...notif,
+        notifType: 'appointment',
+        dateForSort: new Date(notif.createdAt)
+      });
+    });
+    
+    // Add friend requests
+    filteredFriendRequests.forEach(req => {
+      combined.push({
+        ...req,
+        notifType: 'friendRequest',
+        dateForSort: new Date(req.createdAt || req.updatedAt)
+      });
+    });
+    
+    // Add new connections
+    filteredNewConnections.forEach(conn => {
+      combined.push({
+        ...conn,
+        notifType: 'newConnection',
+        dateForSort: new Date(conn.updatedAt || conn.createdAt)
+      });
+    });
+    
+    // Sort by date - newest first
+    return combined.sort((a, b) => b.dateForSort - a.dateForSort);
+  }, [filteredAppointments, filteredFriendRequests, filteredNewConnections]);
+
+  // Count unread for each category
+  const unreadCounts = useMemo(() => {
+    return {
+      all: appointmentNotifications.filter(n => !n.isRead).length + 
+            incomingRequests.filter(r => !r.recipientSeen).length +
+            acceptedRequests.filter(r => !r.senderSeen).length,
+      appointments: appointmentNotifications.filter(n => !n.isRead).length,
+      friends: incomingRequests.filter(r => !r.recipientSeen).length + 
+               acceptedRequests.filter(r => !r.senderSeen).length,
+    };
+  }, [appointmentNotifications, incomingRequests, acceptedRequests]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
       <div className="container mx-auto max-w-4xl space-y-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
+
+        {/* Filter Buttons */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveFilter("all")}
+            className={`btn btn-sm ${activeFilter === "all" ? "btn-primary" : "btn-ghost"}`}
+          >
+            All
+            {unreadCounts.all > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("unread")}
+            className={`btn btn-sm ${activeFilter === "unread" ? "btn-primary" : "btn-ghost"}`}
+          >
+            Unread
+            {unreadCounts.all > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("appointments")}
+            className={`btn btn-sm ${activeFilter === "appointments" ? "btn-primary" : "btn-ghost"}`}
+          >
+            <CalendarIcon className="h-4 w-4 mr-1" />
+            Appointments
+            {unreadCounts.appointments > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.appointments}</span>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter("friends")}
+            className={`btn btn-sm ${activeFilter === "friends" ? "btn-primary" : "btn-ghost"}`}
+          >
+            <UserCheckIcon className="h-4 w-4 mr-1" />
+            Friends
+            {unreadCounts.friends > 0 && (
+              <span className="badge badge-sm ml-1">{unreadCounts.friends}</span>
+            )}
+          </button>
+        </div>
 
         {(isLoadingFriendRequests || isLoadingNotifications) ? (
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg"></span>
           </div>
         ) : (
-          <>
-            {appointmentNotifications.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5 text-primary" />
-                  Appointment Notifications
-                  <span className="badge badge-primary ml-2">{appointmentNotifications.length}</span>
-                </h2>
-
-                <div className="space-y-3">
-                  {appointmentNotifications.map((notification) => (
+          <div className="space-y-3">
+            {allNotificationsFeed.length === 0 ? (
+              activeFilter === "unread" ? (
+                <AllCaughtUpState />
+              ) : (
+                <NoNotificationsFound />
+              )
+            ) : (
+              allNotificationsFeed.map((item) => {
+                // Render based on notification type
+                if (item.notifType === 'appointment') {
+                  const notification = item;
+                  return (
                     <div
                       key={notification._id}
                       className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
-                      onClick={() => {
-                        if (!notification.isRead) {
-                          markAsReadMutation(notification._id);
-                        }
-                      }}
                     >
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
+                          <div 
+                            className="avatar mt-1 size-10 rounded-full cursor-pointer flex-shrink-0"
+                            onClick={() => {
+                              if (!notification.isRead) {
+                                markAsReadMutation(notification._id);
+                              }
+                            }}
+                          >
                             <img
                               src={notification.senderId?.profilePic && notification.senderId.profilePic.trim() ? notification.senderId.profilePic : '/default-profile.png'}
                               alt={notification.senderId?.fullName || 'User'}
@@ -102,7 +256,17 @@ const NotificationsPage = () => {
                               }}
                             />
                           </div>
-                          <div className="flex-1">
+                          <div 
+                            className="flex-1 cursor-pointer"
+                            onClick={async () => {
+                              if (!notification.isRead) {
+                                markAsReadMutation(notification._id);
+                              }
+                              setTimeout(() => {
+                                navigate('/appointments');
+                              }, 300);
+                            }}
+                          >
                             <h3 className="font-semibold">{notification.title}</h3>
                             <p className="text-sm my-1">{notification.message}</p>
                             <p className="text-xs flex items-center opacity-70">
@@ -110,27 +274,35 @@ const NotificationsPage = () => {
                               {format(new Date(notification.createdAt), "MMM d, yyyy 'at' h:mm a")}
                             </p>
                           </div>
-                          {!notification.isRead && (
-                            <div className="badge badge-primary">New</div>
-                          )}
+                          <div className="flex items-center gap-2 self-center">
+                            {!notification.isRead && (
+                              <div className="badge badge-primary">New</div>
+                            )}
+                            <button
+                              className="btn btn-ghost btn-sm p-2 text-error hover:bg-error/10 hover:scale-110 transition-all group relative"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Are you sure you want to delete this notification?")) {
+                                  deleteNotificationMutation(notification._id);
+                                }
+                              }}
+                              aria-label="Delete notification"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-base-300 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                Delete
+                              </span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {incomingRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <UserCheckIcon className="h-5 w-5 text-primary" />
-                  Friend Requests
-                  <span className="badge badge-primary ml-2">{incomingRequests.length}</span>
-                </h2>
-
-                <div className="space-y-3">
-                  {incomingRequests.map((request) => (
+                  );
+                } 
+                
+                else if (item.notifType === 'friendRequest') {
+                  const request = item;
+                  return (
                     <div
                       key={request._id}
                       className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
@@ -143,6 +315,7 @@ const NotificationsPage = () => {
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
+                              <p className="text-sm text-base-content/60">Sent you a friend request</p>
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 <span className="badge badge-secondary badge-sm">
                                   Native: {request.sender.nativeLanguage}
@@ -153,7 +326,6 @@ const NotificationsPage = () => {
                               </div>
                             </div>
                           </div>
-
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={() => acceptRequestMutation(request._id)}
@@ -164,59 +336,72 @@ const NotificationsPage = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {acceptedRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-success" />
-                  New Connections
-                </h2>
-
-                <div className="space-y-3">
-                  {acceptedRequests.map((notification) => (
-                    <div key={notification._id} className="card bg-base-200 shadow-sm">
+                  );
+                } 
+                
+                else if (item.notifType === 'newConnection') {
+                  const notification = item;
+                  return (
+                    <div key={notification._id} className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
+                          <div 
+                            className="avatar mt-1 size-10 rounded-full flex-shrink-0 cursor-pointer"
+                            onClick={() => navigate(`/profile/${notification.recipient._id}`)}
+                          >
                             <img
                               src={notification.recipient.profilePic && notification.recipient.profilePic.trim() ? notification.recipient.profilePic : '/default-profile.png'}
                               alt={notification.recipient.fullName}
                               className="rounded-full"
                             />
                           </div>
-                          <div className="flex-1">
+                          <div 
+                            className="flex-1 cursor-pointer"
+                            onClick={() => navigate(`/profile/${notification.recipient._id}`)}
+                          >
                             <h3 className="font-semibold">{notification.recipient.fullName}</h3>
                             <p className="text-sm my-1">
-                              {notification.recipient.fullName} accepted your friend request
+                              Accepted your friend request
                             </p>
                             <p className="text-xs flex items-center opacity-70">
                               <ClockIcon className="h-3 w-3 mr-1" />
-                              Recently
+                              {notification.updatedAt 
+                                ? format(new Date(notification.updatedAt), "MMM d, yyyy 'at' h:mm a")
+                                : 'Recently'
+                              }
                             </p>
                           </div>
-                          <div className="badge badge-success">
-                            <MessageSquareIcon className="h-3 w-3 mr-1" />
-                            New Friend
+                          <div className="flex items-center gap-2 self-center">
+                            <div className="badge badge-success gap-1">
+                              <UserCheckIcon className="h-3 w-3" />
+                              New Friend
+                            </div>
+                            <button
+                              className="btn btn-ghost btn-sm p-2 hover:bg-primary/10 hover:scale-110 transition-all group relative"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/chats/${notification.recipient._id}`);
+                              }}
+                              aria-label="Message friend"
+                            >
+                              <MessageSquareIcon className="h-5 w-5" />
+                              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-base-300 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                Message
+                              </span>
+                            </button>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </section>
+                  );
+                }
+              })
             )}
-
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && appointmentNotifications.length === 0 && (
-              <NoNotificationsFound />
-            )}
-          </>
+          </div>
         )}
       </div>
     </div>
   );
 };
+
 export default NotificationsPage;
