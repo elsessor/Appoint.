@@ -106,7 +106,7 @@ export async function createAppointment(req, res) {
     }
 
     // Check if appointment time is within working hours
-    const [friendStartHour, friendStartMin] = (friendAvailability.start || '09:00').split(':').map(Number);
+    const [friendStartHour, friendStartMin] = (friendAvailability.start || '07:00').split(':').map(Number);
     const [friendEndHour, friendEndMin] = (friendAvailability.end || '17:00').split(':').map(Number);
     const friendStartMinutes = friendStartHour * 60 + friendStartMin;
     const friendEndMinutes = friendEndHour * 60 + friendEndMin;
@@ -117,6 +117,81 @@ export async function createAppointment(req, res) {
     if (appointmentStartMinutes < friendStartMinutes || appointmentEndMinutes > friendEndMinutes) {
       return res.status(400).json({
         message: `Appointment must be between ${friendAvailability.start} and ${friendAvailability.end}`,
+      });
+    }
+
+    // ⚠️ CRITICAL: Check for overlapping/double-booking appointments
+    // This prevents BOTH users from booking the same time slot
+    const overlappingAppointments = await Appointment.find({
+      // Only check non-cancelled appointments
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      // Time overlap check: appointment starts before new one ends AND ends after new one starts
+      startTime: { $lt: end },
+      endTime: { $gt: start },
+      // Check both participants (either party could have a conflict)
+      $or: [
+        { userId: friendId },      // Friend's appointments
+        { friendId: friendId },    // Friend as recipient
+        { userId: userId },        // Current user's appointments
+        { friendId: userId }       // Current user as recipient
+      ]
+    });
+
+    // Check for conflicts - but exclude the case where they already have an appointment together
+    // (this would be an update scenario)
+    const conflict = overlappingAppointments.find(existingAppt => {
+      const existingUserId = (existingAppt.userId._id || existingAppt.userId).toString();
+      const existingFriendId = (existingAppt.friendId._id || existingAppt.friendId).toString();
+      
+      // Skip if this is already an appointment between these two users (update/reschedule case)
+      const isSameAppointmentPair = 
+        (existingUserId === userId && existingFriendId === friendId) ||
+        (existingUserId === friendId && existingFriendId === userId);
+      
+      if (isSameAppointmentPair) {
+        return false;
+      }
+      
+      // Return true if there's a conflict involving either the friend or current user
+      return (existingUserId === friendId || existingFriendId === friendId) ||
+             (existingUserId === userId || existingFriendId === userId);
+    });
+
+    if (conflict) {
+      const conflictTime = new Date(conflict.startTime).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return res.status(409).json({
+        message: `This time slot conflicts with an existing appointment at ${conflictTime}. Please choose a different time.`,
+        conflictingAppointmentId: conflict._id,
+        conflictTime: conflict.startTime
+      });
+    }
+
+    // Check max appointments per day constraint
+    const maxPerDay = friendAvailability.maxPerDay || 5;
+    const startOfDay = new Date(start);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(start);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const appointmentsOnSameDay = await Appointment.countDocuments({
+      $or: [
+        { userId: friendId },
+        { friendId: friendId }
+      ],
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (appointmentsOnSameDay >= maxPerDay) {
+      return res.status(400).json({
+        message: `Maximum ${maxPerDay} appointments per day reached for this user. Please choose a different date.`,
+        maxPerDay,
+        appointmentsOnDate: appointmentsOnSameDay
       });
     }
 
@@ -529,12 +604,35 @@ export async function deleteAppointment(req, res) {
 
     await Appointment.findByIdAndDelete(id);
 
-    res.status(200).json({ message: "Appointment deleted successfully" });
+    // Check cancel notice requirement
+    // The cancelNotice is stored in the appointment's availability snapshot
+    const cancelNoticeMinutes = appointment.availability?.cancelNotice || 0;
+    if (cancelNoticeMinutes > 0) {
+      const now = new Date();
+      const appointmentStart = new Date(appointment.startTime);
+      const minutesUntilAppointment = (appointmentStart - now) / (1000 * 60);
+
+      if (minutesUntilAppointment < cancelNoticeMinutes) {
+        const hoursNotice = Math.ceil(cancelNoticeMinutes / 60);
+        return res.status(400).json({
+          message: `This appointment requires ${hoursNotice} hour${hoursNotice > 1 ? 's' : ''} notice to cancel. Please contact the organizer.`,
+          requiredNoticeMinutes: cancelNoticeMinutes,
+          minutesUntilAppointment: Math.max(0, minutesUntilAppointment)
+        });
+      }
+    }
+
+    // Mark as cancelled instead of hard delete (better for history/auditing)
+    appointment.status = 'cancelled';
+    await appointment.save();
+
+    res.status(200).json({ message: "Appointment cancelled successfully" });
   } catch (error) {
     console.error("Error in deleteAppointment controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
 
 export async function saveCustomAvailability(req, res) {
   try {
@@ -612,7 +710,7 @@ export async function getUserAvailability(req, res) {
     // Default availability for users who haven't customized their settings
     const defaultAvailability = {
       days: [1, 2, 3, 4, 5],
-      start: "09:00",
+      start: "07:00",
       end: "17:00",
       slotDuration: 30,
       buffer: 15,

@@ -11,6 +11,7 @@ import {
   getFriendAppointments,
 } from "../controllers/appointments.controller.js";
 
+
 const router = express.Router();
 
 router.use(protectRoute);
@@ -26,5 +27,7 @@ router.get("/friend/:friendId", getFriendAppointments);
 router.get("/:id", getAppointmentById);
 router.put("/:id", updateAppointment);
 router.delete("/:id", deleteAppointment);
+
+
 
 export default router;
