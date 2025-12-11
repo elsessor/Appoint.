@@ -68,14 +68,12 @@ const AppointmentModal = ({
   const [isClosing, setIsClosing] = useState(false);
   const { theme } = useThemeStore();
 
-<<<<<<< HEAD
   // Initialize calendar month and set selected date from initialDate
   useEffect(() => {
     if (initialDate) {
       setCalendarMonth(new Date(initialDate));
     }
   }, [initialDate]);
-=======
   // Detect if we're in edit mode (reschedule)
   const isEditMode = !!appointment;
 
@@ -103,7 +101,6 @@ const AppointmentModal = ({
       document.documentElement.style.overflow = 'auto';
     };
   }, [isOpen]);
->>>>>>> 325f950b5cef2735b684429358ab4bcfc40f0f91
 
   useEffect(() => {
     if (isOpen) {
@@ -1042,14 +1039,8 @@ const AppointmentModal = ({
                         <div className="grid grid-cols-7 gap-1">
                           {getCalendarDays().map((day, index) => {
                             const isCurrentMonth = day && isSameMonth(day, calendarMonth);
-<<<<<<< HEAD
-                            // Compare date strings to avoid timezone issues
-                            const isSelected = day && formData.startTime && format(day, 'yyyy-MM-dd') === formData.startTime.split('T')[0];
-                            const isDisabled = day && isBefore(day, new Date().setHours(0, 0, 0, 0));
-=======
                             const isSelected = day && formData.startTime && isSameDay(day, parseISO(formData.startTime));
                             const isDisabled = day && (isBefore(day, new Date().setHours(0, 0, 0, 0)) || isHoliday(day, phHolidays));
->>>>>>> 325f950b5cef2735b684429358ab4bcfc40f0f91
                             const dayAppointments = day ? getAppointmentsForDate(day) : [];
                             const hasAppointments = dayAppointments.length > 0;
                             const dayHoliday = day ? getHolidayName(day, phHolidays) : null;
