@@ -330,7 +330,7 @@ const LandingPage = () => {
             </div>
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/signup" className="btn btn-primary btn-lg gap-2 transition-all hover:shadow-lg hover:-translate-y-1">
-                Start Free Today <ArrowRight className="w-5 h-5" />
+                Start Today <ArrowRight className="w-5 h-5" />
               </Link>
               <Link to="/login" className="btn btn-outline btn-lg transition-all hover:shadow-lg">Already have an account?</Link>
             </div>

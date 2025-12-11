@@ -30,7 +30,7 @@ const HomePage = () => {
   const [loadingUserId, setLoadingUserId] = useState(null);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
-  const [analyticsPeriod, setAnalyticsPeriod] = useState("lastMonth"); // "yesterday", "lastWeek", "lastMonth"
+  const [analyticsPeriod, setAnalyticsPeriod] = useState("yesterday"); // "yesterday", "lastWeek", "lastMonth"
   const { authUser } = useAuthUser();
 
   // Handle scroll for jump-to-top button
@@ -167,10 +167,9 @@ const HomePage = () => {
     switch(analyticsPeriod) {
       case "yesterday":
         start = new Date(now);
-        start.setDate(start.getDate() - 1);
         start.setHours(0, 0, 0, 0);
-        end = new Date(start);
-        end.setDate(end.getDate() + 1);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
         break;
       case "lastWeek":
         start = new Date(now);
@@ -285,7 +284,7 @@ const HomePage = () => {
           {/* Analytics Period Selector */}
           <div className="flex gap-2 mt-4">
             {[
-              { value: "yesterday", label: "Yesterday" },
+              { value: "yesterday", label: "Today" },
               { value: "lastWeek", label: "Last 7 Days" },
               { value: "lastMonth", label: "Last 30 Days" }
             ].map(period => (
