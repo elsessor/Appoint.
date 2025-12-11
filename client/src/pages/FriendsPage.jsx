@@ -8,6 +8,7 @@ import { parseISO, format, isToday, isSameDay, addDays } from "date-fns";
 import useAuthUser from "../hooks/useAuthUser";
 import usePresence from "../hooks/usePresence";
 import { isOnline } from '../lib/presence';
+import { getStatusColor, formatStatusLabel } from "../utils/statusColors";
 
 const LanguageBadge = ({ type, language }) => {
   const langLower = language?.toLowerCase();
@@ -151,16 +152,8 @@ const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
                             with <span className="font-semibold">{otherPersonName}</span>
                           </p>
                         </div>
-                        <span className={`badge badge-sm font-semibold ${
-                          apt.status === 'confirmed' 
-                            ? 'badge-success' 
-                            : apt.status === 'completed' 
-                            ? 'badge-info' 
-                            : apt.status === 'pending' 
-                            ? 'badge-warning' 
-                            : 'badge-ghost'
-                        }`}>
-                          {apt.status}
+                        <span className={`badge badge-sm font-semibold ${getStatusColor(apt.status)}`}>
+                          {formatStatusLabel(apt.status)}
                         </span>
                       </div>
 
@@ -279,7 +272,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
 
           <div className="card-actions justify-between gap-2 mt-4">
             <Link
-              to={`/chat/${friend._id || friend.id}`}
+              to={`/chats/${friend._id || friend.id}`}
               className="btn btn-sm btn-primary flex-1"
             >
               <MessageCircle className="w-4 h-4" />

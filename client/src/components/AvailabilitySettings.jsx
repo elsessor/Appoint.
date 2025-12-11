@@ -8,7 +8,7 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
   const queryClient = useQueryClient();
   const [availability, setAvailability] = useState({
     days: [1, 2, 3, 4, 5],
-    start: '09:00',
+    start: '07:00',
     end: '17:00',
     slotDuration: 30,
     buffer: 15,

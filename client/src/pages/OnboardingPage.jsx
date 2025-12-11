@@ -4,7 +4,7 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
-import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X, Users } from "lucide-react";
+import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X, Users, ArrowLeft } from "lucide-react";
 import { LANGUAGES } from "../constants";
 import ThemeSelector from "../components/ThemeSelector";
 import FemaleSymbol from "../assets/icons/female-symbol.svg";
@@ -248,9 +248,32 @@ const OnboardingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
+    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 relative">
+      {/* Back Button and Logo Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 border-b border-base-300/20 bg-base-900/80 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="btn btn-ghost btn-sm gap-2 text-base-content/70 hover:text-base-content"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm">Back</span>
+          </button>
+
+          <div className="flex items-center gap-2.5">
+            <ShipWheelIcon className="size-7 text-primary" />
+            <span className="text-2xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
+              Appoint.
+            </span>
+          </div>
+
+          <div className="w-20" />
+        </div>
+      </div>
+
       {/* Theme Selector - Top Right Corner */}
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50">
         <ThemeSelector />
       </div>
 
@@ -260,7 +283,8 @@ const OnboardingPage = () => {
         <div className="absolute -bottom-32 -left-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-secondary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
+      <div className="relative z-10 flex items-center justify-center min-h-screen pt-20 p-4 sm:p-6 md:p-8">
+        <div className="w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
         {/* Header Section */}
         <div className="text-center mb-8 sm:mb-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4">
@@ -433,14 +457,14 @@ const OnboardingPage = () => {
                     <button
                       type="button"
                       onClick={() => setFormState({ ...formState, gender: "female" })}
-                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-6 ${
                         formState.gender === "female"
                           ? "border-pink-500 bg-pink-50 shadow-md"
                           : "border-base-300 bg-base-200/60 hover:border-pink-300 hover:bg-base-200/80"
                       }`}
                     >
                       <svg 
-                        className="w-10 h-10"
+                        className="w-10 h-10 mb-2"
                         viewBox="0 0 247.582 247.582"
                         fill="currentColor"
                         style={{
@@ -452,7 +476,7 @@ const OnboardingPage = () => {
                           C105.666,147.804,127.581,122.105,127.581,91.404z M25.208,91.404c0-21.377,17.392-38.769,38.77-38.769s38.77,17.392,38.77,38.769
                           c0,21.378-17.392,38.77-38.77,38.77S25.208,112.782,25.208,91.404z"/>
                       </svg>
-                      <span className={`font-medium text-center text-xs transition-all ${formState.gender === "female" ? "text-pink-700" : "text-base-content/60"}`}>
+                      <span className={`font-medium text-xs transition-all ${formState.gender === "female" ? "text-pink-700" : "text-base-content/60"}`}>
                         Female
                       </span>
                     </button>
@@ -461,14 +485,14 @@ const OnboardingPage = () => {
                     <button
                       type="button"
                       onClick={() => setFormState({ ...formState, gender: "male" })}
-                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-6 ${
                         formState.gender === "male"
                           ? "border-blue-500 bg-blue-50 shadow-md"
                           : "border-base-300 bg-base-200/60 hover:border-blue-300 hover:bg-base-200/80"
                       }`}
                     >
                       <svg 
-                        className="w-10 h-10"
+                        className="w-10 h-10 mb-2"
                         viewBox="0 0 247.582 247.582"
                         fill="currentColor"
                         style={{
@@ -480,7 +504,7 @@ const OnboardingPage = () => {
                           M184.021,194.254c-21.377,0-38.769-17.392-38.769-38.769c0-21.378,17.392-38.77,38.769-38.77c21.378,0,38.77,17.392,38.77,38.77
                           C222.79,176.863,205.399,194.254,184.021,194.254z"/>
                       </svg>
-                      <span className={`font-medium text-center text-xs transition-all ${formState.gender === "male" ? "text-blue-700" : "text-base-content/60"}`}>
+                      <span className={`font-medium text-xs transition-all ${formState.gender === "male" ? "text-blue-700" : "text-base-content/60"}`}>
                         Male
                       </span>
                     </button>
@@ -623,6 +647,7 @@ const OnboardingPage = () => {
               </button>
             </form>
           </div>
+        </div>
         </div>
       </div>
     </div>

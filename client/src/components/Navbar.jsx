@@ -6,7 +6,7 @@ import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard } from "lucide-rea
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
 import { getFriendRequests, getNotifications } from "../lib/api";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from './ConfirmDialog';
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -18,25 +18,40 @@ const Navbar = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { logoutMutation } = useLogout();
 
+  // Fetch friend requests
   const { data: friendRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
     enabled: Boolean(isOnboarded),
   });
 
+  // Fetch notifications (for appointments)
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications"],
     queryFn: getNotifications,
     enabled: Boolean(isOnboarded),
   });
 
-  const friendRequestsCount =
-    (friendRequests?.incomingReqs?.filter((req) => !req.recipientSeen).length || 0) +
-    (friendRequests?.acceptedReqs?.filter((req) => !req.senderSeen).length || 0);
+  // Count unread appointment notifications
+  const unreadAppointments = notifications.filter(
+    (notif) => notif.type === 'appointment' && !notif.isRead
+  ).length;
+
+  // Count unseen incoming friend requests
+  const unseenFriendRequests = friendRequests?.incomingReqs?.filter(
+    (req) => !req.recipientSeen
+  ).length || 0;
+
+  // Count unseen accepted friend requests (new connections)
+  const unseenNewConnections = friendRequests?.acceptedReqs?.filter(
+    (req) => !req.senderSeen
+  ).length || 0;
+
+  // Total notification count
+  const notificationsCount = unreadAppointments + unseenFriendRequests + unseenNewConnections;
 
   const unreadNotificationsCount = notifications.filter((notif) => !notif.isRead).length || 0;
 
-  const notificationsCount = friendRequestsCount + unreadNotificationsCount;
 
   const handleHomeClick = (e) => {
     e.preventDefault();
@@ -67,7 +82,9 @@ const Navbar = () => {
             <Link to={"/notifications"}>
               <div className="indicator">
                 {notificationsCount > 0 && (
-                  <span className="indicator-item badge badge-error badge-xs" aria-label="new notifications" />
+                  <span className="indicator-item badge badge-error text-white font-semibold text-xs min-w-[1.25rem] h-5 flex items-center justify-center px-1.5 translate-x-[-2px] translate-y-[2px]">
+                    {notificationsCount}
+                  </span>
                 )}
                 <button className="btn btn-ghost btn-circle">
                   <BellIcon className="h-6 w-6 text-base-content opacity-70" />

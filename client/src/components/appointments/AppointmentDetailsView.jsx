@@ -22,6 +22,7 @@ import { useThemeStore } from '../../store/useThemeStore';
 import AppointmentModal from './AppointmentModal';
 import ConfirmDialog from '../ConfirmDialog';
 import { toast } from 'react-hot-toast';
+import { getStatusColor, formatStatusLabel } from '../../utils/statusColors';
 
 const AppointmentDetails = ({
   appointment,
@@ -191,17 +192,9 @@ const AppointmentDetails = ({
               {/* Status Card */}
               <div className="bg-base-100 border border-base-300 rounded-lg p-3 sm:p-6">
                 <div className="flex items-center justify-between mb-3 sm:mb-6 gap-2">
-                  <span className={`inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 badge gap-2 flex-shrink-0 ${
-                    appointment.status === 'confirmed' 
-                      ? 'badge-success' 
-                      : appointment.status === 'declined'
-                      ? 'badge-error'
-                      : appointment.status === 'pending'
-                      ? 'badge-warning'
-                      : 'badge-info'
-                  }`}>
+                  <span className={`inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 badge gap-2 flex-shrink-0 ${getStatusColor(appointment.status)}`}>
                     <CheckCircle2 className="w-3 sm:w-4 h-3 sm:h-4" />
-                    <span className="hidden sm:inline">{appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1)}</span>
+                    <span className="hidden sm:inline">{formatStatusLabel(appointment.status)}</span>
                     <span className="sm:hidden">{appointment.status?.charAt(0).toUpperCase()}</span>
                   </span>
                   <span className="text-base-content/60 text-xs sm:text-sm truncate">ID: #{appointment._id?.slice(-6) || 'N/A'}</span>
