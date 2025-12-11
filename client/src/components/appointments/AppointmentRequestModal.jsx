@@ -15,6 +15,18 @@ const AppointmentRequestModal = ({
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineMessage, setDeclineMessage] = useState('');
 
+  // Hide page scrollbar when modal is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = 'auto';
+    }
+    return () => {
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !appointment) return null;
 
   const startTime = typeof appointment.startTime === 'string'
@@ -48,15 +60,15 @@ const AppointmentRequestModal = ({
       ></div>
 
       {/* Sliding Modal */}
-      <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-base-100 shadow-xl overflow-y-auto">
+      <div className="absolute inset-y-0 right-0 pl-4 sm:pl-10 max-w-full flex">
+        <div className="w-screen max-w-sm sm:max-w-md md:max-w-2xl bg-base-100 shadow-xl overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-base-200 border-b border-base-300 px-6 py-6 flex items-center justify-between">
+          <div className="sticky top-0 bg-base-200 border-b border-base-300 px-3 sm:px-6 py-3 sm:py-6 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-base-content">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-base-content">
                 {showDeclineForm ? 'Decline Request' : 'Appointment Request'}
               </h2>
-              <p className="text-sm text-base-content/60 mt-1">
+              <p className="text-xs sm:text-sm text-base-content/60 mt-1">
                 {appointment._id?.slice(-6) || 'N/A'}
               </p>
             </div>
@@ -70,7 +82,7 @@ const AppointmentRequestModal = ({
 
           {/* Content */}
           {!showDeclineForm ? (
-            <div className="p-6 space-y-6">
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-6">
               {/* Status Alert */}
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
                 <p className="text-warning text-sm font-medium">
@@ -83,32 +95,32 @@ const AppointmentRequestModal = ({
 
               {/* Requester Information */}
               {requester && (
-                <div className="bg-base-200 rounded-lg p-4 border border-base-300">
-                  <h3 className="text-lg font-semibold text-base-content mb-4 flex items-center gap-2">
-                    <User className="w-5 h-5" />
+                <div className="bg-base-200 rounded-lg p-3 sm:p-4 border border-base-300">
+                  <h3 className="text-base sm:text-lg font-semibold text-base-content mb-3 sm:mb-4 flex items-center gap-2">
+                    <User className="w-4 sm:w-5 h-4 sm:h-5" />
                     Requested By
                   </h3>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
                     {requester.profilePic ? (
                       <img
                         src={requester.profilePic}
                         alt={requester.fullName}
-                        className="w-16 h-16 rounded-full object-cover"
+                        className="w-12 sm:w-16 h-12 sm:h-16 rounded-full object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                        <span className="text-xl font-bold text-white">
+                      <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg sm:text-xl font-bold text-white">
                           {(requester.fullName || 'U')[0].toUpperCase()}
                         </span>
                       </div>
                     )}
-                    <div>
-                      <h4 className="font-semibold text-base-content">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm sm:text-base font-semibold text-base-content truncate">
                         {requester.fullName || requester.name}
                       </h4>
-                      <p className="text-sm text-base-content/60">{requester.email}</p>
+                      <p className="text-xs sm:text-sm text-base-content/60 truncate">{requester.email}</p>
                       {requester.learningLanguage && (
-                        <p className="text-sm text-base-content/60 mt-1">
+                        <p className="text-xs sm:text-sm text-base-content/60 mt-1">
                           Learning: {requester.learningLanguage}
                         </p>
                       )}
@@ -118,20 +130,20 @@ const AppointmentRequestModal = ({
               )}
 
               {/* Appointment Details */}
-              <div className="bg-base-200 rounded-lg p-4 border border-base-300">
-                <h3 className="text-lg font-semibold text-base-content mb-4">Appointment Details</h3>
-                <div className="space-y-4">
+              <div className="bg-base-200 rounded-lg p-3 sm:p-4 border border-base-300">
+                <h3 className="text-base sm:text-lg font-semibold text-base-content mb-3 sm:mb-4">Appointment Details</h3>
+                <div className="space-y-3 sm:space-y-4">
                   {/* Title */}
                   <div>
-                    <p className="text-sm text-base-content/60">Title</p>
-                    <p className="text-base-content font-medium">{appointment.title || 'Untitled'}</p>
+                    <p className="text-xs sm:text-sm text-base-content/60">Title</p>
+                    <p className="text-sm sm:text-base text-base-content font-medium">{appointment.title || 'Untitled'}</p>
                   </div>
 
                   {/* Date & Time */}
                   <div className="flex items-start gap-2">
-                    <Calendar className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
+                    <Calendar className="w-4 sm:w-5 h-4 sm:h-5 text-base-content/60 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-base-content/60">Date</p>
+                      <p className="text-xs sm:text-sm text-base-content/60">Date</p>
                       <p className="text-base-content font-medium">
                         {format(startTime, 'EEEE, MMMM d, yyyy')}
                       </p>
@@ -140,15 +152,15 @@ const AppointmentRequestModal = ({
 
                   {/* Start Time */}
                   <div className="flex items-start gap-2">
-                    <Clock className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
+                    <Clock className="w-4 sm:w-5 h-4 sm:h-5 text-base-content/60 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-base-content/60">Time</p>
-                      <p className="text-base-content font-medium">
+                      <p className="text-xs sm:text-sm text-base-content/60">Time</p>
+                      <p className="text-sm sm:text-base text-base-content font-medium">
                         {format(startTime, 'h:mm a')}
                         {endTime && ` - ${format(endTime, 'h:mm a')}`}
                       </p>
                       {appointment.duration && (
-                        <p className="text-sm text-base-content/60 mt-1">
+                        <p className="text-xs sm:text-sm text-base-content/60 mt-1">
                           Duration: {appointment.duration} minutes
                         </p>
                       )}
@@ -158,18 +170,18 @@ const AppointmentRequestModal = ({
                   {/* Meeting Type */}
                   {appointment.meetingType && (
                     <div>
-                      <p className="text-sm text-base-content/60">Meeting Type</p>
-                      <p className="text-base-content font-medium">{appointment.meetingType}</p>
+                      <p className="text-xs sm:text-sm text-base-content/60">Meeting Type</p>
+                      <p className="text-sm sm:text-base text-base-content font-medium">{appointment.meetingType}</p>
                     </div>
                   )}
 
                   {/* Location */}
                   {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-5 h-5 text-base-content/60 mt-1 flex-shrink-0" />
+                      <MapPin className="w-4 sm:w-5 h-4 sm:h-5 text-base-content/60 mt-1 flex-shrink-0" />
                       <div>
-                        <p className="text-sm text-base-content/60">Location</p>
-                        <p className="text-base-content font-medium">{appointment.location}</p>
+                        <p className="text-xs sm:text-sm text-base-content/60">Location</p>
+                        <p className="text-sm sm:text-base text-base-content font-medium">{appointment.location}</p>
                       </div>
                     </div>
                   )}
@@ -177,8 +189,8 @@ const AppointmentRequestModal = ({
                   {/* Description */}
                   {appointment.description && (
                     <div>
-                      <p className="text-sm text-base-content/60">Notes</p>
-                      <p className="text-base-content mt-1 whitespace-pre-wrap">
+                      <p className="text-xs sm:text-sm text-base-content/60">Notes</p>
+                      <p className="text-xs sm:text-sm text-base-content mt-1 whitespace-pre-wrap">
                         {appointment.description}
                       </p>
                     </div>
@@ -187,9 +199,9 @@ const AppointmentRequestModal = ({
                   {/* Reminder */}
                   {appointment.reminder && (
                     <div>
-                      <p className="text-sm text-base-content/60">Reminder</p>
+                      <p className="text-xs sm:text-sm text-base-content/60">Reminder</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="badge badge-info gap-1">
+                        <div className="badge badge-info gap-1 text-xs sm:text-sm">
                           <span>🔔</span>
                           <span>
                             {appointment.reminder === 1440 ? '1 day before' :
@@ -205,9 +217,9 @@ const AppointmentRequestModal = ({
               </div>
 
               {/* Booking Information Summary */}
-              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-primary mb-2">Summary</h4>
-                <div className="space-y-1 text-sm text-base-content/80">
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 sm:p-4">
+                <h4 className="text-xs sm:text-sm font-semibold text-primary mb-2">Summary</h4>
+                <div className="space-y-1 text-xs sm:text-sm text-base-content/80">
                   <p><span className="text-primary font-medium">Title:</span> {appointment.title || 'Not set'}</p>
                   <p><span className="text-primary font-medium">Date & Time:</span> {format(startTime, 'MMM d, yyyy - h:mm a')}</p>
                   {appointment.duration && (
@@ -232,57 +244,59 @@ const AppointmentRequestModal = ({
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-base-300">
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-base-300">
                 <button
                   onClick={onClose}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 btn btn-outline btn-sm"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 btn btn-outline btn-sm text-xs sm:text-sm"
                 >
                   Later
                 </button>
                 <button
                   onClick={() => setShowDeclineForm(true)}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 btn btn-error btn-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 btn btn-error btn-sm flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <XCircle className="w-4 h-4" />
-                  Decline
+                  <XCircle className="w-3 sm:w-4 h-3 sm:h-4" />
+                  <span className="hidden sm:inline">Decline</span>
+                  <span className="sm:hidden">No</span>
                 </button>
                 <button
                   onClick={() => onAccept?.(appointment._id)}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 btn btn-success btn-sm flex items-center justify-center gap-2"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 btn btn-success btn-sm flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm"
                 >
-                  <CheckCircle className="w-4 h-4" />
-                  Accept
+                  <CheckCircle className="w-3 sm:w-4 h-3 sm:h-4" />
+                  <span className="hidden sm:inline">Accept</span>
+                  <span className="sm:hidden">Yes</span>
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-6 space-y-6">
+            <div className="p-3 sm:p-6 space-y-3 sm:space-y-6">
               {/* Decline Form Header */}
-              <div className="bg-error/10 border border-error/30 rounded-lg p-4">
-                <p className="text-error/80 text-sm">
+              <div className="bg-error/10 border border-error/30 rounded-lg p-3 sm:p-4">
+                <p className="text-error/80 text-xs sm:text-sm">
                   Please provide a reason for declining this appointment. The requester will see your message.
                 </p>
               </div>
 
               {/* Message Input */}
               <div>
-                <label className="block text-sm font-medium text-base-content mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-base-content mb-2">
                   Your Message <span className="text-error">*</span>
                 </label>
                 <textarea
                   value={declineMessage}
                   onChange={(e) => setDeclineMessage(e.target.value)}
                   placeholder="Explain why you're declining this appointment..."
-                  rows="6"
-                  className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-error/50 resize-none textarea textarea-bordered"
+                  rows="4"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-base-200 border border-base-300 rounded-lg text-xs sm:text-sm text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-error/50 resize-none textarea textarea-bordered"
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-base-300">
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-base-300">
                 <button
                   type="button"
                   onClick={() => {
@@ -290,7 +304,7 @@ const AppointmentRequestModal = ({
                     setDeclineMessage('');
                   }}
                   disabled={isLoading}
-                  className="flex-1 px-6 py-3 btn btn-outline btn-sm"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 btn btn-outline btn-sm text-xs sm:text-sm"
                 >
                   Back
                 </button>
@@ -298,9 +312,9 @@ const AppointmentRequestModal = ({
                   type="button"
                   onClick={handleDecline}
                   disabled={isLoading || !declineMessage.trim()}
-                  className="flex-1 px-6 py-3 btn btn-error btn-sm"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 btn btn-error btn-sm text-xs sm:text-sm"
                 >
-                  {isLoading ? 'Declining...' : 'Confirm Decline'}
+                  {isLoading ? 'Declining...' : 'Confirm'}
                 </button>
               </div>
             </div>

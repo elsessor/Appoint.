@@ -45,13 +45,6 @@ export async function getUserById(req, res) {
       return res.status(404).json({ message: "User not found" });
     }
     
-    const userData = user.toObject();
-    if (currentUserId) {
-      const currentUser = await User.findById(currentUserId).select("favorites");
-      userData.isFavorite = currentUser?.favorites?.includes(id) || false;
-    }
-    
-    res.status(200).json(userData);
     // Privacy enforcement
     if (user.preferences?.privacy?.profileVisibility === "private") {
       const isFriend = user.friends?.map(f => f.toString()).includes(viewerId);
@@ -60,7 +53,14 @@ export async function getUserById(req, res) {
         return res.status(403).json({ message: "This profile is private." });
       }
     }
-    res.status(200).json(user);
+    
+    const userData = user.toObject();
+    if (currentUserId) {
+      const currentUser = await User.findById(currentUserId).select("favorites");
+      userData.isFavorite = currentUser?.favorites?.includes(id) || false;
+    }
+    
+    res.status(200).json(userData);
   } catch (error) {
     console.error("Error in getUserById controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -483,7 +483,7 @@ export async function updateProfilePicture(req, res) {
       await upsertStreamUser({
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
+        // Don't send image - can cause permission issues with Stream API
       });
       console.log(`Stream user updated for ${updatedUser.fullName}`);
     } catch (streamError) {

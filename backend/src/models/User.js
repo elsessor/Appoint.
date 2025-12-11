@@ -251,6 +251,11 @@ const userSchema = new mongoose.Schema(
     deletionScheduledFor: {
       type: Date,
     },
+    // Last time user was online
+    lastOnline: {
+      type: Date,
+      default: () => new Date(),
+    },
   },
   { timestamps: true }
 );

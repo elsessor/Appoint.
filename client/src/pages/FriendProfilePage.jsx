@@ -6,6 +6,7 @@ import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, togg
 import { isOnline } from '../lib/presence';
 import PageLoader from '../components/PageLoader';
 import { useThemeStore } from '../store/useThemeStore';
+import { formatLastOnline } from '../lib/utils';
 
 const FriendProfilePage = () => {
   const { theme } = useThemeStore();
@@ -378,8 +379,8 @@ const FriendProfilePage = () => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
-                  <span className="text-base-content/70 font-medium text-sm">Response Time</span>
-                  <span className="text-xs font-semibold text-primary">Within 2 hours</span>
+                  <span className="text-base-content/70 font-medium text-sm">Last Online</span>
+                  <span className="text-xs font-semibold text-primary">{online ? 'Now' : formatLastOnline(friend.lastOnline)}</span>
                 </div>
               </div>
             </div>

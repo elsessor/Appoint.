@@ -6,6 +6,12 @@ import {
   checkLeadTime,
   validateAppointmentDuration,
 } from "../utils/availabilityUtils.js";
+import {
+  emitAppointmentCreated,
+  emitAppointmentUpdated,
+  emitAppointmentStatusChanged,
+  emitAppointmentDeleted,
+} from "../lib/socket.js";
 
 export async function createAppointment(req, res) {
   try {
@@ -171,14 +177,39 @@ export async function createAppointment(req, res) {
       });
     }
 
-    // Check max appointments per day constraint
-    const maxPerDay = friendAvailability.maxPerDay || 5;
+    // Check max appointments per day constraint for the logged-in user
+    const user = await User.findById(userId);
+    const maxPerDay = user.availability?.maxPerDay || 5;
     const startOfDay = new Date(start);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(start);
     endOfDay.setHours(23, 59, 59, 999);
 
+    // Count ALL appointments for the logged-in user on this day (with any friend)
+    // Include pending, confirmed, and scheduled statuses
     const appointmentsOnSameDay = await Appointment.countDocuments({
+      $or: [
+        { userId: userId },
+        { friendId: userId }
+      ],
+      status: { $in: ['pending', 'confirmed', 'scheduled'] },
+      startTime: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    console.log(`[Booking Validation] User ${userId} has ${appointmentsOnSameDay} appointments on this day (max: ${maxPerDay})`);
+
+    if (appointmentsOnSameDay >= maxPerDay) {
+      return res.status(400).json({
+        message: `You have reached the maximum of ${maxPerDay} appointments per day. You currently have ${appointmentsOnSameDay} appointments scheduled. Please choose a different date.`,
+        maxPerDay,
+        currentCount: appointmentsOnSameDay,
+        appointmentsOnDate: appointmentsOnSameDay
+      });
+    }
+
+    // Also check if the recipient (friend) has reached their max appointments per day
+    const friendMaxPerDay = friend.availability?.maxPerDay || 5;
+    const friendAppointmentsOnSameDay = await Appointment.countDocuments({
       $or: [
         { userId: friendId },
         { friendId: friendId }
@@ -187,11 +218,15 @@ export async function createAppointment(req, res) {
       startTime: { $gte: startOfDay, $lte: endOfDay }
     });
 
-    if (appointmentsOnSameDay >= maxPerDay) {
+    console.log(`[Booking Validation] Friend ${friendId} has ${friendAppointmentsOnSameDay} appointments on this day (max: ${friendMaxPerDay})`);
+
+    if (friendAppointmentsOnSameDay >= friendMaxPerDay) {
       return res.status(400).json({
-        message: `Maximum ${maxPerDay} appointments per day reached for this user. Please choose a different date.`,
-        maxPerDay,
-        appointmentsOnDate: appointmentsOnSameDay
+        message: `${friend.fullName} has reached their maximum of ${friendMaxPerDay} appointments for this day (currently has ${friendAppointmentsOnSameDay}). Please choose a different date.`,
+        maxPerDay: friendMaxPerDay,
+        currentCount: friendAppointmentsOnSameDay,
+        appointmentsOnDate: friendAppointmentsOnSameDay,
+        recipientName: friend.fullName
       });
     }
 
@@ -213,7 +248,6 @@ export async function createAppointment(req, res) {
     await appointment.populate(["userId", "friendId"]);
 
     // Create notification for the friend
-    const user = await User.findById(userId);
     const formattedDate = new Date(startTime).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -233,6 +267,9 @@ export async function createAppointment(req, res) {
       message: `${user.fullName} has booked an appointment with you on ${formattedDate} at ${formattedTime}`,
       appointmentId: appointment._id,
     });
+
+    // Emit socket event for real-time updates
+    emitAppointmentCreated(appointment);
 
     res.status(201).json(appointment);
   } catch (error) {
@@ -559,6 +596,60 @@ export async function updateAppointment(req, res) {
 
     await appointment.populate(["userId", "friendId"]);
 
+    // Emit socket events for real-time updates
+    if (status && status !== oldStatus) {
+      // Status changed - emit specific status change event
+      emitAppointmentStatusChanged(appointment, oldStatus, status);
+
+      // Create notification for status changes
+      const apptUserId = (appointment.userId._id || appointment.userId).toString();
+      const apptFriendId = (appointment.friendId._id || appointment.friendId).toString();
+      const recipientId = apptUserId === userId ? apptFriendId : apptUserId;
+      const sender = await User.findById(userId).select('fullName');
+
+      const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+      const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      let notificationTitle = '';
+      let notificationMessage = '';
+
+      if (status === 'confirmed') {
+        notificationTitle = 'Appointment Confirmed';
+        notificationMessage = `${sender.fullName} has confirmed your appointment scheduled for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'declined') {
+        notificationTitle = 'Appointment Declined';
+        notificationMessage = `${sender.fullName} has declined your appointment request for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'cancelled') {
+        notificationTitle = 'Appointment Cancelled';
+        notificationMessage = `${sender.fullName} has cancelled the appointment scheduled for ${formattedDate} at ${formattedTime}`;
+      } else if (status === 'completed') {
+        notificationTitle = 'Appointment Completed';
+        notificationMessage = `Your appointment with ${sender.fullName} scheduled for ${formattedDate} at ${formattedTime} has been marked as completed`;
+      }
+
+      if (notificationTitle && notificationMessage) {
+        await createNotification({
+          recipientId,
+          senderId: userId,
+          type: "appointment",
+          title: notificationTitle,
+          message: notificationMessage,
+          appointmentId: appointment._id,
+        });
+      }
+    } else {
+      // General update (time, title, etc.)
+      emitAppointmentUpdated(appointment);
+    }
+
     // If rating was provided in this update, create a notification for the other participant
     try {
       if (typeof req.body.rating !== 'undefined') {
@@ -615,26 +706,16 @@ export async function deleteAppointment(req, res) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    // Check if user has authorization to delete (either userId or friendId can delete)
-    const appointmentUserId = (appointment.userId._id || appointment.userId).toString();
-    const appointmentFriendId = (appointment.friendId._id || appointment.friendId).toString();
-    
-    if (appointmentUserId !== userId && appointmentFriendId !== userId) {
-      return res.status(403).json({ message: "Not authorized to delete this appointment" });
+    // Only the appointment requester (userId) can cancel
+    const appointmentUserId = appointment.userId.toString();
+    const appointmentFriendId = appointment.friendId.toString();
+      
+    if (appointmentUserId !== userId) {
+      return res.status(403).json({ 
+        message: "Only the appointment requester can cancel. Recipients should use the decline option instead." 
+      });
     }
 
-    // Send cancellation notification to the other party
-    const currentUser = await User.findById(userId);
-    const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
 
     const recipientId = userId === appointmentUserId ? appointmentFriendId : appointmentUserId;
 
@@ -668,8 +749,36 @@ export async function deleteAppointment(req, res) {
     }
 
     // Mark as cancelled instead of hard delete (better for history/auditing)
+    const oldStatus = appointment.status;
     appointment.status = 'cancelled';
     await appointment.save();
+    await appointment.populate(["userId", "friendId"]);
+
+    // Create notification for cancellation
+    const sender = await User.findById(userId).select('fullName');
+    const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+    const formattedTime = new Date(appointment.startTime).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    await createNotification({
+      recipientId: appointmentFriendId,
+      senderId: userId,
+      type: "appointment",
+      title: "Appointment Cancelled",
+      message: `${sender.fullName} has cancelled the appointment scheduled for ${formattedDate} at ${formattedTime}`,
+      appointmentId: appointment._id,
+    });
+
+    // Emit socket events for real-time updates
+    emitAppointmentStatusChanged(appointment, oldStatus, 'cancelled');
+    emitAppointmentDeleted(appointment._id, appointmentUserId, appointmentFriendId);
 
     res.status(200).json({ message: "Appointment cancelled successfully" });
   } catch (error) {
@@ -731,6 +840,8 @@ export async function saveCustomAvailability(req, res) {
           },
           defaultReminderTime: defaultReminderTime !== undefined ? defaultReminderTime : 15,
         },
+        // Also save maxPerDay to top-level field for appointment creation validation
+        maxAppointmentsPerDay: maxPerDay || 5,
         ...(availabilityStatus && ['available', 'limited', 'away'].includes(availabilityStatus) && {
           availabilityStatus: availabilityStatus,
         }),

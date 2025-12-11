@@ -6,6 +6,7 @@ import { getUserFriends, getAppointments, unfriendUser, getFriendAppointments } 
 import { useState, useMemo } from "react";
 import { parseISO, format, isToday, isSameDay, addDays } from "date-fns";
 import useAuthUser from "../hooks/useAuthUser";
+import usePresence from "../hooks/usePresence";
 import { isOnline } from '../lib/presence';
 
 const LanguageBadge = ({ type, language }) => {
@@ -220,8 +221,8 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
   const native = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
-  // If user is offline (not connected), show neutral/offline regardless of availability.
-  const statusColor = !isOnline(friend._id)
+  const userOnline = usePresence(friend._id); // Subscribe to presence updates
+  const statusColor = !userOnline
     ? 'text-neutral'
     : status === 'available'
     ? 'text-success'
@@ -260,7 +261,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
                 alt={name} 
                 className="w-20 h-20 rounded-full border-4 border-base-200 object-cover group-hover:scale-105 transition-transform"
               />
-              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-base-200 ${!isOnline(friend._id) ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
+              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-base-200 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
             </div>
           </div>
         </div>
@@ -343,7 +344,7 @@ const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
   const native = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
-  const userOnline = isOnline(friend._id);
+  const userOnline = usePresence(friend._id); // Subscribe to presence updates
   const statusColor = !userOnline
     ? 'text-neutral'
     : status === 'available'

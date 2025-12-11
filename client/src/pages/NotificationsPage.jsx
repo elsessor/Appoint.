@@ -75,7 +75,7 @@ const NotificationsPage = () => {
   const acceptedRequests = friendRequests?.acceptedReqs || [];
 
   const appointmentNotifications = useMemo(() => {
-    return notifications.filter((notification) => notification.type === "appointment") || [];
+    return notifications.filter((notification) => notification.type === 'appointment' || notification.type === 'rating');
   }, [notifications]);
 
   const { mutate: markAsRead } = useMutation({
@@ -242,15 +242,16 @@ const NotificationsPage = () => {
                           <div 
                             className="avatar mt-1 size-10 rounded-full cursor-pointer flex-shrink-0"
                             onClick={() => {
-                              if (!notification.isRead) {
-                                markAsReadMutation(notification._id);
-                              }
-                            }}
+  if (!notification.isRead) {
+    markAsReadMutation(notification._id);
+  }
+  // Navigate to appointments page with incoming filter
+  navigate('/appointments?filter=incoming');
+}}
                           >
                             <img
-                              src={notification.senderId?.profilePic && notification.senderId.profilePic.trim() ? notification.senderId.profilePic : '/default-profile.png'}
+                              src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
                               alt={notification.senderId?.fullName || 'User'}
-                              className="rounded-full"
                               onError={(e) => {
                                 e.target.src = '/default-profile.svg';
                               }}
@@ -311,7 +312,13 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={request.sender.profilePic && request.sender.profilePic.trim() ? request.sender.profilePic : '/default-profile.png'} alt={request.sender.fullName} />
+                              <img 
+                                src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
+                                alt={request.sender.fullName}
+                                onError={(e) => {
+                                  e.target.src = '/default-profile.svg';
+                                }}
+                              />
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
@@ -350,9 +357,11 @@ const NotificationsPage = () => {
                             onClick={() => navigate(`/profile/${notification.recipient._id}`)}
                           >
                             <img
-                              src={notification.recipient.profilePic && notification.recipient.profilePic.trim() ? notification.recipient.profilePic : '/default-profile.png'}
-                              alt={notification.recipient.fullName}
-                              className="rounded-full"
+                              src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
+                              alt={notification.recipient?.fullName}
+                              onError={(e) => {
+                                e.target.src = '/default-profile.svg';
+                              }}
                             />
                           </div>
                           <div 

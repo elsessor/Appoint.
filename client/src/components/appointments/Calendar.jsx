@@ -2,15 +2,16 @@ import React, { useState, useMemo, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { format, addMonths, subMonths, addWeeks, subWeeks, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, isWeekend, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import DayDetailsModal from './DayDetailsModal';
-import AppointmentModal from './AppointmentModal';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const Calendar = ({
   appointments = [],
   friends = [],
   currentUser,
   onAppointmentCreate,
+  onAppointmentSubmit,
   onAppointmentUpdate,
   onAppointmentDelete,
   availability = {
@@ -22,6 +23,7 @@ const Calendar = ({
   },
   holidays = {},
   visibleFriends = [],
+  isCurrentUserVisible = true,
   isMultiCalendarMode = false,
   isViewingFriendAway = false,
   viewingFriendId = null,
@@ -29,11 +31,38 @@ const Calendar = ({
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
   const [phHolidays, setPhHolidays] = useState([]);
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
+
+  // Helper functions to reduce code duplication
+  const extractId = (user) => String(user?._id || user?.id || user);
+  
+  const getDateString = (dateTime) => {
+    if (!dateTime) return null;
+    return typeof dateTime === 'string' 
+      ? dateTime.split('T')[0]
+      : format(new Date(dateTime), 'yyyy-MM-dd');
+  };
+  
+  const getParticipantIds = (appt) => ({
+    userId: extractId(appt.userId),
+    friendId: extractId(appt.friendId)
+  });
+  
+  const isUserParticipantInAppointment = (appt, userId) => {
+    const { userId: apptUser, friendId: apptFriend } = getParticipantIds(appt);
+    const userIdStr = extractId(userId);
+    return apptUser === userIdStr || apptFriend === userIdStr;
+  };
+  
+  // Unified status filtering function
+  const getVisibleStatuses = (isViewingFriend) => {
+    // When viewing friend: show confirmed, scheduled, completed (hide pending for privacy)
+    // When viewing own: show confirmed, scheduled, pending, completed
+    return isViewingFriend 
+      ? ['confirmed', 'scheduled', 'completed']
+      : ['confirmed', 'scheduled', 'pending', 'completed'];
+  };
 
   // Color palette for multi-calendar display
   const colorPalette = [
@@ -73,17 +102,52 @@ const Calendar = ({
     return [userId, friendId].filter(id => id); // Return both participant IDs
   };
 
+  // Get the friend ID from an appointment (for filtering in multi-calendar mode)
+  const getAppointmentFriendId = (appointment) => {
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    const currentUserId = currentUser?._id || currentUser?.id;
+    
+    // Return the friend ID (whoever is NOT the current user)
+    if (userId === currentUserId) {
+      return friendId;
+    } else {
+      return userId;
+    }
+  };
+
   // Get primary owner ID for coloring
   const getAppointmentOwnerId = (appointment) => {
     const userId = appointment.userId?._id || appointment.userId;
     return userId; // Return the person who booked it
   };
 
+  // Get status badge colors only (not card colors)
+  const getStatusBadgeColor = (status) => {
+    const statusColorMap = {
+      scheduled: { bg: 'bg-blue-100', text: 'text-blue-700' },
+      confirmed: { bg: 'bg-green-100', text: 'text-green-700' },
+      completed: { bg: 'bg-gray-200', text: 'text-gray-700' },
+      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700' },
+      declined: { bg: 'bg-red-100', text: 'text-red-700' },
+    };
+    return statusColorMap[status?.toLowerCase()] || { bg: 'bg-gray-200', text: 'text-gray-700' };
+  };
+
   // Check if friend is visible
   const isFriendVisible = (friendId) => {
     const currentUserId = currentUser?._id || currentUser?.id;
-    if (friendId === currentUserId) return true; // Always show current user
+    if (friendId === currentUserId) return isCurrentUserVisible; // Check current user visibility
     return isMultiCalendarMode ? visibleFriends.includes(friendId) : true;
+  };
+
+  // Check if current user is a participant in an appointment
+  const isUserParticipant = (appointment) => {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const userId = appointment.userId?._id || appointment.userId;
+    const friendId = appointment.friendId?._id || appointment.friendId;
+    return userId === currentUserId || friendId === currentUserId;
   };
 
   // Load Philippine holidays for the current year
@@ -129,10 +193,42 @@ const Calendar = ({
 
   // Group appointments by date for easy lookup
   const appointmentsByDate = useMemo(() => {
+    console.log('[Calendar] Building appointmentsByDate map:', {
+      viewingFriendId,
+      totalAppointments: appointments.length,
+      appointments: appointments
+    });
+    
     const map = new Map();
+    const visibleStatuses = getVisibleStatuses(!!viewingFriendId);
     
     appointments.forEach(appointment => {
       if (!appointment.startTime) return;
+      
+      // Filter by status based on viewing context using unified function
+      const status = appointment.status?.toLowerCase();
+      if (!visibleStatuses.includes(status)) {
+        console.log('[Calendar] Skipping appointment due to status:', { title: appointment.title, status, visibleStatuses });
+        return;
+      }
+      
+      // When viewing a friend's calendar, include ALL appointments where they are a participant
+      // This ensures we show appointments between the friend and people you're not friends with
+      if (viewingFriendId) {
+        const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appointment);
+        const viewingFriendIdStr = extractId(viewingFriendId);
+        const isFriendParticipant = apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+        
+        if (!isFriendParticipant) {
+          console.log('[Calendar] Skipping appointment - friend not a participant:', { 
+            title: appointment.title, 
+            apptUserId, 
+            apptFriendId, 
+            viewingFriendIdStr 
+          });
+          return;
+        }
+      }
       
       try {
         const date = typeof appointment.startTime === 'string' 
@@ -154,7 +250,7 @@ const Calendar = ({
     });
     
     return map;
-  }, [appointments]);
+  }, [appointments, viewingFriendId]);
 
   // Check if a date has appointments
   const hasAppointments = (date) => {
@@ -170,35 +266,46 @@ const Calendar = ({
 
   // Handle date selection
   const handleDateClick = (day) => {
+    // Always allow viewing appointments on any date, even if not available for booking
+    const dayAppointments = getAppointmentsForDate(day);
+    
+    // If there are appointments on this day, always open the modal to view them
+    if (dayAppointments.length > 0) {
+      setSelectedDate(day);
+      return;
+    }
+    
+    // For empty days, check if the date is available for booking
+    if (!isDateAvailable(day)) {
+      const holidayName = getHolidayName(day, phHolidays);
+      if (holidayName) {
+        toast.error(`Cannot book on ${holidayName} - service not available`);
+      } else {
+        toast.error('This day is not available for booking');
+      }
+      return;
+    }
+    
+    // Day is available and empty, open modal
     setSelectedDate(day);
   };
 
   // Handle creating a new appointment
   const handleCreateAppointment = (date, time) => {
     if (isViewingFriendAway) {
-      return; // Don't allow booking when friend is away
+      toast.error('Cannot book when the user is away');
+      return;
     }
-    setSelectedDate(date);
-    setSelectedTime(time);
-    setSelectedAppointment(null);
-    setShowAppointmentModal(true);
-  };
-
-  // Handle form submission
-  const handleAppointmentSubmit = (appointmentData) => {
-    if (selectedAppointment) {
-      // Update existing appointment
-      onAppointmentUpdate && onAppointmentUpdate({
-        ...selectedAppointment,
-        ...appointmentData,
-      });
-    } else {
-      // Create new appointment
-      onAppointmentCreate && onAppointmentCreate(appointmentData);
+    if (!isDateAvailable(date)) {
+      const holidayName = getHolidayName(date, phHolidays);
+      if (holidayName) {
+        toast.error(`Cannot book on ${holidayName} - service not available`);
+      }
+      return;
     }
-    
-    setShowAppointmentModal(false);
-    setSelectedAppointment(null);
+    if (onAppointmentCreate) {
+      onAppointmentCreate({ date, time });
+    }
   };
 
   // Check if a date is available for booking
@@ -304,61 +411,57 @@ const Calendar = ({
               </svg>
             </button>
           </div>
-          {!viewingFriendId && (
-            <button
-              onClick={() => handleCreateAppointment(new Date())}
-              className="btn btn-primary btn-xs md:btn-sm"
-            >
-              New +
-            </button>
-          )}
         </div>
       </div>
       {/* Friend Search Modal */}
       {/* Legend */}
-      <div className="px-6 py-2 bg-base-200 border-b border-base-300">
-        <div className="flex items-center justify-center gap-3 text-xs flex-wrap">
+      <div className="px-3 sm:px-6 py-1 sm:py-2 bg-base-200 border-b border-base-300">
+        <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-info"></div>
-            <span className="text-base-content/70">Today</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-info"></div>
+            <span className="text-base-content/70 hidden sm:inline">Today</span>
+            <span className="text-base-content/70 sm:hidden">T</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-success"></div>
-            <span className="text-base-content/70">Available</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-success"></div>
+            <span className="text-base-content/70 hidden sm:inline">Available</span>
+            <span className="text-base-content/70 sm:hidden">A</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded bg-primary/70"></div>
-            <span className="text-base-content/70">Has Appts</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded bg-primary/70"></div>
+            <span className="text-base-content/70 hidden sm:inline">Has Appts</span>
+            <span className="text-base-content/70 sm:hidden">Ap</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded bg-error"></div>
-            <span className="text-base-content/70">Holiday</span>
+            <div className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded bg-error"></div>
+            <span className="text-base-content/70 hidden sm:inline">Holiday</span>
+            <span className="text-base-content/70 sm:hidden">H</span>
           </div>
         </div>
       </div>
 
       {/* Availability Schedule Info */}
-      <div className="px-6 py-4 bg-base-100 border-b border-base-300">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="px-3 sm:px-6 py-2 sm:py-4 bg-base-100 border-b border-base-300">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           {/* Working Hours */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Working Hours</p>
-            <p className="text-sm font-medium text-base-content">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Hours</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
               {availability?.start || '09:00'} - {availability?.end || '17:00'}
             </p>
           </div>
 
           {/* Available Days */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Available Days</p>
-            <div className="flex flex-wrap gap-1">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Days</p>
+            <div className="flex flex-wrap gap-0.5 sm:gap-1">
               {(() => {
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
                 const availableDays = availability?.days || [1, 2, 3, 4, 5];
                 return dayNames.map((day, idx) => (
                   <span
                     key={idx}
-                    className={`text-xs px-2 py-1 rounded font-medium ${
+                    className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium ${
                       availableDays.includes(idx)
                         ? 'bg-success text-success-content'
                         : 'bg-base-300 text-base-content/50 line-through'
@@ -372,33 +475,35 @@ const Calendar = ({
           </div>
 
           {/* Slot Duration */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Slot Duration</p>
-            <p className="text-sm font-medium text-base-content">
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase">Duration</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
               {availability?.slotDuration || 30} min
             </p>
           </div>
 
           {/* Lead Time */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-base-content/60 uppercase">Lead Time</p>
-            <p className="text-sm font-medium text-base-content">
-              {availability?.minLeadTime || 0} hour{(availability?.minLeadTime || 0) !== 1 ? 's' : ''}
+          <div className="space-y-0.5 sm:space-y-1">
+            <p className="text-xs font-semibold text-base-content/60 uppercase hidden lg:block">Lead Time</p>
+            <p className="text-xs font-semibold text-base-content/60 uppercase lg:hidden">Lead</p>
+            <p className="text-xs sm:text-sm font-medium text-base-content">
+              {availability?.minLeadTime || 0}h
             </p>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-7 gap-px bg-base-300 border-b border-base-300">
+      <div className="grid grid-cols-7 gap-px bg-base-300 border-b border-base-300 overflow-x-auto">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-          <div key={day} className="bg-base-200 py-2 text-center text-xs font-medium text-base-content/70 uppercase tracking-wider">
-            {day}
+          <div key={day} className="bg-base-200 py-1 md:py-2 text-center text-xs font-medium text-base-content/70 uppercase tracking-wider">
+            <span className="hidden sm:inline">{day}</span>
+            <span className="sm:hidden">{day[0]}</span>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-base-300">
+      <div className="grid grid-cols-7 gap-px bg-base-300 overflow-x-auto">
         {daysInMonth.map((day, i) => {
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -411,14 +516,31 @@ const Calendar = ({
           const maxPerDay = viewingFriendId 
             ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
             : (currentUser?.availability?.maxPerDay || 5);
-          const dayAppointmentsCount = getAppointmentsForDate(day).length;
+          
+          // Get appointments for this specific day and filter correctly
+          const dayAppointments = getAppointmentsForDate(day);
+          
+          // Filter by the viewed user if viewing a friend's calendar
+          // Count both confirmed AND scheduled appointments for capacity (they occupy slots)
+          const relevantAppointments = viewingFriendId 
+            ? dayAppointments.filter(appt => {
+                const status = appt.status?.toLowerCase();
+                // Count confirmed and scheduled for capacity
+                if (!['confirmed', 'scheduled'].includes(status)) return false;
+                const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                const viewingFriendIdStr = extractId(viewingFriendId);
+                return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+              })
+            : dayAppointments.filter(appt => ['confirmed', 'scheduled'].includes(appt.status?.toLowerCase()));
+          
+          const dayAppointmentsCount = relevantAppointments.length;
           const isAtCapacity = dayAppointmentsCount >= maxPerDay;
           const capacityPercentage = Math.min((dayAppointmentsCount / maxPerDay) * 100, 100);
           
           return (
             <div 
               key={i}
-              className={`relative ${viewMode === 'month' ? 'min-h-24' : 'min-h-32'} p-1 bg-base-100 ${
+              className={`relative ${viewMode === 'month' ? 'min-h-20 sm:min-h-24 md:min-h-28' : 'min-h-32'} p-0.5 sm:p-1 md:p-2 bg-base-100 ${
                 isViewingFriendAway ? 'opacity-50 cursor-not-allowed' : (
                   !isDateAvailableNow && isCurrentMonth ? 'opacity-60 cursor-not-allowed bg-base-300' : (
                     isAtCapacity ? 'bg-error/5 border border-error/20' : 'hover:bg-base-200'
@@ -426,7 +548,7 @@ const Calendar = ({
                 )
               } cursor-pointer ${
                 !isCurrentMonth ? 'bg-base-300 text-base-content/30' : ''
-              } ${isSelected ? 'ring-2 ring-primary z-10' : ''} transition-all`}
+              } ${isSelected ? 'ring-2 ring-primary z-10' : ''} transition-all touch-manipulation`}
               onClick={() => isDateAvailableNow && !isViewingFriendAway && handleDateClick(day)}
             >
               <div className="flex flex-col h-full">
@@ -459,7 +581,7 @@ const Calendar = ({
                   )}
                   
                   {dayHoliday && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-error"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-error" title="Holiday - No bookings available"></span>
                   )}
                 </div>
 
@@ -477,62 +599,124 @@ const Calendar = ({
                 
                 <div className="flex-1 overflow-hidden">
                   {dayHoliday && (
-                    <div className="text-xs text-error font-medium truncate mb-1">
+                    <div className="text-xs text-error font-bold truncate mb-1 bg-error/10 px-1 py-0.5 rounded">
                       {dayHoliday}
                     </div>
                   )}
                   
-                  {hasAppts && (
+                  {(() => {
+                  const dayApptsForRender = getAppointmentsForDate(day);
+                  if (format(day, 'yyyy-MM-dd') === '2025-12-10') {
+                    console.log('[Calendar] Dec 10 appointments check:', {
+                      hasAppts,
+                      viewingFriendId,
+                      dayApptsForRender,
+                      appointmentsByDate: appointmentsByDate.get(format(day, 'yyyy-MM-dd'))
+                    });
+                  }
+                  return hasAppts;
+                })() && (
                     <div className="space-y-1">
                       {getAppointmentsForDate(day)
                         .filter(appt => {
-                          // In multi-calendar mode, show appointment if any participant is visible
+                          // Appointments are already filtered during map building
+                          // Only need to filter for multi-calendar mode visibility here
                           if (isMultiCalendarMode) {
-                            return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                            const friendId = getAppointmentFriendId(appt);
+                            return isFriendVisible(friendId);
                           }
-                          // In single calendar mode, show all appointments
+                          // In single calendar mode, all appointments in the map are already correctly filtered
                           return true;
                         })
-                        .slice(0, 2)
+                        .slice(0, 3)
                         .map((appt) => {
                           const ownerId = getAppointmentOwnerId(appt);
                           const ownerColor = isMultiCalendarMode ? getColorForFriend(ownerId) : null;
-                          const apptBgClass = ownerColor ? ownerColor.apptBg : 'bg-primary/30';
-                          const apptTextClass = ownerColor ? ownerColor.apptText : 'text-primary-content';
-                          const apptBorderClass = ownerColor ? ownerColor.apptBorder : 'border-primary/50';
+                          const statusBadgeColor = getStatusBadgeColor(appt.status);
+                          
+                          // Check if current user is involved in this appointment
+                          const currentUserId = currentUser?._id || currentUser?.id;
+                          const apptUserId = String(appt.userId?._id || appt.userId);
+                          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+                          const currentUserIdStr = String(currentUserId);
+                          const isCurrentUserInvolved = apptUserId === currentUserIdStr || apptFriendId === currentUserIdStr;
+                          
+                          // Generate color for single calendar mode based on appointment ID
+                          let apptBgClass, apptTextClass, apptBorderClass;
+                          
+                          if (isMultiCalendarMode && ownerColor) {
+                            // Multi-calendar mode: use owner color
+                            apptBgClass = ownerColor.apptBg;
+                            apptTextClass = ownerColor.apptText;
+                            apptBorderClass = ownerColor.apptBorder;
+                          } else if (viewingFriendId) {
+                            // Single calendar mode viewing friend: assign colors based on participants
+                            // Create a simple hash from the appointment ID
+                            const apptId = appt._id || appt.id || '';
+                            const hash = apptId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                            const colorIndex = hash % colorPalette.length;
+                            const assignedColor = colorPalette[colorIndex];
+                            
+                            apptBgClass = assignedColor.apptBg;
+                            apptTextClass = assignedColor.apptText;
+                            apptBorderClass = assignedColor.apptBorder;
+                          } else {
+                            // Default colors
+                            apptBgClass = 'bg-primary/10';
+                            apptTextClass = 'text-primary';
+                            apptBorderClass = 'border-primary/30';
+                          }
+                          
+                          // Determine display text based on viewing context
+                          let displayText = appt.title;
+                          let tooltipText = appt.title;
+                          
+                          if (viewingFriendId && !isCurrentUserInvolved) {
+                            // Appointment between other people - show title with participant info in tooltip
+                            const userName = appt.userId?.fullName || appt.userId?.name || 'User';
+                            const friendName = appt.friendId?.fullName || appt.friendId?.name || 'Friend';
+                            displayText = appt.title; // Show the appointment title
+                            tooltipText = `${appt.title} (${userName} with ${friendName})`;
+                          } else if (isMultiCalendarMode) {
+                            tooltipText = `${appt.title} (${getAppointmentOwner(appt)})`;
+                          }
                           
                           return (
                             <div 
                               key={appt._id || appt.id}
-                              className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm`}
+                              className={`px-1 py-0.5 text-xs truncate rounded border ${apptBgClass} ${apptTextClass} ${apptBorderClass} border-l-2 hover:shadow-sm cursor-pointer`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedAppointment(appt);
                                 setSelectedDate(day);
                               }}
-                              title={isMultiCalendarMode ? `${appt.title} (${getAppointmentOwner(appt)})` : appt.title}
+                              title={tooltipText}
                             >
                               {isMultiCalendarMode && (
                                 <span className="font-semibold">{getAppointmentOwner(appt)[0]}</span>
                               )}
-                              {' '}{appt.title}
+                              {isMultiCalendarMode && ' '}{displayText}
                             </div>
                           );
                         })}
                       
                       {getAppointmentsForDate(day).filter(appt => {
+                        // Appointments are already filtered during map building
+                        // Only need to filter for multi-calendar mode visibility here
                         if (isMultiCalendarMode) {
-                          return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                          const friendId = getAppointmentFriendId(appt);
+                          return isFriendVisible(friendId);
                         }
                         return true;
-                      }).length > 2 && (
+                      }).length > 3 && (
                         <div className="text-xs text-gray-400 text-center">
                           +{getAppointmentsForDate(day).filter(appt => {
+                            // Same filtering as above
                             if (isMultiCalendarMode) {
-                              return getAppointmentOwnerIds(appt).some(id => isFriendVisible(id));
+                              const friendId = getAppointmentFriendId(appt);
+                              return isFriendVisible(friendId);
                             }
                             return true;
-                          }).length - 2} more
+                          }).length - 3} more
                         </div>
                       )}
                     </div>
@@ -545,43 +729,23 @@ const Calendar = ({
       </div>
 
       {/* Day Details Modal */}
-      {selectedDate && !showAppointmentModal && (
+      {selectedDate && (
         <DayDetailsModal
           date={selectedDate}
           appointments={getAppointmentsForDate(selectedDate)}
           onClose={() => setSelectedDate(null)}
           onCreateAppointment={onAppointmentCreate}
+          onAppointmentSubmit={onAppointmentSubmit}
           isHoliday={getHolidayName(selectedDate, phHolidays)}
           currentUser={currentUser}
           friends={friends}
           availability={availability}
           friendsAvailability={friendsAvailability}
           viewingFriendId={viewingFriendId}
+          isDateAvailableForBooking={isDateAvailable(selectedDate)}
         />
       )}
 
-      {/* Appointment Modal */}
-      {showAppointmentModal && (
-        <AppointmentModal
-          isOpen={showAppointmentModal}
-          onClose={() => {
-            setShowAppointmentModal(false);
-            setSelectedAppointment(null);
-            setSelectedTime(null);
-            setSelectedDate(null);
-          }}
-          onSubmit={handleAppointmentSubmit}
-          initialDate={selectedDate || new Date()}
-          initialTime={selectedTime}
-          friends={friends}
-          currentUser={currentUser}
-          availability={availability}
-          friendsAvailability={friendsAvailability}
-          currentUserStatus={currentUser?.availabilityStatus || 'available'}
-          appointments={appointments}
-          selectedDate={selectedDate}
-        />
-      )}
     </div>
   );
 };
@@ -623,6 +787,7 @@ Calendar.propTypes = {
     profilePic: PropTypes.string,
   }),
   onAppointmentCreate: PropTypes.func,
+  onAppointmentSubmit: PropTypes.func,
   onAppointmentUpdate: PropTypes.func,
   onAppointmentDelete: PropTypes.func,
   availability: PropTypes.shape({

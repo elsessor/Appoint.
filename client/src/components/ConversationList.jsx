@@ -6,6 +6,8 @@ import { useState, useEffect } from "react";
 
 const ConversationList = ({ chatClient }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [lastMessageMap, setLastMessageMap] = useState({});
+  const [version, setVersion] = useState(0); // 🚀 force re-render for sorting
   const { id: activeUserId } = useParams();
 
   const { data: friends, isLoading } = useQuery({
@@ -13,9 +15,56 @@ const ConversationList = ({ chatClient }) => {
     queryFn: getUserFriends,
   });
 
-  const filteredFriends = friends?.filter((friend) =>
+  const filtered = friends?.filter((friend) =>
     friend.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) || [];
+
+  // 🔥 SORT newest message → top
+  const sortedFriends = [...filtered].sort((a, b) => {
+    const ta = lastMessageMap[a._id]
+      ? new Date(lastMessageMap[a._id]).getTime()
+      : 0;
+    const tb = lastMessageMap[b._id]
+      ? new Date(lastMessageMap[b._id]).getTime()
+      : 0;
+    return tb - ta;
+  });
+
+  const updateLastMessageInfo = (friendId, date) => {
+    setLastMessageMap((prev) => ({
+      ...prev,
+      [friendId]: date,
+    }));
+    setVersion((v) => v + 1); // 🔥 triggers instant list re-sort
+  };
+
+  // ⭐ Listen globally for ANY new message (real-time sorting)
+  useEffect(() => {
+    if (!chatClient) return;
+
+    const handleNewMessage = (event) => {
+      const msg = event.message;
+      if (!msg) return;
+
+      const channel = event.channel;
+      if (!channel) return;
+
+      // Identify who the other user is
+      const members = Object.keys(channel.state.members);
+      const otherUser = members.find(
+        (id) => id !== chatClient.user?.id
+      );
+
+      if (!otherUser) return;
+
+      // ⏫ bump last message for that user
+      updateLastMessageInfo(otherUser, msg.created_at);
+    };
+
+    chatClient.on("message.new", handleNewMessage);
+
+    return () => chatClient.off("message.new", handleNewMessage);
+  }, [chatClient]);
 
   if (isLoading) {
     return (
@@ -27,9 +76,9 @@ const ConversationList = ({ chatClient }) => {
 
   return (
     <div className="w-80 border-r border-base-300 bg-base-200 flex flex-col h-full">
-      {/* Header */}
+
+      {/* Search Bar */}
       <div className="p-4 border-b border-base-300">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
@@ -42,9 +91,9 @@ const ConversationList = ({ chatClient }) => {
         </div>
       </div>
 
-      {/* Conversation List */}
+      {/* Conversation Items */}
       <div className="flex-1 overflow-y-auto">
-        {!filteredFriends || filteredFriends.length === 0 ? (
+        {sortedFriends.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <MessageCircle className="w-12 h-12 text-gray-500 mb-2" />
             <p className="text-sm text-gray-500">
@@ -53,12 +102,16 @@ const ConversationList = ({ chatClient }) => {
           </div>
         ) : (
           <div className="divide-y divide-base-300">
-            {filteredFriends.map((friend) => (
+            {sortedFriends.map((friend, index) => (
               <ConversationItem
                 key={friend._id}
                 friend={friend}
                 isActive={activeUserId === friend._id}
                 chatClient={chatClient}
+                loadDelay={index * 150}
+                onLastMessage={(d) =>
+                  updateLastMessageInfo(friend._id, d)
+                }
               />
             ))}
           </div>
@@ -68,116 +121,113 @@ const ConversationList = ({ chatClient }) => {
   );
 };
 
-const ConversationItem = ({ friend, isActive, chatClient }) => {
+const ConversationItem = ({
+  friend,
+  isActive,
+  chatClient,
+  loadDelay = 0,
+  onLastMessage,
+}) => {
   const [isOnline, setIsOnline] = useState(false);
   const [lastMessage, setLastMessage] = useState("Click to start chatting...");
   const [lastMessageTime, setLastMessageTime] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // ✅ Guard: Check if chatClient and user are ready
-    if (!chatClient || !chatClient.user || !chatClient.user.id) {
-      console.log("Chat client not ready yet");
-      return;
-    }
+    if (!chatClient || !chatClient.user?.id) return;
 
-    // ✅ Add delay to prevent rate limiting
-    const timeoutId = setTimeout(() => {
-      checkOnlineStatus();
-      getLastMessage();
-    }, Math.random() * 1000); // Random delay 0-1 second
+    let isMounted = true;
+    let channel = null;
+
+    const loadConversation = async () => {
+      try {
+        await new Promise((res) => setTimeout(res, loadDelay));
+        if (!isMounted) return;
+
+        const currentUserId = chatClient.user.id;
+        const channelId = [currentUserId, friend._id].sort().join("-");
+        channel = chatClient.channel("messaging", channelId);
+
+        const state = await channel.query({
+          watch: false,
+          state: true,
+          messages: { limit: 1 },
+        });
+
+        if (!isMounted) return;
+
+        const msgs = state.messages;
+        if (msgs?.length > 0) {
+          updateLastMessage(msgs[msgs.length - 1]);
+        }
+
+        await checkOnlineStatus();
+
+        // Listen for messages inside THIS channel
+        channel.on("message.new", (e) => {
+          if (isMounted && e.message) updateLastMessage(e.message);
+        });
+
+        setIsLoading(false);
+      } catch (err) {
+        setIsLoading(false);
+        if (err.code === 17) {
+          setLastMessage("Start a conversation");
+        } else {
+          setLastMessage("Click to chat");
+        }
+      }
+    };
 
     const checkOnlineStatus = async () => {
       try {
         const { users } = await chatClient.queryUsers({ id: friend._id });
-        if (users[0]) {
-          setIsOnline(users[0].online);
-        }
-      } catch (error) {
-        console.error("Error checking online status:", error);
-      }
+        if (isMounted && users[0]) setIsOnline(users[0].online);
+      } catch {}
     };
 
-    const getLastMessage = async () => {
-      try {
-        // ✅ Ensure user is connected before accessing user.id
-        if (!chatClient.user || !chatClient.user.id) {
-          console.log("User not connected yet");
-          return;
-        }
+    const updateLastMessage = (msg) => {
+      const text = msg.text || "Sent an attachment";
+      setLastMessage(text.length > 40 ? text.slice(0, 40) + "..." : text);
 
-        // Get channel ID (same logic as in ChatsPage)
-        const currentUserId = chatClient.user.id;
-        const channelId = [currentUserId, friend._id].sort().join("-");
-        
-        // Query the channel
-        const channel = chatClient.channel("messaging", channelId);
-        await channel.watch();
+      const date = new Date(msg.created_at);
+      setLastMessageTime(formatMessageTime(date));
 
-        // Get last message
-        const messages = channel.state.messages;
-        if (messages && messages.length > 0) {
-          const lastMsg = messages[messages.length - 1];
-          
-          // Truncate message if too long
-          const messageText = lastMsg.text || "Sent an attachment";
-          setLastMessage(messageText.length > 40 ? messageText.substring(0, 40) + "..." : messageText);
-          
-          // Format time
-          const msgDate = new Date(lastMsg.created_at);
-          const now = new Date();
-          const diffInMs = now - msgDate;
-          const diffInMins = Math.floor(diffInMs / 60000);
-          const diffInHours = Math.floor(diffInMs / 3600000);
-          const diffInDays = Math.floor(diffInMs / 86400000);
-
-          if (diffInMins < 1) {
-            setLastMessageTime("Just now");
-          } else if (diffInMins < 60) {
-            setLastMessageTime(`${diffInMins} min ago`);
-          } else if (diffInHours < 24) {
-            setLastMessageTime(`${diffInHours}h ago`);
-          } else if (diffInDays === 1) {
-            setLastMessageTime("Yesterday");
-          } else if (diffInDays < 7) {
-            setLastMessageTime(`${diffInDays}d ago`);
-          } else {
-            setLastMessageTime(msgDate.toLocaleDateString());
-          }
-        }
-
-        // Listen for new messages
-        channel.on('message.new', (event) => {
-          if (event.message) {
-            const messageText = event.message.text || "Sent an attachment";
-            setLastMessage(messageText.length > 40 ? messageText.substring(0, 40) + "..." : messageText);
-            setLastMessageTime("Just now");
-          }
-        });
-
-      } catch (error) {
-        console.error("Error getting last message:", error);
-      }
+      // Notify parent (🔥 important for real-time sorting)
+      onLastMessage?.(msg.created_at);
     };
 
-    checkOnlineStatus();
-    getLastMessage();
-
-    // Listen for presence changes
-    const handleEvent = (event) => {
+    const handlePresence = (event) => {
       if (event.user?.id === friend._id) {
         setIsOnline(event.user.online);
       }
     };
 
-    chatClient.on('user.presence.changed', handleEvent);
+    loadConversation();
+    chatClient.on("user.presence.changed", handlePresence);
 
     return () => {
-      clearTimeout(timeoutId); // ✅ Clear timeout on unmount
-      chatClient.off('user.presence.changed', handleEvent);
+      isMounted = false;
+      chatClient.off("user.presence.changed", handlePresence);
+      if (channel) channel.off("message.new");
     };
-  }, [chatClient, chatClient?.user?.id, friend._id]); // ✅ Add user.id as dependency
+  }, [chatClient, friend._id]);
 
-  const unreadCount = 0; // You can implement unread count later
+  const formatMessageTime = (d) => {
+    const now = new Date();
+    const diff = now - d;
+    const mins = diff / 60000;
+    const hours = diff / 3600000;
+    const days = diff / 86400000;
+
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${Math.floor(mins)} min ago`;
+    if (hours < 24) return `${Math.floor(hours)}h ago`;
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${Math.floor(days)}d ago`;
+
+    return d.toLocaleDateString();
+  };
 
   return (
     <Link
@@ -186,38 +236,38 @@ const ConversationItem = ({ friend, isActive, chatClient }) => {
         isActive ? "bg-base-300" : ""
       }`}
     >
-      {/* Profile Picture with Online Indicator */}
       <div className="relative flex-shrink-0">
         <div className="avatar">
           <div className="w-12 h-12 rounded-full">
             <img
               src={friend.profilePic || "/default-profile.svg"}
               alt={friend.fullName}
-              onError={(e) => {
-                e.target.src = '/default-profile.svg';
-              }}
+              onError={(e) => (e.target.src = "/default-profile.svg")}
             />
           </div>
         </div>
-        {/* Online indicator - green dot - only show if online */}
+
         {isOnline && (
           <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-base-200"></div>
         )}
       </div>
 
-      {/* Message Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-sm truncate">{friend.fullName}</h3>
+          <h3 className="font-semibold text-sm truncate">
+            {friend.fullName}
+          </h3>
           <span className="text-xs text-gray-500">{lastMessageTime}</span>
         </div>
-        <p className="text-sm text-gray-400 truncate">{lastMessage}</p>
-      </div>
 
-      {/* Unread Badge */}
-      {unreadCount > 0 && (
-        <div className="badge badge-primary badge-sm">{unreadCount}</div>
-      )}
+        <p className="text-sm text-gray-400 truncate">
+          {isLoading ? (
+            <span className="loading loading-dots loading-xs"></span>
+          ) : (
+            lastMessage
+          )}
+        </p>
+      </div>
     </Link>
   );
 };
