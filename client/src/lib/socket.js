@@ -5,20 +5,27 @@ let socketInstance = null;
 
 // Determine socket URL based on environment
 const getSocketURL = () => {
+  // Priority 1: Explicit environment variable (for different networks/servers)
   const envURL = import.meta.env.VITE_SOCKET_URL;
-  
   if (envURL) {
-    console.log('[Socket] Using VITE_SOCKET_URL:', envURL);
+    console.log('[Socket] Using VITE_SOCKET_URL from env:', envURL);
     return envURL;
   }
   
-  // In production or different devices, use the same host but port 5001 (backend)
+  // Priority 2: For localhost development - always use localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const url = 'http://localhost:5001';
+    console.log('[Socket] Development mode: using localhost:5001');
+    return url;
+  }
+  
+  // Priority 3: For same server deployment (frontend and backend on same machine)
+  // Both devices access the same server IP, both connect to that server's port 5001
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
-  
-  // For production deployment: use same protocol and hostname, port 5001
   const url = `${protocol}//${hostname}:5001`;
-  console.log('[Socket] Auto-detected socket URL:', url);
+  console.log('[Socket] Production mode: using auto-detected URL:', url);
+  console.log('[Socket] ⚠️  If this is wrong, set VITE_SOCKET_URL environment variable');
   return url;
 };
 
@@ -38,15 +45,16 @@ export const initSocket = () => {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity, // Keep trying indefinitely
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
     });
     
     socketInstance.on('connect', () => {
       console.log('[Socket] ✅ Connected successfully, socket ID:', socketInstance.id);
     });
     
-    socketInstance.on('disconnect', () => {
-      console.log('[Socket] ⚠️ Disconnected');
+    socketInstance.on('disconnect', (reason) => {
+      console.log('[Socket] ⚠️ Disconnected:', reason);
     });
     
     socketInstance.on('connect_error', (error) => {

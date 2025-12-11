@@ -11,6 +11,7 @@ import {
   emitAppointmentUpdated,
   emitAppointmentStatusChanged,
   emitAppointmentDeleted,
+  emitAvailabilityStatusChanged,
 } from "../lib/socket.js";
 
 export async function createAppointment(req, res) {
@@ -758,6 +759,11 @@ export async function saveCustomAvailability(req, res) {
 
     console.log('✅ User availability updated successfully');
     console.log('Saved availability:', JSON.stringify(updatedUser.availability, null, 2));
+
+    // Emit availability status change to all connected clients if status changed
+    if (availabilityStatus) {
+      emitAvailabilityStatusChanged(userId, availabilityStatus);
+    }
 
     res.status(200).json({
       message: "Availability saved successfully",
