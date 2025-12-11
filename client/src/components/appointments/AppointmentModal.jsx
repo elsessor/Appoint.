@@ -72,8 +72,21 @@ const AppointmentModal = ({
   useEffect(() => {
     if (initialDate) {
       setCalendarMonth(new Date(initialDate));
+    } else if (appointment?.startTime) {
+      // For reschedule, set calendar to appointment date
+      const apptDate = typeof appointment.startTime === 'string'
+        ? parseISO(appointment.startTime)
+        : new Date(appointment.startTime);
+      setCalendarMonth(new Date(apptDate));
     }
-  }, [initialDate]);
+  }, [initialDate, appointment?.startTime]);
+  
+  // Reset step when opening/closing
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+    }
+  }, [isOpen]);
   // Detect if we're in edit mode (reschedule)
   const isEditMode = !!appointment;
 
@@ -112,12 +125,21 @@ const AppointmentModal = ({
           ? appointment.endTime 
           : appointment.endTime?.toISOString?.() || '';
         
+        // For reschedule, we need to identify the correct friendId
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const appointmentUserId = appointment.userId?._id || appointment.userId;
+        const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+        
+        // If current user is the creator, friend is the other person
+        // If current user is the recipient, friend is the creator
+        const friendId = appointmentUserId === currentUserId ? appointmentFriendId : appointmentUserId;
+        
         setFormData({
           title: appointment.title || '',
           description: appointment.description || appointment.message || '',
           startTime,
           endTime,
-          friendId: appointment.friendId || appointment.participant?._id || '',
+          friendId: friendId || '',
           friendSearch: '',
           showFriendDropdown: false,
           meetingType: appointment.meetingType || 'Video Call',
@@ -142,7 +164,7 @@ const AppointmentModal = ({
         }
       }
     }
-  }, [appointment, initialDate, selectedDate, initialTime, initialFriendId, isOpen]);
+  }, [appointment, initialDate, selectedDate, initialTime, initialFriendId, isOpen, currentUser]);
 
   useEffect(() => {
     if (formData.friendId) {
@@ -532,7 +554,8 @@ const AppointmentModal = ({
       return;
     }
 
-    if (!formData.friendId) {
+    // friendId is required for new appointments but already set for reschedule
+    if (!isEditMode && !formData.friendId) {
       toast.error('Please select a friend');
       return;
     }
@@ -657,10 +680,25 @@ const AppointmentModal = ({
 
   const durationOptions = [15, 30, 45, 60, 90, 120];
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    console.log('[AppointmentModal] Rendering with props:', { isOpen, appointment: !!appointment, step });
+  }, [isOpen, appointment, step]);
+
+  if (!isOpen) {
+    console.log('[AppointmentModal] isOpen is false, returning null');
+    return null;
+  }
+
+  // Provide default values for availability if missing
+  const effectiveAvailability = availability || {
+    days: [1, 2, 3, 4, 5],
+    start: '09:00',
+    end: '17:00',
+    slotDuration: 30,
+  };
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
+    <div className={`fixed inset-0 z-[80] overflow-hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
       {/* Backdrop */}
       <div 
         className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out ${isClosing ? 'opacity-0' : 'opacity-100'}`}
@@ -891,6 +929,61 @@ const AppointmentModal = ({
                     </div>
                   )}
                 </div>
+                )}
+
+                {/* Show Friend Info in Reschedule Mode */}
+                {appointment && (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-base-content">Rescheduling with</label>
+                    <div className="p-4 bg-primary/10 rounded-lg border border-primary/30 flex items-center gap-3">
+                      {(() => {
+                        // Get the OTHER person in the appointment (not the current user)
+                        const currentUserId = currentUser?._id || currentUser?.id;
+                        const appointmentUserId = appointment.userId?._id || appointment.userId;
+                        const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+                        
+                        // If current user is userId, the friend is friendId, and vice versa
+                        const otherPersonId = appointmentUserId === currentUserId ? appointmentFriendId : appointmentUserId;
+                        const otherPersonObj = appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
+                        
+                        // Try to find in friends list, otherwise use the appointment object
+                        const selectedFriend = friends.find(f => f._id === otherPersonId) || otherPersonObj;
+                        
+                        if (!selectedFriend) return null;
+                        
+                        const friendStatus = friendsAvailability[selectedFriend._id || otherPersonId]?.status || 'available';
+                        const statusConfig = {
+                          available: { badge: 'badge badge-success', label: 'Available' },
+                          limited: { badge: 'badge badge-warning', label: 'Limited' },
+                          away: { badge: 'badge badge-error', label: 'Away' }
+                        };
+                        const config = statusConfig[friendStatus] || statusConfig.available;
+
+                        return (
+                          <>
+                            {(selectedFriend.profilePic || selectedFriend.image) ? (
+                              <img
+                                src={selectedFriend.profilePic || selectedFriend.image}
+                                alt={selectedFriend.fullName || selectedFriend.name}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-primary/30 text-primary flex items-center justify-center font-semibold flex-shrink-0 text-sm">
+                                {(selectedFriend.fullName || selectedFriend.name || 'U')[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-base-content text-sm">{selectedFriend.fullName || selectedFriend.name}</p>
+                              <p className="text-xs text-base-content/70">{selectedFriend.email}</p>
+                            </div>
+                            <span className={`${config.badge} badge-sm flex-shrink-0`}>
+                              {config.label}
+                            </span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 )}
 
                 {/* Schedule Details */}

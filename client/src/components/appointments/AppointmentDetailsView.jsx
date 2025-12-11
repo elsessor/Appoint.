@@ -66,12 +66,15 @@ const AppointmentDetails = ({
   // Check if current user is a participant in this appointment
   const isParticipant = appointmentUserId === currentUserId || appointmentFriendId === currentUserId;
 
+  // Cannot reschedule or cancel completed or cancelled appointments
+  const isCompletedOrCancelled = appointment.status === 'completed' || appointment.status === 'cancelled';
+
   // Both participants can manage (reschedule/cancel) their appointments
   // Only pending requests have special rules (only receiver can accept/decline)
-  const canPerformActions = isParticipant;
+  const canPerformActions = isParticipant && !isCompletedOrCancelled;
   
   // Only the appointment creator (userId) can cancel the appointment
-  const canCancel = appointmentUserId === currentUserId;
+  const canCancel = appointmentUserId === currentUserId && !isCompletedOrCancelled;
 
   const handleCancelClick = () => {
     if (!canCancel) {
@@ -84,6 +87,33 @@ const AppointmentDetails = ({
   const handleConfirmCancel = () => {
     onDelete();
     setShowCancelConfirm(false);
+  };
+
+  const handleRescheduleSubmit = (formData) => {
+    // Validate appointment data
+    if (!formData.title || !formData.title.trim()) {
+      toast.error('Please enter an appointment title');
+      return;
+    }
+    if (!formData.startTime) {
+      toast.error('Please select a start time');
+      return;
+    }
+
+    // Call the update handler with appointment ID
+    onUpdateAppointment({
+      appointmentId: appointment._id || appointment.id,
+      startTime: formData.startTime,
+      endTime: formData.endTime,
+      title: formData.title,
+      description: formData.description,
+      meetingType: formData.meetingType,
+      location: formData.location,
+      duration: formData.duration,
+    });
+
+    // Close the modal after successful submission
+    setShowRescheduleModal(false);
   };
 
   return (
@@ -130,7 +160,9 @@ const AppointmentDetails = ({
                   {canPerformActions && onDelete && (
                     <>
                       <button
-                        onClick={() => setShowRescheduleModal(true)}
+                        onClick={() => {
+                          setShowRescheduleModal(true);
+                        }}
                         className="flex items-center gap-1 px-2 sm:px-4 py-1 sm:py-2 btn btn-outline btn-sm text-xs sm:text-sm"
                       >
                         <Edit className="w-3 sm:w-4 h-3 sm:h-4" />
@@ -388,9 +420,8 @@ const AppointmentDetails = ({
         isOpen={showRescheduleModal}
         onClose={() => {
           setShowRescheduleModal(false);
-          onClose();
         }}
-        onSubmit={onUpdateAppointment}
+        onSubmit={handleRescheduleSubmit}
         appointment={appointment}
         friends={friends}
         currentUser={currentUser}

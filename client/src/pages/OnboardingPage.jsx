@@ -1,13 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
-import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X } from "lucide-react";
+import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X, Users } from "lucide-react";
 import { LANGUAGES } from "../constants";
 import ThemeSelector from "../components/ThemeSelector";
+import FemaleSymbol from "../assets/icons/female-symbol.svg";
+import MaleSymbol from "../assets/icons/male-symbol.svg";
 
 const OnboardingPage = () => {
+  const navigate = useNavigate();
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
 
@@ -146,6 +150,7 @@ const OnboardingPage = () => {
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
     phone: authUser?.phone || "",
+    gender: authUser?.gender || "",
     skills: authUser?.skills || [],
   });
 
@@ -164,9 +169,25 @@ const OnboardingPage = () => {
     mutationFn: completeOnboarding,
     onSuccess: () => {
       toast.success("Profile onboarded successfully");
-      toast("Complete your profile in the Profile page for better visibility", {
-        icon: "📝",
-        duration: 5000,
+      toast.custom((t) => (
+        <div className="bg-base-100 border border-base-300 rounded-lg shadow-lg p-4 flex items-center gap-3">
+          <span className="text-2xl">📝</span>
+          <div className="flex-1">
+            <p className="font-semibold">Complete your profile</p>
+            <p className="text-sm text-base-content/70">Add more details for better visibility</p>
+          </div>
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+              navigate("/profile");
+            }}
+            className="btn btn-sm btn-primary"
+          >
+            Go to Profile
+          </button>
+        </div>
+      ), {
+        duration: 6000,
       });
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
@@ -219,6 +240,11 @@ const OnboardingPage = () => {
       ...formState,
       skills: formState.skills.filter((s) => s !== skillToRemove),
     });
+  };
+
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, 13);
+    setFormState({ ...formState, phone: value });
   };
 
   return (
@@ -387,13 +413,93 @@ const OnboardingPage = () => {
                         type="tel"
                         name="phone"
                         value={formState.phone}
-                        onChange={(e) => setFormState({ ...formState, phone: e.target.value.slice(0, 13) })}
+                        onChange={handlePhoneChange}
                         maxLength="13"
                         className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
                         placeholder="+63 976 789 1329"
                       />
                     </div>
                     <span className="text-xs text-base-content/50 mt-1">{formState.phone.length}/13</span>
+                  </div>
+                </div>
+
+                {/* Gender Selection */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Gender</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Female */}
+                    <button
+                      type="button"
+                      onClick={() => setFormState({ ...formState, gender: "female" })}
+                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                        formState.gender === "female"
+                          ? "border-pink-500 bg-pink-50 shadow-md"
+                          : "border-base-300 bg-base-200/60 hover:border-pink-300 hover:bg-base-200/80"
+                      }`}
+                    >
+                      <svg 
+                        className="w-10 h-10"
+                        viewBox="0 0 247.582 247.582"
+                        fill="currentColor"
+                        style={{
+                          color: formState.gender === "female" ? "#ec4899" : "rgba(0,0,0,0.3)"
+                        }}
+                      >
+                        <path d="M127.581,91.404c0-35.162-28.523-63.769-63.686-63.769S0,56.242,0,91.404c0,31.068,22.666,57.003,51.666,62.625v27.99
+                          l-8.184-7.057l-13.471,16.039l34.295,28.945l35.335-28.831l-13.437-16.268l-9.537,7.658v-28.674
+                          C105.666,147.804,127.581,122.105,127.581,91.404z M25.208,91.404c0-21.377,17.392-38.769,38.77-38.769s38.77,17.392,38.77,38.769
+                          c0,21.378-17.392,38.77-38.77,38.77S25.208,112.782,25.208,91.404z"/>
+                      </svg>
+                      <span className={`font-medium text-center text-xs transition-all ${formState.gender === "female" ? "text-pink-700" : "text-base-content/60"}`}>
+                        Female
+                      </span>
+                    </button>
+
+                    {/* Male */}
+                    <button
+                      type="button"
+                      onClick={() => setFormState({ ...formState, gender: "male" })}
+                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center gap-2 ${
+                        formState.gender === "male"
+                          ? "border-blue-500 bg-blue-50 shadow-md"
+                          : "border-base-300 bg-base-200/60 hover:border-blue-300 hover:bg-base-200/80"
+                      }`}
+                    >
+                      <svg 
+                        className="w-10 h-10"
+                        viewBox="0 0 247.582 247.582"
+                        fill="currentColor"
+                        style={{
+                          color: formState.gender === "male" ? "#3b82f6" : "rgba(0,0,0,0.3)"
+                        }}
+                      >
+                        <path d="M196.666,93.047V76.445h10v-21h-10v-15h-25v15h-11v21h11v16.424c-29,5.64-51.581,31.564-51.581,62.617
+                          c0,35.162,28.69,63.769,63.852,63.769c35.163,0,63.645-28.606,63.645-63.769C247.582,124.769,225.666,99.059,196.666,93.047z
+                          M184.021,194.254c-21.377,0-38.769-17.392-38.769-38.769c0-21.378,17.392-38.77,38.769-38.77c21.378,0,38.77,17.392,38.77,38.77
+                          C222.79,176.863,205.399,194.254,184.021,194.254z"/>
+                      </svg>
+                      <span className={`font-medium text-center text-xs transition-all ${formState.gender === "male" ? "text-blue-700" : "text-base-content/60"}`}>
+                        Male
+                      </span>
+                    </button>
+
+                    {/* Rather Not Say */}
+                    <button
+                      type="button"
+                      onClick={() => setFormState({ ...formState, gender: "prefer_not_to_say" })}
+                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                        formState.gender === "prefer_not_to_say"
+                          ? "border-purple-500 bg-purple-50 shadow-md"
+                          : "border-base-300 bg-base-200/60 hover:border-purple-300 hover:bg-base-200/80"
+                      }`}
+                    >
+                      <Users className={`w-8 h-8 mb-1 ${formState.gender === "prefer_not_to_say" ? "text-purple-500" : "text-gray-600 opacity-60"}`} />
+                      <span className={`font-medium text-center transition-all ${formState.gender === "prefer_not_to_say" ? "text-purple-700 text-xs" : "text-xs text-base-content/60"}`}>
+                        Rather Not
+                      </span>
+                    </button>
                   </div>
                 </div>
 
