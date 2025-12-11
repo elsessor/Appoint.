@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Avatar Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 40px;
+            background: #f0f2f5;
+            color: #1c1e21;
+        }
+        h1 {
+            text-align: center;
+            color: #1877f2;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #65676b;
+            margin-bottom: 40px;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto 40px;
+        }
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #1c1e21;
+            font-size: 18px;
+        }
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .avatar-item {
+            text-align: center;
+        }
+        .avatar-item img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid #e4e6eb;
+            background: #f0f2f5;
+        }
+        .avatar-item .name {
+            font-size: 12px;
+            margin-top: 8px;
+            color: #65676b;
+            font-weight: 500;
+        }
+        .pros {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        .pros h3 {
+            color: #1c1e21;
+            margin-bottom: 15px;
+        }
+        .pros ul {
+            list-style: none;
+            padding: 0;
+        }
+        .pros li {
+            padding: 8px 0;
+            color: #65676b;
+        }
+        .pros li:before {
+            content: "✓ ";
+            color: #42b72a;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .speed {
+            background: #e7f3ff;
+            border-left: 4px solid #1877f2;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Professional Avatar System</h1>
+    <p class="subtitle">Facebook-style person silhouette avatars for business professionals</p>
+
+    <div class="comparison">
+        <div class="section">
+            <h2>❌ Old System (Slow)</h2>
+            <div class="speed">
+                <strong>Loading Time:</strong> 11+ seconds (TIMEOUT)<br>
+                <strong>Service:</strong> avatar.iran.liara.run
+            </div>
+            <p style="color: #d32f2f; font-size: 14px;">External server in Iran - unreliable and slow</p>
+        </div>
+
+        <div class="section">
+            <h2>✅ New System (Instant)</h2>
+            <div class="speed">
+                <strong>Loading Time:</strong> 0ms (Instant)<br>
+                <strong>Service:</strong> Embedded SVG (data URI)
+            </div>
+            <p style="color: #42b72a; font-size: 14px;">Professional person silhouette avatars</p>
+        </div>
+    </div>
+
+    <div class="section" style="max-width: 1200px; margin: 0 auto 30px;">
+        <h2>Sample Professional Avatars</h2>
+        <div class="avatar-grid" id="avatarGrid"></div>
+    </div>
+
+    <div class="pros">
+        <h3>Benefits of New System</h3>
+        <ul>
+            <li><strong>Instant Loading:</strong> No external network requests - avatars are embedded</li>
+            <li><strong>Professional Look:</strong> Clean, Facebook-style silhouette design appropriate for business</li>
+            <li><strong>Consistent:</strong> Same person always gets same color variation (based on first letter)</li>
+            <li><strong>Recognizable:</strong> Universal person icon that everyone understands</li>
+            <li><strong>Accessible:</strong> Works offline and in all network conditions</li>
+            <li><strong>Scalable:</strong> SVG format - crisp at any size</li>
+            <li><strong>No Dependencies:</strong> No reliance on third-party services</li>
+            <li><strong>Privacy-Friendly:</strong> No external tracking or requests</li>
+        </ul>
+    </div>
+
+    <script>
+        const grid = document.getElementById('avatarGrid');
+        const colors = ['#1877f2', '#42b72a', '#f02849', '#7c4dff', '#00acc1', '#ff6f00', '#d32f2f', '#7b1fa2', '#0097a7', '#689f38', '#f57c00', '#5e35b1'];
+        
+        const names = [
+            'John Smith',
+            'Sarah Johnson',
+            'Michael Brown',
+            'Emily Davis',
+            'David Wilson',
+            'Lisa Anderson',
+            'James Taylor',
+            'Mary Martinez',
+            'Robert Garcia',
+            'Jennifer Lee',
+            'William White',
+            'Patricia Thomas'
+        ];
+
+        names.forEach((name, index) => {
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+            const color = colors[index % colors.length];
+            
+            const svg = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="${color}"/><text x="50" y="50" font-family="Arial, sans-serif" font-size="40" font-weight="600" fill="white" text-anchor="middle" dy=".35em">${initials}</text></svg>`)}`;
+            
+            const item = document.createElement('div');
+            item.className = 'avatar-item';
+            
+            const img = document.createElement('img');
+            img.src = svg;
+            img.alt = name;
+            
+            const nameLabel = document.createElement('div');
+            nameLabel.className = 'name';
+            nameLabel.textContent = name;
+            
+            item.appendChild(img);
+            item.appendChild(nameLabel);
+            grid.appendChild(item);
+        });
+    </script>
+</body>
+</html>

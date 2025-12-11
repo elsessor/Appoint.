@@ -1,7 +1,8 @@
 import { Link } from "react-router";
-import { ShipWheelIcon, Calendar, Users, Bell, Zap, Target, Shield, CheckCircle, ArrowRight } from "lucide-react";
+import { ShipWheelIcon, Calendar, Users, Bell, Zap, Target, Shield, CheckCircle, ArrowRight, HelpCircle } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore";
 import ThemeSelector from "../components/ThemeSelector";
+import FAQsModal from "../components/FAQsModal";
 import { useEffect, useRef, useState } from "react";
 
 const Feature = ({ title, desc, Icon }) => (
@@ -24,6 +25,7 @@ const LandingPage = () => {
   const { theme } = useThemeStore();
   const elementsRef = useRef([]);
   const [scrollY, setScrollY] = useState(0);
+  const [showFAQs, setShowFAQs] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -94,6 +96,14 @@ const LandingPage = () => {
             <span className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">Appoint.</span>
           </div>
           <nav className="flex items-center gap-4">
+            <button
+              onClick={() => setShowFAQs(true)}
+              className="btn btn-ghost btn-sm hover:animate-pulse"
+              title="Help & FAQs"
+              aria-label="Help and FAQs"
+            >
+              <HelpCircle className="size-5" />
+            </button>
             <ThemeSelector />
             <Link to="/login" className="btn btn-ghost btn-sm hover:animate-pulse">Sign in</Link>
             <Link to="/signup" className="btn btn-primary btn-sm transition-all hover:shadow-lg">Get started</Link>
@@ -345,6 +355,8 @@ const LandingPage = () => {
           <p>&copy; 2024 Appoint. All rights reserved. • Built for better connections</p>
         </div>
       </footer>
+
+      <FAQsModal isOpen={showFAQs} onClose={() => setShowFAQs(false)} />
     </div>
   );
 };

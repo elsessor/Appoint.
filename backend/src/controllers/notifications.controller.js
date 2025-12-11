@@ -68,3 +68,25 @@ export async function createNotification(data) {
   }
 }
   
+export async function deleteNotification(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id.toString();
+
+    const notification = await Notification.findOne({
+      _id: id,
+      recipientId: userId,
+    });
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    await Notification.findByIdAndDelete(id);
+
+    res.status(200).json({ message: "Notification deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteNotification controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}

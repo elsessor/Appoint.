@@ -12,6 +12,7 @@ import ThemeSelector from '../components/ThemeSelector';
 import RatingModal from '../components/appointments/RatingModal';
 import { toast } from 'react-hot-toast';
 import { useThemeStore } from '../store/useThemeStore';
+import { getStatusColor } from '../utils/statusColors';
 
 const AppointmentsPage = () => {
   const { theme } = useThemeStore();
@@ -220,22 +221,7 @@ const AppointmentsPage = () => {
 
 
   const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'scheduled':
-        return 'badge-success';
-      case 'pending':
-        return 'badge-warning';
-      case 'confirmed':
-        return 'badge-success';
-      case 'completed':
-        return 'badge-info';
-      case 'cancelled':
-        return 'badge-error';
-      case 'declined':
-        return 'badge-error';
-      default:
-        return 'badge-neutral';
-    }
+    return getStatusColor(status);
   };
 
   const getStatusAccent = (status) => {

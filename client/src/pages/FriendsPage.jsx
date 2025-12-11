@@ -1,4 +1,4 @@
-import { Calendar, UserX, MessageCircle, User, Search, Grid, List, CheckCircle, AlertCircle, Clock, Ban, Heart } from "lucide-react";
+import { Calendar, UserX, MessageCircle, User, Search, Grid, List, CheckCircle, AlertCircle, Clock, Ban, Heart, MapPin } from "lucide-react";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
@@ -8,6 +8,7 @@ import { parseISO, format, isToday, isSameDay, addDays } from "date-fns";
 import useAuthUser from "../hooks/useAuthUser";
 import usePresence from "../hooks/usePresence";
 import { isOnline } from '../lib/presence';
+import { getStatusColor, formatStatusLabel } from "../utils/statusColors";
 
 const LanguageBadge = ({ type, language }) => {
   const langLower = language?.toLowerCase();
@@ -151,16 +152,8 @@ const ScheduleModal = ({ friend, isOpen, onClose, currentUserId }) => {
                             with <span className="font-semibold">{otherPersonName}</span>
                           </p>
                         </div>
-                        <span className={`badge badge-sm font-semibold ${
-                          apt.status === 'confirmed' 
-                            ? 'badge-success' 
-                            : apt.status === 'completed' 
-                            ? 'badge-info' 
-                            : apt.status === 'pending' 
-                            ? 'badge-warning' 
-                            : 'badge-ghost'
-                        }`}>
-                          {apt.status}
+                        <span className={`badge badge-sm font-semibold ${getStatusColor(apt.status)}`}>
+                          {formatStatusLabel(apt.status)}
                         </span>
                       </div>
 
@@ -270,6 +263,12 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
           <div>
             <h3 className="card-title text-lg truncate">{name}</h3>
             <p className="text-xs opacity-60">{status}</p>
+            {friend.location && (
+              <div className="flex items-center gap-1 text-xs opacity-70 mt-1">
+                <MapPin className="w-3 h-3" />
+                <span className="truncate">{friend.location}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -279,7 +278,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
 
           <div className="card-actions justify-between gap-2 mt-4">
             <Link
-              to={`/chat/${friend._id || friend.id}`}
+              to={`/chats/${friend._id || friend.id}`}
               className="btn btn-sm btn-primary flex-1"
             >
               <MessageCircle className="w-4 h-4" />

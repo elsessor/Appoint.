@@ -19,7 +19,6 @@ import "@stream-io/video-react-sdk/dist/css/styles.css";
 import toast from "react-hot-toast";
 import PageLoader from "../components/PageLoader";
 import { Mic, MicOff } from "lucide-react";
-import { updateAppointment } from "../lib/api";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
@@ -40,49 +39,55 @@ const CallPage = () => {
   });
 
   useEffect(() => {
-    const initCall = async () => {
-      if (!tokenData?.token || !authUser || !callId) return;
+  const initCall = async () => {
+    if (!tokenData?.token || !authUser || !callId) return;
 
-      try {
-        console.log("Initializing Stream video client...");
+    try {
+      console.log("Initializing Stream video client...");
 
-        const user = {
-          id: authUser._id,
-          name: authUser.fullName,
-          image: authUser.profilePic,
-        };
+      // Only pass essential fields - ensure they're strings/primitives
+      const user = {
+        id: String(authUser._id),
+        name: String(authUser.fullName || "Unknown User"),
+        // If profilePic is base64, it might be too large - use a default or URL only
+        image: authUser.profilePic?.startsWith('http') 
+          ? authUser.profilePic 
+          : undefined, // Don't include if it's base64
+      };
 
-        const videoClient = new StreamVideoClient({
-          apiKey: STREAM_API_KEY,
-          user,
-          token: tokenData.token,
-        });
+      // Debug: Check size
+      const userDataSize = new Blob([JSON.stringify(user)]).size;
+      console.log(`User data size: ${userDataSize} bytes (limit: 5120)`);
 
-        const callInstance = videoClient.call("default", callId);
-
-        await callInstance.join({ create: true });
-        
-        // Mark the current user as having joined the appointment on the server
-        try {
-          await updateAppointment({ id: callId, join: true });
-          console.log("Marked appointment attended on server");
-        } catch (err) {
-          console.warn("Failed to mark attendance:", err?.message || err);
-        }
-        console.log("Joined call successfully");
-
-        setClient(videoClient);
-        setCall(callInstance);
-      } catch (error) {
-        console.error("Error joining call:", error);
-        toast.error("Could not join the call. Please try again.");
-      } finally {
-        setIsConnecting(false);
+      if (userDataSize > 5120) {
+        console.error("User data too large:", user);
+        throw new Error("User data exceeds 5KB limit");
       }
-    };
 
-    initCall();
-  }, [tokenData, authUser, callId]);
+      const videoClient = new StreamVideoClient({
+        apiKey: STREAM_API_KEY,
+        user,
+        token: tokenData.token,
+      });
+
+      const callInstance = videoClient.call("default", callId);
+
+      await callInstance.join({ create: true });
+
+      console.log("Joined call successfully");
+
+      setClient(videoClient);
+      setCall(callInstance);
+    } catch (error) {
+      console.error("Error joining call:", error);
+      toast.error("Could not join the call. Please try again.");
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  initCall();
+}, [tokenData, authUser, callId]);
 
   if (isLoading || isConnecting) return <PageLoader />;
 

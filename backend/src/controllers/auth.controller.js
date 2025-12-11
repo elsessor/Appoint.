@@ -39,8 +39,15 @@ export async function signup(req, res) {
       return res.status(400).json({ message: "Email already exists, please use a different one" });
     }
 
-    const idx = Math.floor(Math.random() * 100) + 1;
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
+    // Generate a professional person silhouette avatar (Facebook-style)
+    // Uses a fixed color palette for consistency
+    const colors = ['#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', '#1a3b64', '#0a2b54'];
+    const colorIndex = fullName.charCodeAt(0) % colors.length;
+    const iconColor = colors[colorIndex];
+    const bgColor = '#e4e6eb';
+    
+    // Create SVG avatar with person silhouette (Facebook-style default profile)
+    const randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${iconColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${iconColor}"/></svg>`)}`;
 
     const newUser = await User.create({
       email,
@@ -123,7 +130,7 @@ export async function onboard(req, res) {
     const userId = req.user && req.user._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const { fullName, bio, nativeLanguage, learningLanguage, location } = req.body;
+    const { fullName, bio, nativeLanguage, learningLanguage, location, phone, skills } = req.body;
     if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
       return res.status(400).json({
         message: "All fields are required",
@@ -141,6 +148,7 @@ export async function onboard(req, res) {
       userId,
       {
         ...req.body,
+        skills: Array.isArray(skills) ? skills : [],
         isOnboarded: true,
       },
       { new: true }

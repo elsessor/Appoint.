@@ -19,6 +19,7 @@ import { format, parseISO } from 'date-fns';
 import { useThemeStore } from '../store/useThemeStore';
 import { Search, X, AlertCircle } from 'lucide-react';
 import { getSocket } from '../lib/socket';
+import { getStatusColor } from '../utils/statusColors';
 
 const AppointmentBookingPage = () => {
   const { theme } = useThemeStore();
@@ -560,21 +561,11 @@ const AppointmentBookingPage = () => {
 
   // Get status-based colors for consistent styling across all components
   const getStatusBadgeColor = (status) => {
-    const statusColorMap = {
-      scheduled: { badge: 'bg-blue-500', text: 'text-white' },
-      confirmed: { badge: 'bg-green-500', text: 'text-white' },
-      completed: { badge: 'bg-gray-500', text: 'text-white' },
-      pending: { badge: 'bg-yellow-500', text: 'text-white' },
-      cancelled: { badge: 'bg-red-500', text: 'text-white' },
-      declined: { badge: 'bg-red-500', text: 'text-white' },
-    };
-    return statusColorMap[status?.toLowerCase()] || { badge: 'bg-gray-500', text: 'text-white' };
+    return getStatusColor(status);
   };
 
-  // Get card background color based on status
   const getStatusCardColor = (status) => {
-    // Always use theme colors for card backgrounds
-    return 'bg-base-100 border-base-300';
+    return `bg-base-100 border-base-300/50`;
   };
 
   // Helper function to detect if this is a pending request FROM another user

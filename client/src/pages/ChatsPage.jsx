@@ -24,9 +24,13 @@ const ChatsPage = () => {
   const chatClient = useStreamChat();
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState(targetUserId || null);
   const { authUser } = useAuthUser();
 
   useEffect(() => {
+    let isMounted = true;
+    let activeChannel = null;
+
     const setupChannel = async () => {
       if (!chatClient || !authUser) {
         setLoading(false);
@@ -36,28 +40,51 @@ const ChatsPage = () => {
       try {
         setLoading(true);
 
-        if (targetUserId) {
-          const channelId = [authUser._id, targetUserId].sort().join("-");
+        if (selectedUserId) {
+          const channelId = [authUser._id, selectedUserId].sort().join("-");
 
           const currChannel = chatClient.channel("messaging", channelId, {
-            members: [authUser._id, targetUserId],
+            members: [authUser._id, selectedUserId],
           });
 
           await currChannel.watch();
-          setChannel(currChannel);
+          
+          // Only update if this is still the latest request
+          if (isMounted && selectedUserId === [authUser._id, selectedUserId].sort()[1] || selectedUserId === [authUser._id, selectedUserId].sort()[0]) {
+            setChannel(currChannel);
+            activeChannel = currChannel;
+          }
         } else {
-          setChannel(null);
+          if (isMounted) {
+            setChannel(null);
+          }
         }
       } catch (error) {
         console.error("Error setting up channel:", error);
-        toast.error("Could not load chat. Please try again.");
+        if (isMounted) {
+          toast.error("Could not load chat. Please try again.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     setupChannel();
-  }, [chatClient, authUser, targetUserId]);
+
+    return () => {
+      isMounted = false;
+      // Cleanup: unwatch the previous channel
+      if (activeChannel) {
+        try {
+          activeChannel.unwatch();
+        } catch (e) {
+          console.log("Channel already unwatched");
+        }
+      }
+    };
+  }, [chatClient, authUser, selectedUserId]);
 
   const handleVideoCall = () => {
     if (channel) {
@@ -71,16 +98,16 @@ const ChatsPage = () => {
     }
   };
 
-  if (loading || !chatClient) return <ChatLoader />;
+  if (!chatClient) return <ChatLoader />;
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
-      {chatClient && <ConversationList chatClient={chatClient} />}
+      {chatClient && <ConversationList chatClient={chatClient} onSelectUser={setSelectedUserId} />}
 
       <div className="flex-1 flex flex-col">
-        {chatClient && channel && targetUserId ? (
-          <Chat client={chatClient}>
-            <Channel channel={channel}>
+        {chatClient && channel && selectedUserId ? (
+          <Chat client={chatClient} key={selectedUserId}>
+            <Channel channel={channel} key={selectedUserId}>
               <div className="flex-1 flex flex-col relative">
                 <CallButton handleVideoCall={handleVideoCall} />
                 <Window>
@@ -92,6 +119,10 @@ const ChatsPage = () => {
               <Thread />
             </Channel>
           </Chat>
+        ) : loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="loading loading-spinner loading-lg"></span>
+          </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
