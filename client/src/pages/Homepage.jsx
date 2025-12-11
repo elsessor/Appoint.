@@ -14,6 +14,7 @@ import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, Vid
 
 import { capitialize } from "../lib/utils";
 import usePresence from "../hooks/usePresence";
+import useAvailabilityStatus from "../hooks/useAvailabilityStatus";
 import useMultiplePresence from "../hooks/useMultiplePresence";
 
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
@@ -630,9 +631,12 @@ const HomePage = () => {
 
 const FriendCircle = ({ friend }) => {
   const initials = (friend.fullName || "").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
-  const status = (friend.availabilityStatus ?? "offline").toLowerCase();
-  const userOnline = usePresence(friend._id); // Subscribe to presence updates
+  const userOnline = usePresence(friend._id); // Subscribe to real-time online status
+  const availabilityStatus = useAvailabilityStatus(friend._id); // Subscribe to real-time availability status
   
+  // Use real-time availability status if available, otherwise fall back to initial value
+  const status = ((availabilityStatus || friend.availabilityStatus) ?? "offline").toLowerCase();
+
   const statusClass = !userOnline
     ? 'bg-neutral-500'
     : status === 'available'
