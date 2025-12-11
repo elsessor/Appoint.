@@ -3,7 +3,8 @@ import PropTypes from 'prop-types';
 import { X, Calendar, Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, parseISO, isToday, isBefore, isAfter, addMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
-import { getUserAvailability } from '../../lib/api';
+import { getUserAvailability, getFriendAppointments } from '../../lib/api';
+import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import AvailabilityInfo from '../AvailabilityInfo';
 import { useThemeStore } from '../../store/useThemeStore';
 
@@ -58,16 +59,51 @@ const AppointmentModal = ({
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [selectedFriendAvailability, setSelectedFriendAvailability] = useState(null);
   const [loadingFriendAvailability, setLoadingFriendAvailability] = useState(false);
+  const [friendAppointments, setFriendAppointments] = useState([]);
+  const [loadingFriendAppointments, setLoadingFriendAppointments] = useState(false);
   const [step, setStep] = useState(1);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
+  const [phHolidays, setPhHolidays] = useState([]);
+  const [isClosing, setIsClosing] = useState(false);
   const { theme } = useThemeStore();
 
+<<<<<<< HEAD
   // Initialize calendar month and set selected date from initialDate
   useEffect(() => {
     if (initialDate) {
       setCalendarMonth(new Date(initialDate));
     }
   }, [initialDate]);
+=======
+  // Detect if we're in edit mode (reschedule)
+  const isEditMode = !!appointment;
+
+  // Handle close with animation
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300); // Match animation duration
+  };
+
+  // Load holidays on component mount
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
+    setPhHolidays(getPhilippineHolidays(currentYear));
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.documentElement.style.overflow = 'auto';
+    }
+    return () => {
+      document.documentElement.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+>>>>>>> 325f950b5cef2735b684429358ab4bcfc40f0f91
 
   useEffect(() => {
     if (isOpen) {
@@ -114,31 +150,58 @@ const AppointmentModal = ({
   useEffect(() => {
     if (formData.friendId) {
       setLoadingFriendAvailability(true);
+      setLoadingFriendAppointments(true);
       const selectedFriend = friends.find(f => f._id === formData.friendId);
       
       if (selectedFriend) {
+        // Fetch friend's availability
         getUserAvailability(selectedFriend._id)
-          .then(data => {
-            setSelectedFriendAvailability(data);
+          .then((availabilityData) => {
+            setSelectedFriendAvailability(availabilityData);
             setLoadingFriendAvailability(false);
           })
           .catch(error => {
             console.error('Error fetching friend availability:', error);
             setLoadingFriendAvailability(false);
           });
+
+        // Fetch friend's appointments
+        getFriendAppointments(selectedFriend._id)
+          .then((appointmentsData) => {
+            console.log('[AppointmentModal] Fetched friend appointments:', {
+              friendId: selectedFriend._id,
+              friendName: selectedFriend.fullName || selectedFriend.name,
+              count: appointmentsData.length,
+              appointments: appointmentsData
+            });
+            setFriendAppointments(appointmentsData);
+            setLoadingFriendAppointments(false);
+          })
+          .catch(error => {
+            console.error('Error fetching friend appointments:', error);
+            setFriendAppointments([]);
+            setLoadingFriendAppointments(false);
+          });
       }
     } else {
       setSelectedFriendAvailability(null);
+      setFriendAppointments([]);
     }
   }, [formData.friendId, friends]);
 
   const selectedDateAppointments = useMemo(() => {
-    if (!formData.startTime || !formData.friendId || appointments.length === 0) return [];
+    if (!formData.startTime || !formData.friendId) return [];
     
     try {
       const selectedDateStr = formData.startTime.split('T')[0];
+      
+      // Use appointments from prop (parent already provides correct data)
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
+        
+        // Match Calendar.jsx status filtering - show confirmed, scheduled, completed (hide pending, cancelled, declined)
+        const status = appt.status?.toLowerCase();
+        if (!['confirmed', 'scheduled', 'completed'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -195,8 +258,9 @@ const AppointmentModal = ({
       const slotTime24 = format(current, 'HH:mm');
       const slotTime12 = format(current, 'h:mm a');
       
-      const slotEndTime = addMinutes(current, appointmentDuration);
-      const fitsInAvailableTime = slotEndTime <= end;
+      const slotStart = new Date(current);
+      const slotEnd = addMinutes(slotStart, appointmentDuration);
+      const fitsInAvailableTime = slotEnd <= end;
       const isPast = isSelectedToday && isBefore(current, now);
       
       let meetsLeadTime = true;
@@ -214,13 +278,21 @@ const AppointmentModal = ({
         const breakEnd = new Date(selectedDate);
         breakEnd.setHours(bEndHour, bEndMin, 0, 0);
         
-        if (current >= breakStart && current < breakEnd) {
+        // Check if the appointment overlaps with break time
+        // Break blocks appointment if: slotStart < breakEnd AND slotEnd > breakStart
+        const overlapsWithBreak = slotStart < breakEnd && slotEnd > breakStart;
+        
+        if (overlapsWithBreak) {
           isInBreakTime = true;
           break;
         }
       }
 
       let isBooked = false;
+      let nextApptStart = null;
+      let bufferViolation = false;
+      const buffer = effectiveAvailability?.buffer || 0;
+      
       if (formData.friendId && selectedDateAppointments.length > 0) {
         isBooked = selectedDateAppointments.some(appt => {
           const apptStart = typeof appt.startTime === 'string' 
@@ -230,20 +302,34 @@ const AppointmentModal = ({
             ? parseISO(appt.endTime)
             : new Date(appt.endTime);
           
-          const slotStart = new Date(current);
-          const slotEnd = addMinutes(slotStart, appointmentDuration);
+          // More precise overlap check: appointment blocks slot if they overlap
+          // Slots are blocked only if there's a true time conflict
+          // Two times conflict if: slotStart < apptEnd AND slotEnd > apptStart
+          const hasConflict = slotStart < apptEnd && slotEnd > apptStart;
           
-          return isBefore(slotStart, apptEnd) && isAfter(slotEnd, apptStart);
+          // Check buffer time: if appointment ends, next appointment can't start within buffer minutes
+          const bufferEnd = addMinutes(apptEnd, buffer);
+          if (slotStart < bufferEnd && slotStart >= apptEnd && buffer > 0) {
+            bufferViolation = true;
+          }
+          
+          // Track the next appointment start time for better UX
+          if (slotStart < apptStart && !nextApptStart) {
+            nextApptStart = apptStart;
+          }
+          
+          return hasConflict;
         });
       }
       
-      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked;
+      const isDisabled = isPast || !fitsInAvailableTime || !meetsLeadTime || isInBreakTime || isBooked || bufferViolation;
       
       let disabledReason = '';
       if (isPast) disabledReason = '(Past)';
       else if (!fitsInAvailableTime) disabledReason = '(Too late)';
       else if (!meetsLeadTime) disabledReason = `(${minLeadTime}h notice)`;
       else if (isInBreakTime) disabledReason = '(Break time)';
+      else if (bufferViolation) disabledReason = `(${buffer}min buffer)`;
       else if (isBooked) disabledReason = '(Booked)';
       
       slots.push({ 
@@ -317,12 +403,21 @@ const AppointmentModal = ({
   };
 
   const getAppointmentsForDate = (date) => {
-    if (!date || !formData.friendId || appointments.length === 0) return [];
+    const friendId = appointment?.friendId?._id || appointment?.friendId || formData.friendId;
+    if (!date) return [];
     
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      return appointments.filter(appt => {
+      const friendIdStr = friendId ? String(friendId) : null;
+      
+      // Use fetched friend appointments if available, otherwise fall back to prop
+      const appointmentsToUse = friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      return appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
+        
+        // Show confirmed, scheduled, and completed appointments in mini calendar (align with main calendar)
+        if (!['confirmed', 'scheduled', 'completed'].includes(appt.status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -330,10 +425,90 @@ const AppointmentModal = ({
         
         if (apptDateStr !== dateStr) return false;
         
-        const apptUserId = appt.userId?._id || appt.userId;
-        const apptFriendId = appt.friendId?._id || appt.friendId;
+        // If no friend is selected, show all appointments on that date
+        if (!friendIdStr) return true;
         
-        return apptFriendId === formData.friendId || apptUserId === formData.friendId;
+        const apptUserId = String(appt.userId?._id || appt.userId);
+        const apptFriendId = String(appt.friendId?._id || appt.friendId);
+        
+        return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+      });
+    } catch (e) {
+      console.error('Error in getAppointmentsForDate:', e);
+      return [];
+    }
+  };
+
+  // Get ALL appointments for the selected friend (not just on a specific date)
+  const getAllAppointmentsForFriend = () => {
+    const friendId = formData.friendId;
+    if (!friendId) return [];
+    
+    try {
+      const friendIdStr = String(friendId);
+      
+      // Use fetched friend appointments if available, otherwise fall back to prop
+      const appointmentsToUse = friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      const filtered = appointmentsToUse.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        // Show all statuses
+        const apptUserId = String(appt.userId?._id || appt.userId);
+        const apptFriendId = String(appt.friendId?._id || appt.friendId);
+        
+        return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+      });
+      
+      console.log('[AppointmentModal] getAllAppointmentsForFriend:', {
+        friendId: friendIdStr,
+        source: friendAppointments.length > 0 ? 'friendAppointments' : 'appointments prop',
+        totalAvailable: appointmentsToUse.length,
+        filtered: filtered.length,
+        appointments: filtered
+      });
+      
+      return filtered;
+    } catch (e) {
+      console.error('Error in getAllAppointmentsForFriend:', e);
+      return [];
+    }
+  };
+
+  // Get ALL appointments on a date (regardless of friend) for maxPerDay validation
+  const getAllAppointmentsForDate = (date) => {
+    if (!date) return [];
+    
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const friendId = formData.friendId;
+      
+      // Use fetched friend appointments when scheduling with a friend, otherwise use own appointments
+      const appointmentsToUse = friendId && friendAppointments.length > 0 ? friendAppointments : appointments;
+      
+      return appointmentsToUse.filter(appt => {
+        if (!appt.startTime) return false;
+        
+        // Count CONFIRMED, SCHEDULED, and PENDING appointments for daily capacity
+        // (All take up appointment slots)
+        const status = appt.status?.toLowerCase();
+        if (!['confirmed', 'scheduled', 'pending'].includes(status)) return false;
+        
+        const apptDateStr = typeof appt.startTime === 'string' 
+          ? appt.startTime.split('T')[0]
+          : format(new Date(appt.startTime), 'yyyy-MM-dd');
+        
+        if (apptDateStr !== dateStr) return false;
+        
+        // When checking friend's capacity, count all their appointments
+        if (friendId) {
+          const friendIdStr = String(friendId);
+          const apptUserId = String(appt.userId?._id || appt.userId);
+          const apptFriendId = String(appt.friendId?._id || appt.friendId);
+          return apptFriendId === friendIdStr || apptUserId === friendIdStr;
+        }
+        
+        return true;
       });
     } catch (e) {
       return [];
@@ -384,6 +559,13 @@ const AppointmentModal = ({
     const endDateTime = parseISO(formData.endTime);
     const now = new Date();
     
+    // Check if appointment is on a holiday
+    if (isHoliday(startDateTime, phHolidays)) {
+      const holidayName = getHolidayName(startDateTime, phHolidays);
+      toast.error(`Cannot book on ${holidayName} - service not available`);
+      return;
+    }
+    
     if (isBefore(startDateTime, now)) {
       toast.error('Cannot schedule an appointment in the past');
       return;
@@ -419,7 +601,23 @@ const AppointmentModal = ({
   };
 
   const handleConfirmAppointment = () => {
-    onSubmit(formData);
+    if (isEditMode) {
+      // For reschedule: include appointmentId
+      onSubmit({
+        appointmentId: appointment._id || appointment.id,
+        title: formData.title,
+        description: formData.description,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        meetingType: formData.meetingType,
+        location: formData.location,
+        duration: formData.duration,
+      });
+    } else {
+      // For new appointment: pass all formData
+      onSubmit(formData);
+    }
+    
     setFormData({
       title: '',
       description: '',
@@ -433,7 +631,7 @@ const AppointmentModal = ({
       location: '',
     });
     setStep(1);
-    onClose();
+    handleClose();
   };
 
   const handleCancelAppointment = () => {
@@ -456,7 +654,7 @@ const AppointmentModal = ({
       setShowCancellation(false);
       setCancellationReason('');
       setCustomReason('');
-      onClose();
+      handleClose();
     }
   };
 
@@ -465,50 +663,51 @@ const AppointmentModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
+    <div className={`fixed inset-0 z-50 overflow-hidden ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}>
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+        className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ease-out ${isClosing ? 'opacity-0' : 'opacity-100'}`}
+        onClick={handleClose}
       ></div>
 
       {/* Sliding Modal */}
-      <div className="absolute inset-y-0 right-0 pl-10 max-w-full flex">
-        <div className="w-screen max-w-2xl bg-base-100 shadow-2xl overflow-y-auto">
+      <div className={`absolute inset-y-0 right-0 pl-2 sm:pl-10 max-w-full flex ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+        <div className="w-full sm:w-screen max-w-md sm:max-w-2xl bg-base-100 shadow-2xl overflow-y-auto transform transition-transform duration-300 ease-out">
           {/* Header */}
-          <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-8 py-5 flex items-center justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-base-content">
+          <div className="sticky top-0 z-40 bg-base-100 border-b border-base-300 px-4 sm:px-8 py-3 sm:py-5 flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-2xl font-semibold text-base-content">
                 {showCancellation 
-                  ? 'Cancel Appointment' 
+                  ? 'Cancel' 
                   : showDeclineForm 
-                  ? 'Decline Appointment' 
-                  : appointment ? 'Edit Appointment' : 'New Appointment'}
+                  ? 'Decline' 
+                  : appointment ? 'Reschedule' : 'New'}
+                <span className="hidden sm:inline"> Appointment</span>
               </h2>
               
               {!showCancellation && !showDeclineForm && (
-                <div className="flex items-center gap-3 mt-3">
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 1 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                <div className="flex items-center gap-1 sm:gap-3 mt-2 sm:mt-3 overflow-x-auto">
+                  <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${step === 1 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
                       1
                     </span>
-                    Details
+                    <span className="hidden sm:inline">Details</span>
                   </div>
                   <div className={`text-xs ${step === 1 ? 'text-primary/50' : 'text-base-300'}`}>→</div>
-                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all ${step === 2 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
+                  <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${step === 2 ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-base-200 text-base-content/60 border border-base-300'}`}>
+                    <span className={`w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center text-xs font-semibold ${step === 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'}`}>
                       2
                     </span>
-                    Review
+                    <span className="hidden sm:inline">Review</span>
                   </div>
                 </div>
               )}
             </div>
             <button
-              onClick={onClose}
-              className="p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-4 flex-shrink-0"
+              onClick={handleClose}
+              className="p-1.5 sm:p-2 hover:bg-base-200 rounded-lg transition-all text-base-content/60 hover:text-base-content ml-2 flex-shrink-0"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 sm:w-5 h-4 sm:h-5" />
             </button>
           </div>
 
@@ -516,11 +715,11 @@ const AppointmentModal = ({
           {!showCancellation && !showDeclineForm ? (
             step === 1 ? (
               // STEP 1: Form Entry
-              <form onSubmit={handleSubmit} className="p-8 space-y-7">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-4 sm:space-y-7">
                 {/* Away Status Warning */}
                 {currentUserStatus === 'away' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-700 font-medium text-sm flex items-start gap-3">
+                  <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 font-medium text-xs sm:text-sm flex items-start gap-2 sm:gap-3">
                       <span className="text-lg flex-shrink-0 mt-0.5">⚠️</span>
                       <span>You are currently away. Please update your status to schedule appointments.</span>
                     </p>
@@ -529,18 +728,19 @@ const AppointmentModal = ({
 
                 {/* Title */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-base-content">Appointment Title *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-base-content">Appointment Title *</label>
                   <input
                     type="text"
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
-                    placeholder="e.g., Project Discussion, Language Lesson"
-                    className="w-full px-4 py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                    placeholder="e.g., Project Discussion"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-base-200 border border-base-300 rounded-lg text-base-content placeholder-base-content/50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-xs sm:text-sm shadow-sm hover:border-base-400"
                   />
                 </div>
 
-                {/* Friend Selection */}
+                {/* Friend Selection - Only show when creating new appointment */}
+                {!appointment && (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-base-content">Schedule With *</label>
                   <div className="relative">
@@ -563,7 +763,7 @@ const AppointmentModal = ({
                           return (f.fullName || f.name || '').toLowerCase().includes(search) ||
                                  (f.email || '').toLowerCase().includes(search);
                         }).map(friend => {
-                          const friendStatus = friendsAvailability[friend._id] || 'available';
+                          const friendStatus = friendsAvailability[friend._id]?.status || 'available';
                           const isAway = friendStatus === 'away';
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
@@ -571,7 +771,7 @@ const AppointmentModal = ({
                             away: { badge: 'badge badge-error', label: 'Away' }
                           };
                           
-                          const config = statusConfig[friendStatus];
+                          const config = statusConfig[friendStatus] || statusConfig.available;
                           
                           return (
                             <button
@@ -648,13 +848,13 @@ const AppointmentModal = ({
                           const selectedFriend = friends.find(f => f._id === formData.friendId);
                           if (!selectedFriend) return null;
                           
-                          const friendStatus = friendsAvailability[selectedFriend._id] || 'available';
+                          const friendStatus = friendsAvailability[selectedFriend._id]?.status || 'available';
                           const statusConfig = {
                             available: { badge: 'badge badge-success', label: 'Available' },
                             limited: { badge: 'badge badge-warning', label: 'Limited' },
                             away: { badge: 'badge badge-error', label: 'Away' }
                           };
-                          const config = statusConfig[friendStatus];
+                          const config = statusConfig[friendStatus] || statusConfig.available;
 
                           return (
                             <>
@@ -694,6 +894,7 @@ const AppointmentModal = ({
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Schedule Details */}
                 <div className="space-y-4 p-5 bg-base-200 rounded-lg border border-base-300">
@@ -730,14 +931,16 @@ const AppointmentModal = ({
                           {/* Max Appointments & Current Count */}
                           {(() => {
                             const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            const friendAvail = friendsAvailability[formData.friendId];
-                            const maxPerDay = friendAvail?.maxPerDay || selectedFriend?.availability?.maxPerDay || 5;
-                            const appts = getAppointmentsForDate(parseISO(formData.startTime));
-                            const isFull = appts.length >= maxPerDay;
+                            // Use the FRIEND's maxPerDay setting when scheduling with them
+                            const friendAvailability = formData.friendId ? friendsAvailability[formData.friendId] : null;
+                            const maxPerDay = friendAvailability?.maxPerDay || availability?.maxPerDay || 5;
+                            // Use ALL appointments for maxPerDay validation (not filtered by friend)
+                            const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
+                            const isFull = allApptsOnDate.length >= maxPerDay;
                             
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">
-                                {/* Max appointments capacity bar */}
+                                {/* Max appointments capacity bar - Shows total confirmed appointments on this date */}
                                 <div className="space-y-1.5">
                                   <div className="flex items-center justify-between">
                                     <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
@@ -746,17 +949,17 @@ const AppointmentModal = ({
                                         ? 'bg-error/20 text-error' 
                                         : 'bg-success/20 text-success'
                                     }`}>
-                                      {appts.length} / {maxPerDay}
+                                      {allApptsOnDate.length} / {maxPerDay}
                                     </span>
                                   </div>
                                   {/* Capacity bar */}
                                   <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
                                     <div 
                                       className={`h-full transition-all ${
-                                        appts.length === 0 ? 'bg-success' :
+                                        allApptsOnDate.length === 0 ? 'bg-success' :
                                         isFull ? 'bg-error' : 'bg-warning'
                                       }`}
-                                      style={{ width: `${Math.min((appts.length / maxPerDay) * 100, 100)}%` }}
+                                      style={{ width: `${Math.min((allApptsOnDate.length / maxPerDay) * 100, 100)}%` }}
                                     ></div>
                                   </div>
                                   {isFull && (
@@ -764,25 +967,39 @@ const AppointmentModal = ({
                                   )}
                                 </div>
 
-                                {/* Appointments on selected date */}
-                                {appts.length > 0 && (
-                                  <div className="space-y-1">
-                                    <p className="text-xs text-base-content/70 font-medium uppercase">Appointments</p>
-                                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                                      {appts.map((appt, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
-                                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                            appt.status === 'confirmed' ? 'bg-success' :
-                                            appt.status === 'pending' ? 'bg-warning' :
-                                            appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
-                                          }`}></div>
-                                          <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
-                                          <span className="text-base-content/60 flex-shrink-0">{typeof appt.startTime === 'string' ? format(parseISO(appt.startTime), 'h:mm a') : format(new Date(appt.startTime), 'h:mm a')}</span>
-                                        </div>
-                                      ))}
+                                {/* Appointments on selected date (filtered by friend) */}
+                                {(() => {
+                                  const selectedDateAppts = getAppointmentsForDate(parseISO(formData.startTime));
+                                  return selectedDateAppts.length > 0 ? (
+                                    <div className="space-y-1">
+                                      <p className="text-xs text-base-content/70 font-medium uppercase">Appointments on this date</p>
+                                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                                        {selectedDateAppts.map((appt, idx) => {
+                                          const startTime = typeof appt.startTime === 'string' ? parseISO(appt.startTime) : new Date(appt.startTime);
+                                          const endTime = typeof appt.endTime === 'string' ? parseISO(appt.endTime) : new Date(appt.endTime);
+                                          const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+                                          const durationDisplay = durationMinutes < 60 
+                                            ? `${durationMinutes}m` 
+                                            : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+                                          
+                                          return (
+                                            <div key={idx} className="flex items-center gap-2 p-2 bg-white/50 dark:bg-base-300/50 rounded text-xs">
+                                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                                appt.status === 'confirmed' ? 'bg-success' :
+                                                appt.status === 'pending' ? 'bg-warning' :
+                                                appt.status === 'cancelled' ? 'bg-error' : 'bg-base-content/30'
+                                              }`}></div>
+                                              <span className="text-base-content/80 truncate flex-1">{appt.title || 'Untitled'}</span>
+                                              <span className="text-base-content/60 flex-shrink-0 whitespace-nowrap">
+                                                {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')} ({durationDisplay})
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  ) : null;
+                                })()}
                               </div>
                             );
                           })()}
@@ -825,11 +1042,17 @@ const AppointmentModal = ({
                         <div className="grid grid-cols-7 gap-1">
                           {getCalendarDays().map((day, index) => {
                             const isCurrentMonth = day && isSameMonth(day, calendarMonth);
+<<<<<<< HEAD
                             // Compare date strings to avoid timezone issues
                             const isSelected = day && formData.startTime && format(day, 'yyyy-MM-dd') === formData.startTime.split('T')[0];
                             const isDisabled = day && isBefore(day, new Date().setHours(0, 0, 0, 0));
+=======
+                            const isSelected = day && formData.startTime && isSameDay(day, parseISO(formData.startTime));
+                            const isDisabled = day && (isBefore(day, new Date().setHours(0, 0, 0, 0)) || isHoliday(day, phHolidays));
+>>>>>>> 325f950b5cef2735b684429358ab4bcfc40f0f91
                             const dayAppointments = day ? getAppointmentsForDate(day) : [];
                             const hasAppointments = dayAppointments.length > 0;
+                            const dayHoliday = day ? getHolidayName(day, phHolidays) : null;
                             
                             return (
                               <button
@@ -843,15 +1066,16 @@ const AppointmentModal = ({
                                     : !isCurrentMonth
                                     ? 'text-base-content/30 cursor-default'
                                     : isDisabled
-                                    ? 'text-base-content/30 cursor-not-allowed'
+                                    ? `text-base-content/30 cursor-not-allowed ${dayHoliday ? 'bg-error/20 border border-error/30' : ''}`
                                     : isSelected
                                     ? 'bg-primary text-primary-content shadow-sm'
                                     : 'text-base-content hover:bg-base-300 border border-base-300 hover:border-primary cursor-pointer'
                                 }`}
+                                title={dayHoliday || (isDisabled ? 'Not available' : '')}
                               >
                                 <div className="flex flex-col items-center gap-0.5">
                                   {day ? format(day, 'd') : ''}
-                                  {hasAppointments && !isSelected && (
+                                  {hasAppointments && !isSelected && !dayHoliday && (
                                     <div className="flex gap-0.5 justify-center">
                                       {dayAppointments.slice(0, 2).map((appt, idx) => (
                                         <div key={idx} className={`w-1 h-1 rounded-full ${
@@ -874,7 +1098,7 @@ const AppointmentModal = ({
                     {/* Time Picker */}
                     <div>
                       <label className="block text-sm font-medium text-base-content mb-2">Time *</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-2">
                         {timeSlots.map(slot => (
                           <button
                             key={slot.time}
@@ -993,14 +1217,19 @@ const AppointmentModal = ({
                   <div className="flex-1 flex gap-3 justify-end">
                     <button
                       type="button"
-                      onClick={onClose}
+                      onClick={handleClose}
                       className="px-5 py-2.5 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
                     >
                       Close
                     </button>
                     <button
                       type="submit"
-                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId] === 'away')}
+                      disabled={currentUserStatus === 'away' || (formData.friendId && friendsAvailability[formData.friendId]?.status === 'away') || (() => {
+                        if (!formData.startTime || !formData.friendId) return false;
+                        const maxPerDay = availability?.maxPerDay || 5;
+                        const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
+                        return allApptsOnDate.length >= maxPerDay;
+                      })()}
                       className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-content font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
                     >
                       Next →
@@ -1010,51 +1239,52 @@ const AppointmentModal = ({
               </form>
             ) : (
               // STEP 2: Review/Summary
-              <div className="p-6 space-y-4">
-                <div className="bg-success/10 border border-success/30 rounded-lg p-5 space-y-4">
-                  <h4 className="text-lg font-semibold text-base-content flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-success flex items-center justify-center text-success-content font-semibold text-xs">✓</div>
-                    Review
+              <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                <div className="bg-success/10 border border-success/30 rounded-lg p-3 sm:p-5 space-y-3 sm:space-y-4">
+                  <h4 className="text-sm sm:text-lg font-semibold text-base-content flex items-center gap-2 sm:gap-3">
+                    <div className="w-6 sm:w-7 h-6 sm:h-7 rounded-full bg-success flex items-center justify-center text-success-content font-semibold text-xs">✓</div>
+                    <span className="hidden sm:inline">Review</span>
+                    <span className="sm:hidden">Check</span>
                   </h4>
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {/* Title */}
                     {formData.title && (
-                      <div className="pb-3 border-b border-success/20">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Title</p>
-                        <p className="text-sm font-semibold text-base-content truncate">{formData.title}</p>
+                      <div className="pb-2 sm:pb-3 border-b border-success/20">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Title</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{formData.title}</p>
                       </div>
                     )}
 
-                    {/* Date & Time in one row */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Date</p>
-                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
+                    {/* Date & Time - responsive grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2">
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Date</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'MMM d')}</p>
                         <p className="text-xs text-base-content/60 mt-0.5">{format(parseISO(formData.startTime), 'EEE')}</p>
                       </div>
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Time</p>
-                        <p className="text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Time</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content">{format(parseISO(formData.startTime), 'h:mm a')}</p>
                         <p className="text-xs text-base-content/60 mt-0.5">{formData.duration}m</p>
                       </div>
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Type</p>
-                        <p className="text-sm font-semibold text-base-content truncate">{formData.meetingType}</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Type</p>
+                        <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{formData.meetingType}</p>
                       </div>
                     </div>
 
                     {/* With & Location (if applicable) */}
-                    <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-base-content/60 font-medium uppercase mb-1">With</p>
-                          <p className="text-sm font-semibold text-base-content truncate">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
+                          <p className="text-xs text-base-content/60 font-medium uppercase mb-0.5 sm:mb-1">With</p>
+                          <p className="text-xs sm:text-sm font-semibold text-base-content truncate">{friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}</p>
                         </div>
                         {formData.meetingType === 'In Person' && formData.location && (
-                          <div className="text-right ml-3 flex-shrink-0">
-                            <p className="text-xs text-base-content/60 font-medium uppercase mb-1">Location</p>
-                            <p className="text-sm font-semibold text-base-content">{formData.location}</p>
+                          <div className="text-left sm:text-right flex-shrink-0">
+                            <p className="text-xs text-base-content/60 font-medium uppercase mb-0.5 sm:mb-1">Location</p>
+                            <p className="text-xs sm:text-sm font-semibold text-base-content">{formData.location}</p>
                           </div>
                         )}
                       </div>
@@ -1062,29 +1292,31 @@ const AppointmentModal = ({
 
                     {/* Notes if present */}
                     {formData.description && (
-                      <div className="bg-base-100 border border-base-300 rounded-lg p-3">
-                        <p className="text-xs text-base-content/60 font-medium mb-1 uppercase">Notes</p>
+                      <div className="bg-base-100 border border-base-300 rounded-lg p-2 sm:p-3">
+                        <p className="text-xs text-base-content/60 font-medium mb-0.5 sm:mb-1 uppercase">Notes</p>
                         <p className="text-xs text-base-content leading-relaxed line-clamp-2">{formData.description}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2 border-t border-base-300">
+                {/* Action Buttons - responsive */}
+                <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-2 border-t border-base-300">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="flex-1 px-4 py-2 font-medium rounded-lg transition-all border text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2 font-medium rounded-lg transition-all border text-xs sm:text-sm bg-base-200 hover:bg-base-300 border-base-300 text-base-content"
                   >
-                    ← Back
+                    <span className="hidden sm:inline">← Back</span>
+                    <span className="sm:hidden">Back</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleConfirmAppointment}
-                    className="flex-1 px-4 py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-sm shadow-sm"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2 bg-success hover:bg-success/90 text-success-content font-medium rounded-lg transition-all text-xs sm:text-sm shadow-sm"
                   >
-                    ✓ Confirm
+                    <span className="hidden sm:inline">✓ {isEditMode ? 'Update' : 'Confirm'}</span>
+                    <span className="sm:hidden">✓ Ok</span>
                   </button>
                 </div>
               </div>
@@ -1108,6 +1340,105 @@ const AppointmentModal = ({
           )}
         </div>
       </div>
+
+      {/* All Appointments Modal */}
+      {showAppointmentsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setShowAppointmentsModal(false)}
+          ></div>
+
+          {/* Modal */}
+          <div className="relative z-50 bg-base-100 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="bg-base-200 border-b border-base-300 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-base-content">
+                  All Scheduled Appointments
+                </h3>
+                <p className="text-xs text-base-content/60 mt-1">
+                  with {friends.find(f => f._id === formData.friendId)?.fullName || 'Selected friend'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAppointmentsModal(false)}
+                className="p-2 hover:bg-base-300 rounded-lg transition-all text-base-content/60 hover:text-base-content"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {(() => {
+                const allFriendAppts = getAllAppointmentsForFriend();
+                return allFriendAppts.length > 0 ? (
+                  <div className="space-y-2">
+                    {allFriendAppts.map((appt, idx) => {
+                      const startTime = typeof appt.startTime === 'string' ? parseISO(appt.startTime) : new Date(appt.startTime);
+                      const endTime = typeof appt.endTime === 'string' ? parseISO(appt.endTime) : new Date(appt.endTime);
+                      const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+                      const durationDisplay = durationMinutes < 60 
+                        ? `${durationMinutes}m` 
+                        : `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
+                      
+                      return (
+                        <div key={idx} className="flex items-center gap-3 p-4 bg-base-100 border border-base-300 rounded-lg hover:border-primary/50 transition">
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                            appt.status === 'confirmed' ? 'bg-green-500' :
+                            appt.status === 'pending' ? 'bg-yellow-500' :
+                            appt.status === 'declined' ? 'bg-red-500' :
+                            appt.status === 'completed' ? 'bg-gray-500' :
+                            appt.status === 'cancelled' ? 'bg-red-500' :
+                            'bg-blue-500'
+                          }`}></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-semibold text-base-content truncate">{appt.title || 'Untitled'}</p>
+                            <p className="text-sm text-base-content/60 mt-1">
+                              {format(startTime, 'MMM d, yyyy')} • {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')} ({durationDisplay})
+                            </p>
+                            {appt.description && (
+                              <p className="text-xs text-base-content/50 mt-1 line-clamp-1">{appt.description}</p>
+                            )}
+                          </div>
+                          <span className={`px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 whitespace-nowrap ${
+                            appt.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                            appt.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            appt.status === 'declined' ? 'bg-red-100 text-red-700' :
+                            appt.status === 'completed' ? 'bg-gray-200 text-gray-700' :
+                            appt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {appt.status?.charAt(0).toUpperCase() + appt.status?.slice(1) || 'Scheduled'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64">
+                    <p className="text-base-content/60">No appointments found</p>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-base-300 px-6 py-3">
+              <button
+                type="button"
+                onClick={() => setShowAppointmentsModal(false)}
+                className="w-full px-4 py-2 bg-base-200 hover:bg-base-300 text-base-content font-medium rounded-lg transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -53,7 +53,7 @@ export async function signup(req, res) {
       await upsertStreamUser({
         id: newUser._id.toString(),
         name: newUser.fullName,
-        image: newUser.profilePic || "",
+        // Don't send image - can cause permission issues
       });
     } catch (err) {
       console.log("Error creating Stream user:", err?.message || err);
@@ -152,7 +152,7 @@ export async function onboard(req, res) {
       await upsertStreamUser({
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
+        // Don't send image - can cause permission issues
       });
     } catch (streamError) {
       console.log("Error updating Stream user during onboarding:", streamError?.message || streamError);
