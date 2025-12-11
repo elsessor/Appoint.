@@ -636,7 +636,7 @@ const ProfilePage = () => {
                     <input
                       value={draft.phone}
                       onChange={onFieldChange('phone')}
-                      placeholder="Phone number"
+                      placeholder="+63 976 789 1329"
                       className="bg-base-300 rounded px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   ) : (

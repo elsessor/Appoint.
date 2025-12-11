@@ -8,14 +8,24 @@ const FriendCard = ({ friend }) => {
         <div className="flex items-center gap-3 mb-3">
           <div className="avatar">
             <div className="size-12 rounded-full overflow-hidden">
-              <img 
-                src={friend.profilePic && friend.profilePic.trim() ? friend.profilePic : '/default-profile.png' || '/default-profile.svg'} 
-                alt={friend.fullName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = '/default-profile.svg';
-                }}
-              />
+              {friend.profilePic && friend.profilePic.trim() ? (
+                <img 
+                  src={friend.profilePic} 
+                  alt={friend.fullName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to initials if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div 
+                className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg"
+                style={{ display: friend.profilePic && friend.profilePic.trim() ? 'none' : 'flex' }}
+              >
+                {(friend.fullName || 'U')[0].toUpperCase()}
+              </div>
             </div>
           </div>
           <h3 className="font-semibold truncate">{friend.fullName}</h3>

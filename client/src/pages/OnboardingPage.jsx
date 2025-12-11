@@ -3,12 +3,139 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
-import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon } from "lucide-react";
+import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X } from "lucide-react";
 import { LANGUAGES } from "../constants";
 
 const OnboardingPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+
+  const suggestedSkills = [
+    "Time Management",
+    "Communication",
+    "Leadership",
+    "Coordination",
+    "Problem Solving",
+    "Organization",
+    "Customer Service",
+    "Programming",
+    "Design",
+    "Marketing",
+    "Sales",
+    "Project Management",
+    "Public Speaking",
+    "Data Analysis",
+    "Web Development",
+    "UI/UX Design",
+    "Graphic Design",
+    "Copywriting",
+    "Content Creation",
+    "Teaching",
+    "Financial Analysis",
+    "Business Strategy",
+    "Negotiation",
+    "Team Building",
+    "Mentoring",
+    "Critical Thinking",
+    "Research",
+    "Technical Writing",
+    "Social Media Management",
+    "Content Strategy",
+    "Digital Marketing",
+    "SEO",
+    "Email Marketing",
+    "Brand Management",
+    "Public Relations",
+    "Event Planning",
+    "Community Management",
+    "Influencer Relations",
+    "Social Media Analytics",
+    "Video Production",
+    "Photography",
+    "Editing",
+    "Animation",
+    "Illustration",
+    "Adobe Creative Suite",
+    "Figma",
+    "Sketch",
+    "JavaScript",
+    "Python",
+    "React",
+    "Node.js",
+    "Database Design",
+    "API Development",
+    "Mobile App Development",
+    "Cloud Computing",
+    "DevOps",
+    "Cybersecurity",
+    "AI/Machine Learning",
+    "Data Science",
+    "Excel",
+    "Tableau",
+    "Power BI",
+    "Business Analysis",
+    "Accounting",
+    "Bookkeeping",
+    "Tax Planning",
+    "Investment Management",
+    "Legal Expertise",
+    "Contract Management",
+    "Human Resources",
+    "Recruitment",
+    "Employee Relations",
+    "Training & Development",
+    "Supply Chain Management",
+    "Logistics",
+    "Inventory Management",
+    "Quality Assurance",
+    "Customer Success",
+    "User Experience Research",
+    "Product Management",
+    "Agile Methodology",
+    "Scrum",
+    "Kanban",
+    "Documentation",
+    "Presentation Skills",
+    "Writing",
+    "Editing",
+    "Proofreading",
+    "Translation",
+    "Language Teaching",
+    "Tutoring",
+    "Online Course Creation",
+    "Podcast Production",
+    "Voiceover",
+    "Audio Engineering",
+    "Music Production",
+    "DJing",
+    "Music Composition",
+    "Personal Training",
+    "Fitness Coaching",
+    "Nutrition Counseling",
+    "Life Coaching",
+    "Career Counseling",
+    "Therapy/Counseling",
+    "Real Estate",
+    "Property Management",
+    "Interior Design",
+    "Architecture",
+    "Construction Management",
+    "Carpentry",
+    "Plumbing",
+    "Electrical Work",
+    "Automotive Repair",
+    "Cooking",
+    "Baking",
+    "Nutrition",
+    "Food Photography",
+    "Recipe Development",
+    "Hospitality Management",
+    "Customer Service Excellence",
+    "Travel Planning",
+    "Tour Guiding",
+    "Language Skills",
+    "Cultural Consultation",
+  ];
 
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
@@ -17,7 +144,20 @@ const OnboardingPage = () => {
     learningLanguage: authUser?.learningLanguage || "",
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
+    phone: authUser?.phone || "",
+    skills: authUser?.skills || [],
   });
+
+  const [skillSearch, setSkillSearch] = useState("");
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
+  const [customSkillInput, setCustomSkillInput] = useState("");
+
+  const filteredSkillSuggestions = skillSearch
+    ? suggestedSkills.filter((s) => {
+        const query = skillSearch.toLowerCase();
+        return s.toLowerCase().includes(query) && !formState.skills.includes(s);
+      })
+    : suggestedSkills.filter((s) => !formState.skills.includes(s));
 
   const { mutate: onboardingMutation, isPending } = useMutation({
     mutationFn: completeOnboarding,
@@ -33,146 +173,312 @@ const OnboardingPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     onboardingMutation(formState);
   };
 
   const handleRandomAvatar = () => {
-    const idx = Math.floor(Math.random() * 100) + 1;
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
+    const colors = ['#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const bgColor = '#e4e6eb';
+    
+    const randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`)}`;
 
     setFormState({ ...formState, profilePic: randomAvatar });
-    toast.success("Random profile picture generated!");
+    toast.success("Profile picture updated!");
+  };
+
+  const addSkill = (skill) => {
+    if (!formState.skills.includes(skill)) {
+      setFormState({
+        ...formState,
+        skills: [...formState.skills, skill],
+      });
+    }
+    setSkillSearch("");
+    setShowSkillSuggestions(false);
+  };
+
+  const addCustomSkill = () => {
+    const trimmedSkill = customSkillInput.trim();
+    if (trimmedSkill && !formState.skills.includes(trimmedSkill)) {
+      setFormState({
+        ...formState,
+        skills: [...formState.skills, trimmedSkill],
+      });
+      setCustomSkillInput("");
+    }
+  };
+
+  const removeSkill = (skillToRemove) => {
+    setFormState({
+      ...formState,
+      skills: formState.skills.filter((s) => s !== skillToRemove),
+    });
   };
 
   return (
-    <div className="min-h-screen bg-base-100 flex items-center justify-center p-4" data-theme="night">
-      <div className="card bg-base-200 w-full max-w-3xl shadow-xl">
-        <div className="card-body p-6 sm:p-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">Complete Your Profile</h1>
+    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 flex items-center justify-center p-4 sm:p-6 md:p-8">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 -right-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-32 -left-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-secondary/5 rounded-full blur-3xl"></div>
+      </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="size-32 rounded-full bg-base-300 overflow-hidden">
-                {formState.profilePic ? (
-                  <img
-                    src={formState.profilePic}
-                    alt="Profile Preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <CameraIcon className="size-12 text-base-content opacity-40" />
+      <div className="relative w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
+        {/* Header Section */}
+        <div className="text-center mb-8 sm:mb-10">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4">
+            Complete Your Profile
+          </h1>
+          <p className="text-xs sm:text-sm text-base-content/60">
+            Tell us about yourself and your expertise
+          </p>
+        </div>
+
+        {/* Main Card */}
+        <div className="card bg-base-100/95 backdrop-blur-xl shadow-2xl border border-base-300/30 overflow-hidden">
+          <div className="card-body p-4 sm:p-6 lg:p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Profile Picture Section */}
+              <div className="flex flex-col items-center space-y-3">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary to-secondary rounded-full opacity-0 group-hover:opacity-100 blur-lg transition-opacity duration-300"></div>
+                  <div className="relative size-24 sm:size-28 rounded-full bg-base-200 overflow-hidden border-4 border-base-300 shadow-lg">
+                    {formState.profilePic ? (
+                      <img
+                        src={formState.profilePic}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gradient-to-br from-base-300 to-base-400">
+                        <svg className="size-12 sm:size-14 lg:size-16 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0118.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={handleRandomAvatar} className="btn btn-accent">
-                  <ShuffleIcon className="size-4 mr-2" />
-                  Generate Random Avatar
+                </div>
+                <button 
+                  type="button" 
+                  onClick={handleRandomAvatar} 
+                  className="btn btn-xs sm:btn-sm btn-outline btn-primary gap-1.5 text-xs"
+                >
+                  <ShuffleIcon className="size-3 sm:size-4" />
+                  <span>Generate Avatar</span>
                 </button>
               </div>
-            </div>
 
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text">Full Name</span>
-              </label>
-              <input
-                type="text"
-                name="fullName"
-                value={formState.fullName}
-                onChange={(e) => setFormState({ ...formState, fullName: e.target.value })}
-                className="input input-bordered w-full"
-                placeholder="Your full name"
-              />
-            </div>
+              {/* Form Fields Grid */}
+              <div className="space-y-4">
+                {/* Full Name */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Full Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formState.fullName}
+                    onChange={(e) => setFormState({ ...formState, fullName: e.target.value })}
+                    className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                    placeholder="e.g., Tito Mars"
+                  />
+                </div>
 
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text">Bio</span>
-              </label>
-              <textarea
-                name="bio"
-                value={formState.bio}
-                onChange={(e) => setFormState({ ...formState, bio: e.target.value })}
-                className="textarea textarea-bordered h-24"
-                placeholder="Tell others about yourself and your language learning goals"
-              />
-            </div>
+                {/* Bio */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Bio</span>
+                  </label>
+                  <textarea
+                    name="bio"
+                    value={formState.bio}
+                    onChange={(e) => setFormState({ ...formState, bio: e.target.value })}
+                    className="textarea textarea-bordered w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary resize-none h-20 text-xs"
+                    placeholder="Tell us about yourself and your learning goals"
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Native Language</span>
-                </label>
-                <select
-                  name="nativeLanguage"
-                  value={formState.nativeLanguage}
-                  onChange={(e) => setFormState({ ...formState, nativeLanguage: e.target.value })}
-                  className="select select-bordered w-full"
-                >
-                  <option value="">Select your native language</option>
-                  {LANGUAGES.map((lang) => (
-                    <option key={`native-${lang}`} value={lang.toLowerCase()}>
-                      {lang}
-                    </option>
-                  ))}
-                </select>
+                {/* Languages Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-control">
+                    <label className="label pb-2">
+                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Native Language</span>
+                    </label>
+                    <select
+                      name="nativeLanguage"
+                      value={formState.nativeLanguage}
+                      onChange={(e) => setFormState({ ...formState, nativeLanguage: e.target.value })}
+                      className="select select-bordered select-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                    >
+                      <option value="">Select your native language</option>
+                      {LANGUAGES.map((lang) => (
+                        <option key={`native-${lang}`} value={lang.toLowerCase()}>
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label pb-2">
+                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Learning Language</span>
+                    </label>
+                    <select
+                      name="learningLanguage"
+                      value={formState.learningLanguage}
+                      onChange={(e) => setFormState({ ...formState, learningLanguage: e.target.value })}
+                      className="select select-bordered select-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                    >
+                      <option value="">Select language you're learning</option>
+                      {LANGUAGES.map((lang) => (
+                        <option key={`learning-${lang}`} value={lang.toLowerCase()}>
+                          {lang}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Location & Phone Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-control">
+                    <label className="label pb-2">
+                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Location</span>
+                    </label>
+                    <div className="relative">
+                      <MapPinIcon className="absolute top-1/2 transform -translate-y-1/2 left-3 size-4 text-base-content/50" />
+                      <input
+                        type="text"
+                        name="location"
+                        value={formState.location}
+                        onChange={(e) => setFormState({ ...formState, location: e.target.value })}
+                        className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        placeholder="City, Country"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-control">
+                    <label className="label pb-2">
+                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Phone Number</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute top-1/2 transform -translate-y-1/2 left-3 size-4 text-base-content/50" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formState.phone}
+                        onChange={(e) => setFormState({ ...formState, phone: e.target.value })}
+                        className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        placeholder="+63 976 789 1329"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills Section */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Skills & Expertise</span>
+                    <span className="text-xs text-base-content/50">Select or add custom skills</span>
+                  </label>
+                  <div className="space-y-2">
+                    {/* Dropdown */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={skillSearch}
+                        onChange={(e) => {
+                          setSkillSearch(e.target.value);
+                          setShowSkillSuggestions(true);
+                        }}
+                        onFocus={() => setShowSkillSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 200)}
+                        className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        placeholder="Search skills (e.g., Programming, Design...)"
+                      />
+                      {showSkillSuggestions && filteredSkillSuggestions.length > 0 && (
+                        <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
+                          {filteredSkillSuggestions.map((skill) => (
+                            <button
+                              type="button"
+                              key={skill}
+                              onClick={() => addSkill(skill)}
+                              className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs"
+                            >
+                              {skill}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom Skill Input */}
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={customSkillInput}
+                        onChange={(e) => setCustomSkillInput(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addCustomSkill())}
+                        className="input input-bordered input-sm flex-1 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        placeholder="Add custom skill..."
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomSkill}
+                        className="btn btn-primary btn-sm"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Skills Display */}
+                    {formState.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {formState.skills.map((skill) => (
+                          <div
+                            key={skill}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-primary/15 to-secondary/15 border border-primary/25 text-primary rounded-full text-xs font-medium hover:from-primary/25 hover:to-secondary/25 transition-all"
+                          >
+                            <span>{skill}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeSkill(skill)}
+                              className="hover:opacity-60 transition-opacity"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Learning Language</span>
-                </label>
-                <select
-                  name="learningLanguage"
-                  value={formState.learningLanguage}
-                  onChange={(e) => setFormState({ ...formState, learningLanguage: e.target.value })}
-                  className="select select-bordered w-full"
-                >
-                  <option value="">Select language you're learning</option>
-                  {LANGUAGES.map((lang) => (
-                    <option key={`learning-${lang}`} value={lang.toLowerCase()}>
-                      {lang}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text">Location</span>
-              </label>
-              <div className="relative">
-                <MapPinIcon className="absolute top-1/2 transform -translate-y-1/2 left-3 size-5 text-base-content opacity-70" />
-                <input
-                  type="text"
-                  name="location"
-                  value={formState.location}
-                  onChange={(e) => setFormState({ ...formState, location: e.target.value })}
-                  className="input input-bordered w-full pl-10"
-                  placeholder="City, Country"
-                />
-              </div>
-            </div>
-
-
-            <button className="btn btn-primary w-full" disabled={isPending} type="submit">
-              {!isPending ? (
-                <>
-                  <ShipWheelIcon className="size-5 mr-2" />
-                  Complete Onboarding
-                </>
-              ) : (
-                <>
-                  <LoaderIcon className="animate-spin size-5 mr-2" />
-                  Onboarding...
-                </>
-              )}
-            </button>
-          </form>
+              {/* Submit Button */}
+              <button 
+                className="btn btn-primary btn-md w-full gap-2 mt-6 font-semibold shadow-lg hover:shadow-xl transition-all" 
+                disabled={isPending} 
+                type="submit"
+              >
+                {!isPending ? (
+                  <>
+                    <ShipWheelIcon className="size-4" />
+                    <span>Complete Onboarding</span>
+                  </>
+                ) : (
+                  <>
+                    <LoaderIcon className="animate-spin size-4" />
+                    <span>Processing...</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
