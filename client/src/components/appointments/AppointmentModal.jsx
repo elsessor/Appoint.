@@ -62,6 +62,13 @@ const AppointmentModal = ({
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const { theme } = useThemeStore();
 
+  // Initialize calendar month and set selected date from initialDate
+  useEffect(() => {
+    if (initialDate) {
+      setCalendarMonth(new Date(initialDate));
+    }
+  }, [initialDate]);
+
   useEffect(() => {
     if (isOpen) {
       if (appointment) {
@@ -85,21 +92,24 @@ const AppointmentModal = ({
           location: appointment.location || '',
           reminder: appointment.reminder || 15,
         });
-      } else if (initialDate) {
-        const date = format(initialDate, 'yyyy-MM-dd');
-        const time = initialTime ? format(initialTime, 'HH:mm') : '09:00';
-        const startTime = `${date}T${time}`;
-        const endTime = format(addMinutes(parseISO(startTime), 30), 'yyyy-MM-dd\'T\'HH:mm');
-        
-        setFormData(prev => ({
-          ...prev,
-          startTime,
-          endTime,
-          friendId: initialFriendId || '',
-        }));
+      } else if (initialDate || selectedDate) {
+        const dateToUse = initialDate || selectedDate;
+        if (dateToUse) {
+          const date = format(dateToUse, 'yyyy-MM-dd');
+          const time = initialTime ? format(initialTime, 'HH:mm') : '09:00';
+          const startTime = `${date}T${time}`;
+          const endTime = format(addMinutes(parseISO(startTime), 30), 'yyyy-MM-dd\'T\'HH:mm');
+          
+          setFormData(prev => ({
+            ...prev,
+            startTime,
+            endTime,
+            friendId: initialFriendId || '',
+          }));
+        }
       }
     }
-  }, [appointment, initialDate, initialTime, initialFriendId, isOpen, friends]);
+  }, [appointment, initialDate, selectedDate, initialTime, initialFriendId, isOpen]);
 
   useEffect(() => {
     if (formData.friendId) {
@@ -815,7 +825,8 @@ const AppointmentModal = ({
                         <div className="grid grid-cols-7 gap-1">
                           {getCalendarDays().map((day, index) => {
                             const isCurrentMonth = day && isSameMonth(day, calendarMonth);
-                            const isSelected = day && formData.startTime && isSameDay(day, parseISO(formData.startTime));
+                            // Compare date strings to avoid timezone issues
+                            const isSelected = day && formData.startTime && format(day, 'yyyy-MM-dd') === formData.startTime.split('T')[0];
                             const isDisabled = day && isBefore(day, new Date().setHours(0, 0, 0, 0));
                             const dayAppointments = day ? getAppointmentsForDate(day) : [];
                             const hasAppointments = dayAppointments.length > 0;

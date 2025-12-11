@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
 
 import HomePage from "./pages/Homepage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
@@ -24,6 +25,8 @@ import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
 import useRealtimeNotifications from "./hooks/useRealtimeNotifications.js";
+import { initSocket, disconnectSocket } from "./lib/socket.js";
+import { initPresence } from "./lib/presence.js";
 
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
@@ -32,6 +35,23 @@ const App = () => {
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnboarded;
   const isAdmin = authUser?.role === "admin";
+
+  // Initialize socket globally for all authenticated users
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('[App] User authenticated, initializing socket');
+      const socket = initSocket();
+      initPresence(socket);
+      
+      return () => {
+        console.log('[App] Cleaning up socket on unmount');
+        // Don't fully disconnect on unmount, just let it persist
+      };
+    } else {
+      console.log('[App] User not authenticated, disconnecting socket');
+      disconnectSocket();
+    }
+  }, [isAuthenticated]);
 
   useRealtimeNotifications(isAuthenticated && isOnboarded && !isAdmin);
 
