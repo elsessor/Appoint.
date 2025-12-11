@@ -1,4 +1,4 @@
-import { Calendar, UserX, MessageCircle, User, Search, Grid, List, CheckCircle, AlertCircle, Clock, Ban, Heart } from "lucide-react";
+import { Calendar, UserX, MessageCircle, User, Search, Grid, List, CheckCircle, AlertCircle, Clock, Ban, Heart, MapPin } from "lucide-react";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
@@ -263,6 +263,12 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
           <div>
             <h3 className="card-title text-lg truncate">{name}</h3>
             <p className="text-xs opacity-60">{status}</p>
+            {friend.location && (
+              <div className="flex items-center gap-1 text-xs opacity-70 mt-1">
+                <MapPin className="w-3 h-3" />
+                <span className="truncate">{friend.location}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard } from "lucide-react";
+import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard, HelpCircle } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import useLogout from "../hooks/useLogout";
 import { getFriendRequests, getNotifications } from "../lib/api";
 import ConfirmDialog from './ConfirmDialog';
+import FAQsModal from './FAQsModal';
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -16,6 +17,7 @@ const Navbar = () => {
   const isOnboarded = authUser?.isOnboarded;
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showFAQs, setShowFAQs] = useState(false);
   const { logoutMutation } = useLogout();
 
   // Fetch friend requests
@@ -79,6 +81,15 @@ const Navbar = () => {
           )}
 
           <div className="flex items-center gap-6 sm:gap-4 ml-auto">
+            <button
+              onClick={() => setShowFAQs(true)}
+              className="btn btn-ghost btn-circle"
+              title="Help & FAQs"
+              aria-label="Help and FAQs"
+            >
+              <HelpCircle className="h-6 w-6 text-base-content opacity-70" />
+            </button>
+
             <Link to={"/notifications"}>
               <div className="indicator">
                 {notificationsCount > 0 && (
@@ -123,6 +134,8 @@ const Navbar = () => {
         cancelText="Cancel"
         variant="warning"
       />
+
+      <FAQsModal isOpen={showFAQs} onClose={() => setShowFAQs(false)} />
     </nav>
   );
 };

@@ -4,7 +4,7 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
-import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X, Users, ArrowLeft } from "lucide-react";
+import { LoaderIcon, MapPinIcon, ShuffleIcon, Phone, X, Users } from "lucide-react";
 import { LANGUAGES } from "../constants";
 import ThemeSelector from "../components/ThemeSelector";
 import FemaleSymbol from "../assets/icons/female-symbol.svg";
@@ -203,9 +203,17 @@ const OnboardingPage = () => {
   };
 
   const handleRandomAvatar = () => {
-    const colors = ['#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199'];
+    const colors = [
+      '#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', 
+      '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199',
+      '#ff6b6b', '#ee5a6f', '#c92a2a', '#e74c3c', '#d63031', '#fd79a8',
+      '#74b9ff', '#0984e3', '#2d3436', '#636e72', '#2ecc71', '#27ae60',
+      '#f39c12', '#e67e22', '#9b59b6', '#8e44ad', '#1abc9c', '#16a085',
+      '#34495e', '#2c3e50', '#c0392b', '#e91e63', '#3f51b5', '#2196f3',
+      '#ff9800', '#795548', '#673ab7', '#00bcd4', '#009688', '#4caf50'
+    ];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const bgColor = '#e4e6eb';
+    const bgColor = '#f5f5f5';
     
     const randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`)}`;
 
@@ -247,33 +255,38 @@ const OnboardingPage = () => {
     setFormState({ ...formState, phone: value });
   };
 
+  const handleProfilePictureUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result;
+      setFormState({ ...formState, profilePic: base64String });
+      toast.success('Profile picture updated!');
+    };
+    reader.onerror = () => {
+      toast.error('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 relative">
-      {/* Back Button and Logo Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 border-b border-base-300/20 bg-base-900/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="btn btn-ghost btn-sm gap-2 text-base-content/70 hover:text-base-content"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm">Back</span>
-          </button>
-
-          <div className="flex items-center gap-2.5">
-            <ShipWheelIcon className="size-7 text-primary" />
-            <span className="text-2xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
-              Appoint.
-            </span>
-          </div>
-
-          <div className="w-20" />
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
       {/* Theme Selector - Top Right Corner */}
-      <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
         <ThemeSelector />
       </div>
 
@@ -283,8 +296,7 @@ const OnboardingPage = () => {
         <div className="absolute -bottom-32 -left-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-secondary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 flex items-center justify-center min-h-screen pt-20 p-4 sm:p-6 md:p-8">
-        <div className="w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
+      <div className="relative z-10 w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
         {/* Header Section */}
         <div className="text-center mb-8 sm:mb-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4">
@@ -320,14 +332,28 @@ const OnboardingPage = () => {
                     )}
                   </div>
                 </div>
-                <button 
-                  type="button" 
-                  onClick={handleRandomAvatar} 
-                  className="btn btn-xs sm:btn-sm btn-outline btn-primary gap-1.5 text-xs"
-                >
-                  <ShuffleIcon className="size-3 sm:size-4" />
-                  <span>Generate Avatar</span>
-                </button>
+                <div className="flex gap-2">
+                  <label className="btn btn-xs sm:btn-sm btn-outline btn-primary gap-1.5 text-xs cursor-pointer">
+                    <svg className="size-3 sm:size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfilePictureUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <button 
+                    type="button" 
+                    onClick={handleRandomAvatar} 
+                    className="btn btn-xs sm:btn-sm btn-outline btn-primary gap-1.5 text-xs"
+                  >
+                    <ShuffleIcon className="size-3 sm:size-4" />
+                    <span>Generate</span>
+                  </button>
+                </div>
               </div>
 
               {/* Form Fields Grid */}
@@ -457,14 +483,14 @@ const OnboardingPage = () => {
                     <button
                       type="button"
                       onClick={() => setFormState({ ...formState, gender: "female" })}
-                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-6 ${
+                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-3 ${
                         formState.gender === "female"
                           ? "border-pink-500 bg-pink-50 shadow-md"
                           : "border-base-300 bg-base-200/60 hover:border-pink-300 hover:bg-base-200/80"
                       }`}
                     >
                       <svg 
-                        className="w-10 h-10 mb-2"
+                        className="w-6 h-6 mb-1"
                         viewBox="0 0 247.582 247.582"
                         fill="currentColor"
                         style={{
@@ -485,14 +511,14 @@ const OnboardingPage = () => {
                     <button
                       type="button"
                       onClick={() => setFormState({ ...formState, gender: "male" })}
-                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-6 ${
+                      className={`rounded-lg border-2 transition-all flex flex-col items-center justify-center py-3 ${
                         formState.gender === "male"
                           ? "border-blue-500 bg-blue-50 shadow-md"
                           : "border-base-300 bg-base-200/60 hover:border-blue-300 hover:bg-base-200/80"
                       }`}
                     >
                       <svg 
-                        className="w-10 h-10 mb-2"
+                        className="w-6 h-6 mb-1"
                         viewBox="0 0 247.582 247.582"
                         fill="currentColor"
                         style={{
@@ -513,13 +539,13 @@ const OnboardingPage = () => {
                     <button
                       type="button"
                       onClick={() => setFormState({ ...formState, gender: "prefer_not_to_say" })}
-                      className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                      className={`p-2 rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
                         formState.gender === "prefer_not_to_say"
                           ? "border-purple-500 bg-purple-50 shadow-md"
                           : "border-base-300 bg-base-200/60 hover:border-purple-300 hover:bg-base-200/80"
                       }`}
                     >
-                      <Users className={`w-8 h-8 mb-1 ${formState.gender === "prefer_not_to_say" ? "text-purple-500" : "text-gray-600 opacity-60"}`} />
+                      <Users className={`w-6 h-6 mb-1 ${formState.gender === "prefer_not_to_say" ? "text-purple-500" : "text-gray-600 opacity-60"}`} />
                       <span className={`font-medium text-center transition-all ${formState.gender === "prefer_not_to_say" ? "text-purple-700 text-xs" : "text-xs text-base-content/60"}`}>
                         Rather Not
                       </span>
@@ -635,7 +661,6 @@ const OnboardingPage = () => {
               >
                 {!isPending ? (
                   <>
-                    <ShipWheelIcon className="size-4" />
                     <span>Complete Onboarding</span>
                   </>
                 ) : (
@@ -647,7 +672,6 @@ const OnboardingPage = () => {
               </button>
             </form>
           </div>
-        </div>
         </div>
       </div>
     </div>
