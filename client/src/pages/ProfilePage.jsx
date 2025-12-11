@@ -9,6 +9,7 @@ const ProfilePage = () => {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [profile, setProfile] = useState({
     name: '',
     location: '',
@@ -789,8 +790,18 @@ const ProfilePage = () => {
                   className="w-full bg-base-300 rounded p-3 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               ) : (
-                <div className="text-base-content/80 leading-relaxed whitespace-pre-wrap">
-                  {profile.about || 'Add information about yourself'}
+                <div>
+                  <div className={`text-base-content/80 leading-relaxed whitespace-pre-wrap ${!isAboutExpanded && 'line-clamp-3'}`}>
+                    {profile.about || 'Add information about yourself'}
+                  </div>
+                  {profile.about && profile.about.length > 150 && (
+                    <button
+                      onClick={() => setIsAboutExpanded(!isAboutExpanded)}
+                      className="mt-3 text-primary text-sm font-medium hover:text-primary-focus transition-colors"
+                    >
+                      {isAboutExpanded ? 'See less' : 'See more'}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

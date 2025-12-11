@@ -68,6 +68,12 @@ const AppointmentModal = ({
   const [isClosing, setIsClosing] = useState(false);
   const { theme } = useThemeStore();
 
+  // Initialize calendar month and set selected date from initialDate
+  useEffect(() => {
+    if (initialDate) {
+      setCalendarMonth(new Date(initialDate));
+    }
+  }, [initialDate]);
   // Detect if we're in edit mode (reschedule)
   const isEditMode = !!appointment;
 
@@ -119,21 +125,24 @@ const AppointmentModal = ({
           location: appointment.location || '',
           reminder: appointment.reminder || 15,
         });
-      } else if (initialDate) {
-        const date = format(initialDate, 'yyyy-MM-dd');
-        const time = initialTime ? format(initialTime, 'HH:mm') : '09:00';
-        const startTime = `${date}T${time}`;
-        const endTime = format(addMinutes(parseISO(startTime), 30), 'yyyy-MM-dd\'T\'HH:mm');
-        
-        setFormData(prev => ({
-          ...prev,
-          startTime,
-          endTime,
-          friendId: initialFriendId || '',
-        }));
+      } else if (initialDate || selectedDate) {
+        const dateToUse = initialDate || selectedDate;
+        if (dateToUse) {
+          const date = format(dateToUse, 'yyyy-MM-dd');
+          const time = initialTime ? format(initialTime, 'HH:mm') : '09:00';
+          const startTime = `${date}T${time}`;
+          const endTime = format(addMinutes(parseISO(startTime), 30), 'yyyy-MM-dd\'T\'HH:mm');
+          
+          setFormData(prev => ({
+            ...prev,
+            startTime,
+            endTime,
+            friendId: initialFriendId || '',
+          }));
+        }
       }
     }
-  }, [appointment, initialDate, initialTime, initialFriendId, isOpen, friends]);
+  }, [appointment, initialDate, selectedDate, initialTime, initialFriendId, isOpen]);
 
   useEffect(() => {
     if (formData.friendId) {

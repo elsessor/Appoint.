@@ -56,8 +56,9 @@ export async function getUserById(req, res) {
     
     const userData = user.toObject();
     if (currentUserId) {
-      const currentUser = await User.findById(currentUserId).select("favorites");
+      const currentUser = await User.findById(currentUserId).select("favorites friends");
       userData.isFavorite = currentUser?.favorites?.includes(id) || false;
+      userData.isFriend = currentUser?.friends?.map(f => f.toString()).includes(id) || false;
     }
     
     res.status(200).json(userData);
@@ -104,18 +105,13 @@ export async function sendFriendRequest(req, res) {
       return res.status(400).json({ message: "You are already friends with this user" });
     }
 
-    const existingRequest = await FriendRequest.findOne({
+    // Delete any existing friend requests in both directions to ensure clean state
+    await FriendRequest.deleteMany({
       $or: [
         { sender: myId, recipient: recipientId },
         { sender: recipientId, recipient: myId },
       ],
     });
-
-    if (existingRequest) {
-      return res
-        .status(400)
-        .json({ message: "A friend request already exists between you and this user" });
-    }
 
     const friendRequest = await FriendRequest.create({
       sender: myId,
@@ -253,6 +249,14 @@ export async function unfriend(req, res) {
 
     await User.findByIdAndUpdate(friendId, {
       $pull: { friends: myId },
+    });
+
+    // Delete any friend requests between the two users
+    await FriendRequest.deleteMany({
+      $or: [
+        { sender: myId, recipient: friendId },
+        { sender: friendId, recipient: myId },
+      ],
     });
 
     res.status(200).json({ message: "Friend removed successfully" });

@@ -18,8 +18,9 @@ const getUserSocketSet = (userId) => {
 export const initSocket = (server, origin) => {
   io = new Server(server, {
     cors: {
-      origin,
+      origin: true, // Accept all origins with credentials (JWT is in cookies)
       credentials: true,
+      methods: ['GET', 'POST'],
     },
   });
 
@@ -55,17 +56,18 @@ export const initSocket = (server, origin) => {
     const sockets = getUserSocketSet(userId);
     sockets?.add(socket.id);
 
-    console.log(`[Socket] User ${userId} connected. Total sockets for user: ${sockets?.size}, Socket ID: ${socket.id}`);
+    console.log(`[Socket] ✅ User ${userId} connected. Total sockets for user: ${sockets?.size}, Total online users: ${userSockets.size}, Socket ID: ${socket.id}`);
+    console.log(`[Socket] 📊 Current online users:`, Array.from(userSockets.keys()));
 
     // If this is the first socket for the user, broadcast that the user is online
     if (sockets && sockets.size === 1) {
-      console.log(`[Socket] First socket for user ${userId}, broadcasting presence:update with online=true`);
+      console.log(`[Socket] 🔔 First socket for user ${userId}, broadcasting presence:update with online=true`);
       io.emit('presence:update', { userId: userId.toString(), online: true });
     }
 
     // Send the new client a list of all currently online users
     const onlineUserIds = Array.from(userSockets.keys());
-    console.log(`[Socket] Sending presence:init to user ${userId} with ${onlineUserIds.length} online users:`, onlineUserIds);
+    console.log(`[Socket] 📤 Sending presence:init to user ${userId} with ${onlineUserIds.length} online users:`, onlineUserIds);
     socket.emit('presence:init', {
       onlineUsers: onlineUserIds.map(id => ({ userId: id, online: true }))
     });
@@ -210,5 +212,16 @@ export const emitAppointmentDeleted = (appointmentId, userId, friendId) => {
       io.to(socketId).emit("appointment:deleted", eventData);
     });
   }
+};
+
+// Emit availability status change to all connected clients
+export const emitAvailabilityStatusChanged = (userId, newStatus) => {
+  if (!io || !userId) return;
+
+  console.log(`[Socket] 📢 Broadcasting availability:statusChanged for user ${userId}: ${newStatus}`);
+  io.emit('availability:statusChanged', { 
+    userId: userId.toString(), 
+    availabilityStatus: newStatus 
+  });
 };
 

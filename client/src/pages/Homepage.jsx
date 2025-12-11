@@ -14,6 +14,7 @@ import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, Vid
 
 import { capitialize } from "../lib/utils";
 import usePresence from "../hooks/usePresence";
+import useAvailabilityStatus from "../hooks/useAvailabilityStatus";
 import useMultiplePresence from "../hooks/useMultiplePresence";
 
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
@@ -29,6 +30,7 @@ const HomePage = () => {
   const [loadingUserId, setLoadingUserId] = useState(null);
   const [showJumpToTop, setShowJumpToTop] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState("lastMonth"); // "yesterday", "lastWeek", "lastMonth"
   const { authUser } = useAuthUser();
 
   // Handle scroll for jump-to-top button
@@ -153,14 +155,40 @@ const HomePage = () => {
 
   const totalAppointments = appointments.length;
   const completedCalls = appointments.filter((apt) => apt.status === "completed").length;
-  const activeContacts = realFriends.length;
+  const onlineContacts = realFriends.filter(f => onlineStatuses.get(f._id.toString())).length;
   const pendingAppointments = appointments.filter((apt) => apt.status === "pending").length;
-  const pendingRequests = (friendRequests?.incomingReqs?.length || 0) + pendingAppointments;
+  const pendingRequests = friendRequests?.incomingReqs?.length || 0;
 
-  const msInDay = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const currentStart = new Date(now - 30 * msInDay);
-  const prevStart = new Date(now - 60 * msInDay);
+  // Calculate time ranges based on selected period
+  const getTimeRange = () => {
+    const now = new Date();
+    let start, end;
+    
+    switch(analyticsPeriod) {
+      case "yesterday":
+        start = new Date(now);
+        start.setDate(start.getDate() - 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        break;
+      case "lastWeek":
+        start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "lastMonth":
+      default:
+        start = new Date(now);
+        start.setMonth(start.getMonth() - 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+    }
+    return { start, end };
+  };
 
   const countInRange = (dateStr, start, end) => {
     if (!dateStr) return false;
@@ -168,25 +196,41 @@ const HomePage = () => {
     return d >= start && d < end;
   };
 
-  const appointmentsCurrent = appointments.filter((a) => countInRange(a.createdAt, currentStart, new Date())).length;
-  const appointmentsPrev = appointments.filter((a) => countInRange(a.createdAt, prevStart, currentStart)).length;
+  const { start: currentStart, end: currentEnd } = getTimeRange();
+  
+  // Get previous period for comparison
+  const getPreviousPeriod = () => {
+    const { start, end } = getTimeRange();
+    const duration = end - start;
+    return {
+      start: new Date(start - duration),
+      end: new Date(start)
+    };
+  };
 
-  const completedCurrent = appointments.filter((a) => a.status === "completed" && countInRange(a.updatedAt || a.createdAt, currentStart, new Date())).length;
-  const completedPrev = appointments.filter((a) => a.status === "completed" && countInRange(a.updatedAt || a.createdAt, prevStart, currentStart)).length;
+  const { start: prevStart, end: prevEnd } = getPreviousPeriod();
 
-  const pendingAppointmentsCurrent = appointments.filter((a) => a.status === "pending" && countInRange(a.createdAt, currentStart, new Date())).length;
-  const pendingAppointmentsPrev = appointments.filter((a) => a.status === "pending" && countInRange(a.createdAt, prevStart, currentStart)).length;
+  // Appointments metrics
+  const appointmentsCurrent = appointments.filter((a) => countInRange(a.createdAt, currentStart, currentEnd)).length;
+  const appointmentsPrev = appointments.filter((a) => countInRange(a.createdAt, prevStart, prevEnd)).length;
 
-  const incomingCurrent = (friendRequests?.incomingReqs || []).filter((r) => countInRange(r.createdAt, currentStart, new Date())).length;
-  const incomingPrev = (friendRequests?.incomingReqs || []).filter((r) => countInRange(r.createdAt, prevStart, currentStart)).length;
+  // Completed calls metrics
+  const completedCurrent = appointments.filter((a) => a.status === "completed" && countInRange(a.completedAt || a.updatedAt || a.createdAt, currentStart, currentEnd)).length;
+  const completedPrev = appointments.filter((a) => a.status === "completed" && countInRange(a.completedAt || a.updatedAt || a.createdAt, prevStart, prevEnd)).length;
 
-  const acceptedCurrent = (friendRequests?.acceptedReqs || []).filter((r) => countInRange(r.updatedAt || r.createdAt, currentStart, new Date())).length;
-  const acceptedPrev = (friendRequests?.acceptedReqs || []).filter((r) => countInRange(r.updatedAt || r.createdAt, prevStart, currentStart)).length;
-  const prevActiveContacts = Math.max(activeContacts - acceptedCurrent, 0);
+  // Active contacts (online friends) - no period comparison needed, just current count
+  const onlineContactsPrev = 0; // Online status doesn't have history
+
+  // Pending appointments metrics
+  const pendingAppointmentsCurrent = appointments.filter((a) => a.status === "pending").length;
+  const acceptedThisMonth = (friendRequests?.acceptedReqs || []).filter((r) => countInRange(r.updatedAt || r.createdAt, currentStart, currentEnd)).length;
+
+  // Friend requests metrics  
+  const incomingCurrent = (friendRequests?.incomingReqs || []).length;
 
   const computePercent = (current, previous) => {
-    if (previous === 0 && current === 0) return { label: "0%", positive: false };
-    if (previous === 0) return { label: `+${Math.round(current * 100)}%`, positive: true };
+    if (previous === 0 && current === 0) return { label: "—", positive: false };
+    if (previous === 0) return { label: current > 0 ? `+${current}` : "—", positive: current > 0 };
     const diff = current - previous;
     const pct = Math.round((diff / previous) * 100);
     return { label: `${pct > 0 ? "+" : ""}${pct}%`, positive: pct >= 0 };
@@ -194,9 +238,8 @@ const HomePage = () => {
 
   const appointmentsDelta = computePercent(appointmentsCurrent, appointmentsPrev);
   const completedDelta = computePercent(completedCurrent, completedPrev);
-  const activeDelta = computePercent(activeContacts, prevActiveContacts);
-  const pendingAppointmentsDelta = computePercent(pendingAppointmentsCurrent, pendingAppointmentsPrev);
-  const pendingFriendRequestsDelta = computePercent(incomingCurrent, incomingPrev);
+  const onlineContactsDelta = { label: `${onlineContacts}/${realFriends.length}`, positive: true };
+  const acceptedFriendsDelta = { label: acceptedThisMonth, positive: acceptedThisMonth > 0 };
 
   // Filter and search recommended users
   const filteredUsers = useMemo(() => {
@@ -237,7 +280,28 @@ const HomePage = () => {
       <div className="container mx-auto space-y-10">
         <div className="space-y-4">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>
-          <p className="text-base-content opacity-70">Here's what's happening with your appointments today.</p>
+          <p className="text-base-content opacity-70">Here's what's happening with your appointments.</p>
+          
+          {/* Analytics Period Selector */}
+          <div className="flex gap-2 mt-4">
+            {[
+              { value: "yesterday", label: "Yesterday" },
+              { value: "lastWeek", label: "Last 7 Days" },
+              { value: "lastMonth", label: "Last 30 Days" }
+            ].map(period => (
+              <button
+                key={period.value}
+                onClick={() => setAnalyticsPeriod(period.value)}
+                className={`btn btn-sm ${
+                  analyticsPeriod === period.value 
+                    ? "btn-primary" 
+                    : "btn-outline"
+                }`}
+              >
+                {period.label}
+              </button>
+            ))}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-6">
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
@@ -245,14 +309,14 @@ const HomePage = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Total Appointments</p>
-                    <p className="text-3xl font-bold mt-2">{totalAppointments}</p>
+                    <p className="text-3xl font-bold mt-2">{appointmentsCurrent}</p>
                   </div>
                   <div className="badge badge-lg badge-primary">
                     <CalendarIcon className="size-4" />
                   </div>
                 </div>
                 <div className={`text-xs ${appointmentsDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {appointmentsDelta.label} from last month
+                  {appointmentsDelta.label} from last period
                 </div>
               </div>
             </div>
@@ -262,14 +326,14 @@ const HomePage = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Completed Calls</p>
-                    <p className="text-3xl font-bold mt-2">{completedCalls}</p>
+                    <p className="text-3xl font-bold mt-2">{completedCurrent}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#00c875" }}>
                     <VideoIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
                 <div className={`text-xs ${completedDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {completedDelta.label} from last month
+                  {completedDelta.label} from last period
                 </div>
               </div>
             </div>
@@ -279,14 +343,14 @@ const HomePage = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Active Contacts</p>
-                    <p className="text-3xl font-bold mt-2">{activeContacts}</p>
+                    <p className="text-3xl font-bold mt-2">{onlineContacts}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#9d4edd" }}>
                     <UserCheckIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
-                <div className={`text-xs ${activeDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {activeDelta.label} from last month
+                <div className="text-xs text-base-content opacity-60 mt-3">
+                  <span className="font-semibold">{onlineContacts}</span> of <span className="font-semibold">{realFriends.length}</span> online
                 </div>
               </div>
             </div>
@@ -296,14 +360,14 @@ const HomePage = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Pending Appointments</p>
-                    <p className="text-3xl font-bold mt-2">{pendingAppointments}</p>
+                    <p className="text-3xl font-bold mt-2">{pendingAppointmentsCurrent}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#ff9500" }}>
                     <ClockIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
-                <div className={`text-xs ${pendingAppointmentsDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {pendingAppointmentsDelta.label} from last month
+                <div className="text-xs text-base-content opacity-60 mt-3">
+                  Waiting for your confirmation
                 </div>
               </div>
             </div>
@@ -312,15 +376,15 @@ const HomePage = () => {
               <div className="card-body">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Pending Friend Requests</p>
-                    <p className="text-3xl font-bold mt-2">{friendRequests?.incomingReqs?.length || 0}</p>
+                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Friend Requests</p>
+                    <p className="text-3xl font-bold mt-2">{incomingCurrent}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#ff7aa2" }}>
                     <UsersIcon className="size-4" style={{ color: "#08173fff" }} />
                   </div>
                 </div>
-                <div className={`text-xs ${pendingFriendRequestsDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {pendingFriendRequestsDelta.label} from last month
+                <div className="text-xs text-base-content opacity-60 mt-3">
+                  <span className="font-semibold">{acceptedThisMonth}</span> accepted this month
                 </div>
               </div>
             </div>
@@ -434,8 +498,18 @@ const HomePage = () => {
                 return (
                   <div
                     key={user._id}
-                    className="card bg-base-200 hover:shadow-lg transition-all duration-300"
+                    className="card bg-base-200 hover:shadow-lg transition-all duration-300 relative"
                   >
+                    <Link 
+                      to={`/profile/${user._id}`}
+                      className="btn btn-circle btn-sm hover:btn-primary transition-all duration-300 absolute top-4 right-4 z-10"
+                      title="View Profile"
+                      aria-label="View Profile"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </Link>
                     <div className="card-body p-5 space-y-4">
                       <div className="flex items-center gap-3">
                         <div className="avatar">
@@ -465,13 +539,12 @@ const HomePage = () => {
                           Learning: {capitialize(user.learningLanguage)}
                         </span>
                       </div>
-
-                      {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
+                      {user.bio && <p className="text-sm opacity-70 line-clamp-2">{user.bio}</p>}
 
                       <button
-                        className={`btn w-full mt-2 ${
+                        className={`btn btn-sm w-full gap-2 ${
                           hasRequestBeenSent ? "btn-outline btn-error" : "btn-primary"
-                        } `}
+                        }`}
                         onClick={() => {
                           setLoadingUserId(user._id);
                           if (hasRequestBeenSent) {
@@ -489,13 +562,13 @@ const HomePage = () => {
                           <span className="loading loading-spinner loading-sm"></span>
                         ) : hasRequestBeenSent ? (
                           <>
-                            <XIcon className="size-4 mr-2" />
-                            Cancel Request
+                            <XIcon className="size-4" />
+                            Cancel
                           </>
                         ) : (
                           <>
-                            <UserPlusIcon className="size-4 mr-2" />
-                            Send Friend Request
+                            <UserPlusIcon className="size-4" />
+                            Add Friend
                           </>
                         )}
                       </button>
@@ -558,9 +631,12 @@ const HomePage = () => {
 
 const FriendCircle = ({ friend }) => {
   const initials = (friend.fullName || "").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
-  const status = (friend.availabilityStatus ?? "offline").toLowerCase();
-  const userOnline = usePresence(friend._id); // Subscribe to presence updates
+  const userOnline = usePresence(friend._id); // Subscribe to real-time online status
+  const availabilityStatus = useAvailabilityStatus(friend._id); // Subscribe to real-time availability status
   
+  // Use real-time availability status if available, otherwise fall back to initial value
+  const status = ((availabilityStatus || friend.availabilityStatus) ?? "offline").toLowerCase();
+
   const statusClass = !userOnline
     ? 'bg-neutral-500'
     : status === 'available'

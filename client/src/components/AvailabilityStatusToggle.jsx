@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { axiosInstance } from '../lib/axios';
 
@@ -111,22 +111,25 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
 
   const statusConfig = {
     available: {
-      icon: '✓',
+      icon: CheckCircle,
       color: 'success',
       label: 'Available',
       tooltip: 'Friends can book appointments',
+      description: 'Friends can book appointments with you',
     },
     limited: {
-      icon: '⚠',
+      icon: AlertTriangle,
       color: 'warning',
       label: 'Limited',
       tooltip: 'Show limited availability',
+      description: 'Show limited availability',
     },
     away: {
-      icon: '✕',
+      icon: XCircle,
       color: 'error',
       label: 'Away',
       tooltip: 'Not accepting bookings',
+      description: 'Not accepting bookings',
     },
   };
 
@@ -168,30 +171,30 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
         className={getButtonClasses()}
         title={config.tooltip}
       >
-        <span className="text-sm">{config.icon}</span>
+        <config.icon className="w-4 h-4" />
         <span className="hidden sm:inline text-xs">{config.label}</span>
       </button>
 
       {isDropdownOpen && (
         <ul
-          className="absolute bottom-full right-0 mb-2 z-50 menu p-1.5 shadow bg-base-100 rounded-box w-48 border border-base-300"
+          className="absolute bottom-full right-0 mb-2 z-50 menu p-2 shadow bg-base-100 rounded-lg w-56 border border-base-300"
         >
-        {Object.entries(statusConfig).map(([status, { icon, color, label, tooltip }]) => (
+        {Object.entries(statusConfig).map(([status, { icon: IconComponent, color, label, tooltip, description }]) => (
           <li key={status}>
             <a
               onClick={() => handleStatusChange(status)}
-              className={`flex items-center gap-2 py-1.5 px-2 text-sm ${
-                currentStatus === status ? getTextColorClass(status) : ''
-              } ${updateStatusMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`flex items-start gap-3 py-2.5 px-3 text-sm rounded-md transition-all ${
+                currentStatus === status ? `bg-${color}/10 border-l-4 border-${color}` : 'hover:bg-base-200'
+              } ${updateStatusMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               disabled={updateStatusMutation.isPending}
             >
-              <span className="text-base">{icon}</span>
+              <IconComponent className={`w-5 h-5 flex-shrink-0 mt-0.5 text-${color}`} />
               <div className="flex-1">
-                <div className="font-medium text-sm">{label}</div>
-                <div className="text-xs opacity-70">{tooltip}</div>
+                <div className="font-semibold text-sm text-base-content">{label}</div>
+                <div className="text-xs text-base-content/60 mt-0.5">{description}</div>
               </div>
               {currentStatus === status && (
-                <span className="badge badge-primary badge-xs">Active</span>
+                <span className={`badge badge-${color} badge-sm text-white`}>Active</span>
               )}
             </a>
           </li>

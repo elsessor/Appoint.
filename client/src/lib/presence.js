@@ -1,4 +1,5 @@
 const onlineSet = new Set();
+const availabilityStatusMap = new Map(); // Track availability status changes
 const listeners = new Set();
 let currentSocket = null;
 let presenceInitReceived = false;
@@ -11,6 +12,7 @@ export const initPresence = (socket) => {
     console.log('[Presence] New socket detected, clearing onlineSet but keeping', listeners.size, 'listeners');
     currentSocket = socket;
     onlineSet.clear();
+    availabilityStatusMap.clear();
     presenceInitReceived = false;
   }
 
@@ -78,11 +80,36 @@ export const initPresence = (socket) => {
       console.log(`[Presence] ✓ Notified ${notified} listeners for user ${id}`);
     }
   });
+
+  // Handle availability status changes (same mechanism as presence updates)
+  socket.on('availability:statusChanged', ({ userId, availabilityStatus }) => {
+    console.log('[Presence] ✓ Received availability:statusChanged:', { userId, availabilityStatus });
+    if (!userId) return;
+    
+    const id = userId.toString();
+    const oldStatus = availabilityStatusMap.get(id);
+    availabilityStatusMap.set(id, availabilityStatus);
+    
+    console.log(`[Presence] ✓ User ${id} availability: ${oldStatus || 'none'} → ${availabilityStatus}, notifying ${listeners.size} listeners`);
+    
+    // Notify all listeners of availability change (with null, null to trigger re-check)
+    let notified = 0;
+    listeners.forEach((l) => {
+      try {
+        notified++;
+        l('availability', id); // Signal that availability changed for this user
+      } catch (e) {
+        console.error('[Presence] ✗ Listener error during availability update:', e);
+      }
+    });
+    console.log(`[Presence] ✓ Notified ${notified} listeners of availability change for user ${id}`);
+  });
 };
 
 export const resetPresence = () => {
   console.log('[Presence] resetPresence - clearing onlineSet, keeping', listeners.size, 'listeners');
   onlineSet.clear();
+  availabilityStatusMap.clear();
   presenceInitReceived = false;
   currentSocket = null;
 };
@@ -90,6 +117,11 @@ export const resetPresence = () => {
 export const isOnline = (userId) => {
   if (!userId) return false;
   return onlineSet.has(userId.toString());
+};
+
+export const getAvailabilityStatus = (userId) => {
+  if (!userId) return null;
+  return availabilityStatusMap.get(userId.toString());
 };
 
 export const subscribe = (listener) => {

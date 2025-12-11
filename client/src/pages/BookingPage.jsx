@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import AppointmentBookingModal from '../components/appointments/AppointmentBookingModal';
+import AppointmentModal from '../components/appointments/AppointmentModal';
 import { getMyFriends, getAuthUser, createAppointment } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
@@ -11,6 +11,19 @@ const BookingPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const friendIdParam = searchParams.get('friendId');
+  const dateParam = searchParams.get('date');
+
+  // Compute initial date and friend from URL params directly
+  const initialDate = useMemo(() => {
+    if (dateParam) {
+      // Parse date string in YYYY-MM-DD format
+      const [year, month, day] = dateParam.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return null;
+  }, [dateParam]);
+
+  const initialFriendId = friendIdParam || null;
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -41,12 +54,17 @@ const BookingPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-950">
-      <AppointmentBookingModal
+      <AppointmentModal
         isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
+        onClose={() => {
+          setShowBookingModal(false);
+          navigate(-1);
+        }}
         friends={friends}
         currentUser={currentUser}
         onSubmit={handleBookingSubmit}
+        initialFriendId={initialFriendId}
+        initialDate={initialDate}
       />
     </div>
   );
