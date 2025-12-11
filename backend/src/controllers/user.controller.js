@@ -483,7 +483,7 @@ export async function updateProfilePicture(req, res) {
       await upsertStreamUser({
         id: updatedUser._id.toString(),
         name: updatedUser.fullName,
-        image: updatedUser.profilePic || "",
+        // Don't send image - can cause permission issues with Stream API
       });
       console.log(`Stream user updated for ${updatedUser.fullName}`);
     } catch (streamError) {
