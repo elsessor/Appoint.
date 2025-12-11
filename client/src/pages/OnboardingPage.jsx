@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
 import { LoaderIcon, MapPinIcon, ShipWheelIcon, ShuffleIcon, Phone, X } from "lucide-react";
 import { LANGUAGES } from "../constants";
+import ThemeSelector from "../components/ThemeSelector";
 
 const OnboardingPage = () => {
   const { authUser } = useAuthUser();
@@ -163,6 +164,10 @@ const OnboardingPage = () => {
     mutationFn: completeOnboarding,
     onSuccess: () => {
       toast.success("Profile onboarded successfully");
+      toast("Complete your profile in the Profile page for better visibility", {
+        icon: "📝",
+        duration: 5000,
+      });
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
 
@@ -217,14 +222,19 @@ const OnboardingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-base-900 via-base-800 to-base-900 flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
+      {/* Theme Selector - Top Right Corner */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+        <ThemeSelector />
+      </div>
+
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-primary/5 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-32 -left-32 w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 bg-secondary/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
+      <div className="relative z-10 w-full max-w-md sm:max-w-lg md:max-w-2xl px-4">
         {/* Header Section */}
         <div className="text-center mb-8 sm:mb-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3 sm:mb-4">
@@ -281,10 +291,12 @@ const OnboardingPage = () => {
                     type="text"
                     name="fullName"
                     value={formState.fullName}
-                    onChange={(e) => setFormState({ ...formState, fullName: e.target.value })}
+                    onChange={(e) => setFormState({ ...formState, fullName: e.target.value.slice(0, 50) })}
+                    maxLength="50"
                     className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
                     placeholder="e.g., Tito Mars"
                   />
+                  <span className="text-xs text-base-content/50 mt-1">{formState.fullName.length}/50</span>
                 </div>
 
                 {/* Bio */}
@@ -295,10 +307,12 @@ const OnboardingPage = () => {
                   <textarea
                     name="bio"
                     value={formState.bio}
-                    onChange={(e) => setFormState({ ...formState, bio: e.target.value })}
+                    onChange={(e) => setFormState({ ...formState, bio: e.target.value.slice(0, 300) })}
+                    maxLength="300"
                     className="textarea textarea-bordered w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary resize-none h-20 text-xs"
                     placeholder="Tell us about yourself and your learning goals"
                   />
+                  <span className="text-xs text-base-content/50 mt-1">{formState.bio.length}/300</span>
                 </div>
 
                 {/* Languages Grid */}
@@ -354,11 +368,13 @@ const OnboardingPage = () => {
                         type="text"
                         name="location"
                         value={formState.location}
-                        onChange={(e) => setFormState({ ...formState, location: e.target.value })}
+                        onChange={(e) => setFormState({ ...formState, location: e.target.value.slice(0, 50) })}
+                        maxLength="50"
                         className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
                         placeholder="City, Country"
                       />
                     </div>
+                    <span className="text-xs text-base-content/50 mt-1">{formState.location.length}/50</span>
                   </div>
 
                   <div className="form-control">
@@ -371,11 +387,13 @@ const OnboardingPage = () => {
                         type="tel"
                         name="phone"
                         value={formState.phone}
-                        onChange={(e) => setFormState({ ...formState, phone: e.target.value })}
+                        onChange={(e) => setFormState({ ...formState, phone: e.target.value.slice(0, 13) })}
+                        maxLength="13"
                         className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
                         placeholder="+63 976 789 1329"
                       />
                     </div>
+                    <span className="text-xs text-base-content/50 mt-1">{formState.phone.length}/13</span>
                   </div>
                 </div>
 
@@ -386,32 +404,50 @@ const OnboardingPage = () => {
                     <span className="text-xs text-base-content/50">Select or add custom skills</span>
                   </label>
                   <div className="space-y-2">
-                    {/* Dropdown */}
+                    {/* Skills Dropdown with Search */}
                     <div className="relative">
-                      <input
-                        type="text"
-                        value={skillSearch}
-                        onChange={(e) => {
-                          setSkillSearch(e.target.value);
-                          setShowSkillSuggestions(true);
-                        }}
-                        onFocus={() => setShowSkillSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 200)}
-                        className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
-                        placeholder="Search skills (e.g., Programming, Design...)"
-                      />
-                      {showSkillSuggestions && filteredSkillSuggestions.length > 0 && (
-                        <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-40 overflow-y-auto">
-                          {filteredSkillSuggestions.map((skill) => (
-                            <button
-                              type="button"
-                              key={skill}
-                              onClick={() => addSkill(skill)}
-                              className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs"
-                            >
-                              {skill}
-                            </button>
-                          ))}
+                      <button
+                        type="button"
+                        onClick={() => setShowSkillSuggestions(!showSkillSuggestions)}
+                        className="btn btn-sm btn-outline w-full justify-start text-left h-auto px-3 py-2"
+                      >
+                        {formState.skills.length > 0 ? `${formState.skills.length} skill${formState.skills.length !== 1 ? 's' : ''} selected` : 'Select skills...'}
+                      </button>
+
+                      {showSkillSuggestions && (
+                        <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-hidden flex flex-col" onMouseLeave={() => setShowSkillSuggestions(false)}>
+                          {/* Search Input Inside Dropdown */}
+                          <div className="p-2 border-b border-base-300 sticky top-0 bg-base-100">
+                            <input
+                              type="text"
+                              value={skillSearch}
+                              onChange={(e) => setSkillSearch(e.target.value)}
+                              placeholder="Search skills..."
+                              className="input input-bordered input-xs w-full text-xs"
+                              autoFocus
+                            />
+                          </div>
+
+                          {/* Skills List */}
+                          <div className="overflow-y-auto flex-1">
+                            {filteredSkillSuggestions.length > 0 ? (
+                              filteredSkillSuggestions.map((skill) => (
+                                <button
+                                  type="button"
+                                  key={skill}
+                                  onClick={() => {
+                                    addSkill(skill);
+                                    setShowSkillSuggestions(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs"
+                                >
+                                  {skill}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-xs text-base-content/50">No skills found</div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -421,8 +457,9 @@ const OnboardingPage = () => {
                       <input
                         type="text"
                         value={customSkillInput}
-                        onChange={(e) => setCustomSkillInput(e.target.value)}
+                        onChange={(e) => setCustomSkillInput(e.target.value.slice(0, 30))}
                         onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addCustomSkill())}
+                        maxLength="30"
                         className="input input-bordered input-sm flex-1 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
                         placeholder="Add custom skill..."
                       />
@@ -434,6 +471,7 @@ const OnboardingPage = () => {
                         Add
                       </button>
                     </div>
+                    <span className="text-xs text-base-content/50">{customSkillInput.length}/30</span>
 
                     {/* Skills Display */}
                     {formState.skills.length > 0 && (
