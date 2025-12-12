@@ -120,6 +120,8 @@ const CallContent = ({ callId, authUser }) => {
   const [transcript, setTranscript] = useState("");
   const [startTime, setStartTime] = useState(null);
   const recognitionRef = useRef(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
   // Mutation for creating meeting minutes
   const createMinutesMutation = useMutation({
@@ -148,9 +150,9 @@ const CallContent = ({ callId, authUser }) => {
     recognition.lang = "en-US";
 
     recognition.onstart = () => {
-      console.log("🎤 Speech recognition started");
-    };
-
+  console.log("🎤 Speech recognition started");
+  setRetryCount(0); // Reset on successful start
+};
     recognition.onresult = (event) => {
       let finalTranscript = "";
 
@@ -174,11 +176,47 @@ const CallContent = ({ callId, authUser }) => {
     };
 
     recognition.onerror = (event) => {
-      console.error("❌ Speech recognition error:", event.error);
-      if (event.error === "no-speech") {
-        console.log("⚠️ No speech detected, but continuing...");
+  console.error("❌ Speech recognition error:", event.error);
+  
+  switch(event.error) {
+    case 'network':
+      if (retryCount < MAX_RETRIES) {
+        console.log(`🔄 Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+        setRetryCount(prev => prev + 1);
+        
+        setTimeout(() => {
+          try {
+            recognitionRef.current.start();
+          } catch (e) {
+            console.error('Retry failed:', e);
+          }
+        }, 2000);
+      } else {
+        toast.error('Network error - check your internet connection');
+        setIsRecording(false);
       }
-    };
+      break;
+      
+    case 'not-allowed':
+    case 'service-not-allowed':
+      toast.error('Microphone permission denied. Please allow microphone access.');
+      setIsRecording(false);
+      break;
+      
+    case 'no-speech':
+      console.log("⚠️ No speech detected, but continuing...");
+      break;
+      
+    case 'aborted':
+      console.log('Recognition aborted');
+      setIsRecording(false);
+      break;
+      
+    default:
+      toast.error(`Speech recognition error: ${event.error}`);
+      setIsRecording(false);
+  }
+};
 
     recognition.onend = () => {
       console.log("🛑 Recognition ended");
@@ -198,26 +236,37 @@ const CallContent = ({ callId, authUser }) => {
   }, []);
 
   // Start recording
-  const startRecording = () => {
-    if (!recognitionRef.current) {
-      toast.error("Speech recognition not supported in your browser. Please use Chrome or Edge.");
-      return;
-    }
+  const startRecording = async () => {
+  if (!recognitionRef.current) {
+    toast.error("Speech recognition not supported in your browser. Please use Chrome or Edge.");
+    return;
+  }
 
-    setTranscript("");
-    setStartTime(new Date());
-    setIsRecording(true);
-    
-    try {
-      recognitionRef.current.start();
-      console.log("✅ Recording started, speak now!");
-      toast.success("🎤 Recording started - Speak now!", { duration: 3000 });
-    } catch (error) {
-      console.error("❌ Error starting recognition:", error);
-      toast.error("Could not start recording: " + error.message);
-      setIsRecording(false);
-    }
-  };
+  // Check microphone access FIRST
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach(track => track.stop()); // Release immediately
+    console.log("✅ Microphone access granted");
+  } catch (error) {
+    console.error("❌ Microphone access denied:", error);
+    toast.error("Please allow microphone access to record the meeting.");
+    return;
+  }
+
+  setTranscript("");
+  setStartTime(new Date());
+  setIsRecording(true);
+  
+  try {
+    recognitionRef.current.start();
+    console.log("✅ Recording started, speak now!");
+    toast.success("🎤 Recording started - Speak now!", { duration: 3000 });
+  } catch (error) {
+    console.error("❌ Error starting recognition:", error);
+    toast.error("Could not start recording: " + error.message);
+    setIsRecording(false);
+  }
+};
 
   // Stop recording and generate minutes
   const stopRecording = async () => {

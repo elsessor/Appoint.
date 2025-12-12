@@ -5,27 +5,26 @@ let socketInstance = null;
 
 // Determine socket URL based on environment
 const getSocketURL = () => {
-  // Priority 1: Explicit environment variable (for different networks/servers)
   const envURL = import.meta.env.VITE_SOCKET_URL;
   if (envURL) {
     console.log('[Socket] Using VITE_SOCKET_URL from env:', envURL);
     return envURL;
   }
   
-  // Priority 2: For localhost development - always use localhost
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     const url = 'http://localhost:5001';
     console.log('[Socket] Development mode: using localhost:5001');
     return url;
   }
   
-  // Priority 3: For same server deployment (frontend and backend on same machine)
-  // Both devices access the same server IP, both connect to that server's port 5001
   const protocol = window.location.protocol;
   const hostname = window.location.hostname;
-  const url = `${protocol}//${hostname}:5001`;
+  const url = `${protocol}//${hostname}`;
+  
+  // 👇 ADD THIS LINE TEMPORARILY
+  console.log('🔍 PRODUCTION URL WOULD BE:', url);
+  
   console.log('[Socket] Production mode: using auto-detected URL:', url);
-  console.log('[Socket] ⚠️  If this is wrong, set VITE_SOCKET_URL environment variable');
   return url;
 };
 
@@ -43,10 +42,11 @@ export const initSocket = () => {
       withCredentials: true,
       autoConnect: true,
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: Infinity, // Keep trying indefinitely
-      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: Infinity,
+      timeout: 60000, // 60 second timeout for Render cold starts
+      transports: ['websocket', 'polling'],
     });
     
     socketInstance.on('connect', () => {
@@ -83,3 +83,4 @@ export const disconnectSocket = () => {
   socketInstance.disconnect();
   socketInstance = null;
 };
+
