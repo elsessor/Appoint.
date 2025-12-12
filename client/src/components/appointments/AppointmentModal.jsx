@@ -66,6 +66,8 @@ const AppointmentModal = ({
   const [showAppointmentsModal, setShowAppointmentsModal] = useState(false);
   const [phHolidays, setPhHolidays] = useState([]);
   const [isClosing, setIsClosing] = useState(false);
+  const [useCustomTime, setUseCustomTime] = useState(false);
+  const [customTime, setCustomTime] = useState('');
   const { theme } = useThemeStore();
 
   // Initialize calendar month and set selected date from initialDate
@@ -1181,34 +1183,95 @@ const AppointmentModal = ({
 
                     {/* Time Picker */}
                     <div>
-                      <label className="block text-sm font-medium text-base-content mb-2">Time *</label>
-                      <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-2">
-                        {timeSlots.map(slot => (
-                          <button
-                            key={slot.time}
-                            type="button"
-                            disabled={slot.disabled}
-                            onClick={() => {
-                              const date = formData.startTime.split('T')[0] || format(new Date(), 'yyyy-MM-dd');
-                              setFormData(prev => ({
-                                ...prev,
-                                startTime: `${date}T${slot.time}`,
-                                endTime: format(addMinutes(parseISO(`${date}T${slot.time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
-                              }));
-                            }}
-                            className={`px-3 py-2.5 rounded-lg font-medium text-xs transition-all border ${
-                              formData.startTime.split('T')[1] === slot.time
-                                ? 'bg-primary text-primary-content border-primary shadow-sm'
-                                : slot.disabled
-                                ? 'bg-base-300 text-base-content/50 border-base-300 cursor-not-allowed'
-                                : 'bg-base-100 text-base-content border-base-300 hover:border-primary hover:bg-base-200'
-                            }`}
-                          >
-                            <div className="font-medium">{slot.display}</div>
-                            {slot.reason && <div className="text-xs opacity-60">{slot.reason}</div>}
-                          </button>
-                        ))}
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-medium text-base-content">Time *</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseCustomTime(!useCustomTime);
+                            setCustomTime('');
+                          }}
+                          className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                        >
+                          {useCustomTime ? 'Use available slots' : 'Enter custom time'}
+                        </button>
                       </div>
+
+                      {useCustomTime ? (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-xs font-medium text-base-content/70 mb-2">Start Time</label>
+                            <input
+                              type="time"
+                              value={formData.startTime ? formData.startTime.split('T')[1] : ''}
+                              onChange={(e) => {
+                                const newTime = e.target.value;
+                                if (newTime && formData.startTime) {
+                                  const date = formData.startTime.split('T')[0];
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    startTime: `${date}T${newTime}`,
+                                  }));
+                                  setCustomTime(newTime);
+                                }
+                              }}
+                              className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-base-content/70 mb-2">End Time</label>
+                            <input
+                              type="time"
+                              value={formData.endTime ? formData.endTime.split('T')[1] : ''}
+                              onChange={(e) => {
+                                const newTime = e.target.value;
+                                if (newTime && formData.endTime) {
+                                  const date = formData.endTime.split('T')[0];
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    endTime: `${date}T${newTime}`,
+                                  }));
+                                }
+                              }}
+                              className="w-full px-4 py-3 bg-base-100 border border-base-300 rounded-lg text-base-content focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm shadow-sm hover:border-base-400"
+                            />
+                          </div>
+
+                          <p className="text-xs text-base-content/60 bg-warning/10 border border-warning/30 rounded p-2.5">
+                            ⚠️ Custom times may overlap with existing appointments or fall outside availability hours.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto pr-2">
+                          {timeSlots.map(slot => (
+                            <button
+                              key={slot.time}
+                              type="button"
+                              disabled={slot.disabled}
+                              onClick={() => {
+                                const date = formData.startTime.split('T')[0] || format(new Date(), 'yyyy-MM-dd');
+                                setFormData(prev => ({
+                                  ...prev,
+                                  startTime: `${date}T${slot.time}`,
+                                  endTime: format(addMinutes(parseISO(`${date}T${slot.time}`), prev.duration), 'yyyy-MM-dd\'T\'HH:mm')
+                                }));
+                                setCustomTime('');
+                              }}
+                              className={`px-3 py-2.5 rounded-lg font-medium text-xs transition-all border ${
+                                formData.startTime.split('T')[1] === slot.time
+                                  ? 'bg-primary text-primary-content border-primary shadow-sm'
+                                  : slot.disabled
+                                  ? 'bg-base-300 text-base-content/50 border-base-300 cursor-not-allowed'
+                                  : 'bg-base-100 text-base-content border-base-300 hover:border-primary hover:bg-base-200'
+                              }`}
+                            >
+                              <div className="font-medium">{slot.display}</div>
+                              {slot.reason && <div className="text-xs opacity-60">{slot.reason}</div>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Duration */}

@@ -10,11 +10,11 @@ export function startReminderScheduler() {
       
       // Find appointments that:
       // 1. Are in the future
-      // 2. Are accepted/confirmed/scheduled
+      // 2. Are accepted/confirmed
       // 3. Haven't been reminded yet
       const appointments = await Appointment.find({
         startTime: { $gt: now },
-        status: { $in: ['accepted', 'confirmed', 'scheduled'] },
+        status: { $in: ['accepted', 'confirmed'] },
         reminded: { $ne: true },
       }).populate(['userId', 'friendId']);
 
@@ -92,7 +92,7 @@ export async function checkRemindersNow() {
     
     const appointments = await Appointment.find({
       startTime: { $gt: now },
-      status: { $in: ['accepted', 'confirmed', 'scheduled'] },
+      status: { $in: ['accepted', 'confirmed'] },
       reminded: { $ne: true },
     }).populate(['userId', 'friendId']);
 

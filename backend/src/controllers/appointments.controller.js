@@ -708,8 +708,20 @@ export async function deleteAppointment(req, res) {
     }
 
     // Only the appointment requester (userId) can cancel
-    const appointmentUserId = appointment.userId.toString();
-    const appointmentFriendId = appointment.friendId.toString();
+    // appointment.userId is now an object due to populate, so we need to access _id
+    const appointmentUserId = appointment.userId._id.toString();
+    const appointmentFriendId = appointment.friendId._id.toString();
+    
+    console.log('Delete Appointment - Permission Check:', {
+      appointmentUserId,
+      userId,
+      match: appointmentUserId === userId,
+      appointment: {
+        id: appointment._id,
+        status: appointment.status,
+        userId: appointment.userId
+      }
+    });
       
     if (appointmentUserId !== userId) {
       return res.status(403).json({ 
@@ -717,22 +729,7 @@ export async function deleteAppointment(req, res) {
       });
     }
 
-
-    const recipientId = userId === appointmentUserId ? appointmentFriendId : appointmentUserId;
-
-    await createNotification({
-      recipientId,
-      senderId: userId,
-      type: "appointment",
-      title: "Appointment Deleted",
-      message: `${currentUser.fullName} deleted the appointment scheduled for ${formattedDate} at ${formattedTime}`,
-      appointmentId: appointment._id,
-    });
-
-    await Appointment.findByIdAndDelete(id);
-
-    // Check cancel notice requirement
-    // The cancelNotice is stored in the appointment's availability snapshot
+    // Check cancel notice requirement BEFORE deletion
     const cancelNoticeMinutes = appointment.availability?.cancelNotice || 0;
     if (cancelNoticeMinutes > 0) {
       const now = new Date();
@@ -753,10 +750,9 @@ export async function deleteAppointment(req, res) {
     const oldStatus = appointment.status;
     appointment.status = 'cancelled';
     await appointment.save();
-    await appointment.populate(["userId", "friendId"]);
 
     // Create notification for cancellation
-    const sender = await User.findById(userId).select('fullName');
+    const sender = appointment.userId;
     const formattedDate = new Date(appointment.startTime).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',

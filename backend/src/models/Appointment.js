@@ -106,6 +106,10 @@ const appointmentSchema = new mongoose.Schema(
       default: 15, // minutes before appointment
       enum: [0, 5, 10, 15, 30, 60, 120, 1440], // 0, 5min, 10min, 15min, 30min, 1hr, 2hr, 1day
     },
+    reminded: {
+      type: Boolean,
+      default: false, // tracks if reminder has been sent
+    },
     location: {
       type: String,
       default: "",

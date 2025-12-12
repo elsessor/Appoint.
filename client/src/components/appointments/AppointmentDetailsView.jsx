@@ -41,7 +41,6 @@ const AppointmentDetails = ({
   const [meetingNotes, setMeetingNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   if (!appointment) {
     return null;
@@ -79,15 +78,10 @@ const AppointmentDetails = ({
 
   const handleCancelClick = () => {
     if (!canCancel) {
-      toast.error('Only the appointment requester can cancel. You can decline instead.');
+      toast.error('Only the appointment requester can cancel. Recipients should use the decline option instead.');
       return;
     }
-    setShowCancelConfirm(true);
-  };
-
-  const handleConfirmCancel = () => {
-    onDelete();
-    setShowCancelConfirm(false);
+    onDelete?.();
   };
 
   const handleRescheduleSubmit = (formData) => {
@@ -421,18 +415,6 @@ const AppointmentDetails = ({
         availability={availability}
         friendsAvailability={friendsAvailability}
         appointments={appointments}
-      />
-
-      {/* Cancel Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={showCancelConfirm}
-        onClose={() => setShowCancelConfirm(false)}
-        onConfirm={handleConfirmCancel}
-        title="Cancel Appointment"
-        message={`Are you sure you want to cancel this appointment with ${professional?.fullName || 'this person'}? This action cannot be undone.`}
-        confirmText="Yes, Cancel Appointment"
-        cancelText="No, Keep It"
-        variant="danger"
       />
     </div>
   );

@@ -264,13 +264,15 @@ const NotificationsPage = () => {
   navigate('/appointments?filter=incoming');
 }}
                           >
-                            <img
-                              src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
-                              alt={notification.senderId?.fullName || 'User'}
-                              onError={(e) => {
-                                e.target.src = '/default-profile.svg';
-                              }}
-                            />
+                            <div className="w-10 h-10 rounded-lg">
+                              <img
+                                src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
+                                alt={notification.senderId?.fullName || 'User'}
+                                onError={(e) => {
+                                  e.target.src = '/default-profile.svg';
+                                }}
+                              />
+                            </div>
                           </div>
                           <div 
                             className="flex-1 cursor-pointer"
@@ -334,13 +336,15 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img 
-                                src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
-                                alt={request.sender.fullName}
-                                onError={(e) => {
-                                  e.target.src = '/default-profile.svg';
-                                }}
-                              />
+                              <div className="w-14 h-14 rounded-lg">
+                                <img 
+                                  src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
+                                  alt={request.sender.fullName}
+                                  onError={(e) => {
+                                    e.target.src = '/default-profile.svg';
+                                  }}
+                                />
+                              </div>
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
@@ -378,13 +382,15 @@ const NotificationsPage = () => {
                             className="avatar mt-1 size-10 rounded-full flex-shrink-0 cursor-pointer"
                             onClick={() => navigate(`/profile/${notification.recipient._id}`)}
                           >
-                            <img
-                              src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
-                              alt={notification.recipient?.fullName}
-                              onError={(e) => {
-                                e.target.src = '/default-profile.svg';
-                              }}
-                            />
+                            <div className="w-10 h-10 rounded-lg">
+                              <img
+                                src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
+                                alt={notification.recipient?.fullName}
+                                onError={(e) => {
+                                  e.target.src = '/default-profile.svg';
+                                }}
+                              />
+                            </div>
                           </div>
                           <div 
                             className="flex-1 cursor-pointer"

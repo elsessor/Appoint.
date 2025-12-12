@@ -187,6 +187,13 @@ const AppointmentsPage = () => {
     setShowConfirmDialog(true);
   };
 
+  const handleDeleteFromDetailsView = () => {
+    // Called after permission check passes in AppointmentDetailsView
+    // Just set up and show the confirm dialog
+    setAppointmentToDelete(selectedAppointment._id);
+    setShowConfirmDialog(true);
+  };
+
   const handleDeleteAppointment = async () => {
     if (!appointmentToDelete) return;
     
@@ -282,7 +289,7 @@ const AppointmentsPage = () => {
           appointment={selectedAppointment}
           currentUser={currentUser}
           onClose={() => setSelectedAppointment(null)}
-          onDelete={() => handleDeleteClick(selectedAppointment._id)}
+          onDelete={handleDeleteFromDetailsView}
           onEdit={() => {
             console.log('Edit appointment:', selectedAppointment._id);
           }}
@@ -638,6 +645,15 @@ const AppointmentsPage = () => {
                                       return otherUserName;
                                     })()}
                                   </p>
+                                  {(() => {
+                                    const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                    const isSent = appointmentUserId === currentUserId;
+                                    return (
+                                      <span className={`badge badge-xs flex-shrink-0 ${isSent ? 'badge-info' : 'badge-success'}`}>
+                                        {isSent ? 'Sent' : 'Received'}
+                                      </span>
+                                    );
+                                  })()}
                                   {/* Status Badge - Glass Effect - Small */}
                                   {appointment.status !== 'completed' && (
                                     <span className={`badge badge-xs badge-outline backdrop-blur-sm border-opacity-30 ${
@@ -729,16 +745,24 @@ const AppointmentsPage = () => {
                               </button>
                             )}
 
-                            {/* Cancel Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClick(appointment._id);
-                              }}
-                              className="btn btn-xs sm:btn-sm btn-outline btn-error flex-shrink-0 whitespace-nowrap"
-                            >
-                              Cancel
-                            </button>
+                            {/* Cancel Button - Only for sender and not completed */}
+                            {(() => {
+                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                              const isSender = appointmentUserId === currentUserId;
+                              // Don't show cancel for completed appointments or if user is not sender
+                              if (!isSender || appointment.status === 'completed') return null;
+                              return (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteClick(appointment._id);
+                                  }}
+                                  className="btn btn-xs sm:btn-sm btn-outline btn-error flex-shrink-0 whitespace-nowrap"
+                                >
+                                  Cancel
+                                </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -805,10 +829,20 @@ const AppointmentsPage = () => {
                                               return otherUser?.fullName || 'Unknown';
                                             })()}
                                           </h3>
-                                          <p className="text-xs text-base-content/60 truncate line-clamp-1">
-                                            {appointment.title || 'Appointment'}
-                                          </p>
-                                          {/* Attended badge moved to header right to keep uniform height */}
+                                          <div className="flex items-center gap-1 mt-0.5">
+                                            <p className="text-xs text-base-content/60 truncate line-clamp-1">
+                                              {appointment.title || 'Appointment'}
+                                            </p>
+                                            {(() => {
+                                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                              const isSent = appointmentUserId === currentUserId;
+                                              return (
+                                                <span className={`badge badge-xs flex-shrink-0 ${isSent ? 'badge-info' : 'badge-success'}`}>
+                                                  {isSent ? 'Sent' : 'Received'}
+                                                </span>
+                                              );
+                                            })()}
+                                          </div>
                                         </div>
 
                                         <div className="flex items-center gap-1 ml-1 sm:ml-2 flex-none">
@@ -912,12 +946,22 @@ const AppointmentsPage = () => {
                                       Rate
                                     </button>
                                   )}
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(appointment._id); }}
-                                    className="btn btn-error btn-xs sm:btn-sm flex-shrink-0"
-                                  >
-                                    Cancel
-                                  </button>
+                                  {(() => {
+                                    const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                    const isSender = appointmentUserId === currentUserId;
+                                    // Only show cancel button if user is the sender AND appointment is not completed
+                                    if (!isSender || appointment.status === 'completed') {
+                                      return null;
+                                    }
+                                    return (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(appointment._id); }}
+                                        className="btn btn-error btn-xs sm:btn-sm flex-shrink-0"
+                                      >
+                                        Cancel
+                                      </button>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
