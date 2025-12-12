@@ -7,6 +7,7 @@ import { getUserAvailability, getFriendAppointments } from '../../lib/api';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
 import AvailabilityInfo from '../AvailabilityInfo';
 import { useThemeStore } from '../../store/useThemeStore';
+import { getSocket } from '../../lib/socket';
 
 const CANCELLATION_REASONS = [
   'Schedule Conflict',
@@ -68,6 +69,7 @@ const AppointmentModal = ({
   const [isClosing, setIsClosing] = useState(false);
   const [useCustomTime, setUseCustomTime] = useState(false);
   const [customTime, setCustomTime] = useState('');
+  const [availabilityUpdateTrigger, setAvailabilityUpdateTrigger] = useState(0);
   const { theme } = useThemeStore();
 
   // Initialize calendar month and set selected date from initialDate
@@ -89,6 +91,32 @@ const AppointmentModal = ({
       setStep(1);
     }
   }, [isOpen]);
+  
+  // Listen for real-time availability changes and trigger re-render
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleAvailabilityChanged = () => {
+      // Trigger re-render by incrementing the trigger state
+      // This ensures capacityData useMemo recalculates with updated friendsAvailability prop
+      setAvailabilityUpdateTrigger(prev => prev + 1);
+      console.log('[AppointmentModal] Availability changed - triggering re-render');
+    };
+
+    socket.on('availability:changed', handleAvailabilityChanged);
+
+    return () => {
+      socket.off('availability:changed', handleAvailabilityChanged);
+    };
+  }, []);
+  
+  // Force re-render when friendsAvailability changes to update Daily Capacity in real-time
+  useEffect(() => {
+    console.log('[AppointmentModal] friendsAvailability updated:', friendsAvailability);
+    // This re-render ensures the Daily Capacity display updates when props change
+  }, [friendsAvailability, availabilityUpdateTrigger]);
+  
   // Detect if we're in edit mode (reschedule)
   const isEditMode = !!appointment;
 
@@ -535,6 +563,28 @@ const AppointmentModal = ({
       return [];
     }
   };
+
+  // Memoize capacity calculation to ensure it updates with friendsAvailability changes
+  const capacityData = useMemo(() => {
+    if (!formData.friendId || !formData.startTime) return { maxPerDay: 5, isFull: false, count: 0 };
+    
+    const friendAvailability = friendsAvailability[formData.friendId];
+    let maxPerDay = friendAvailability?.maxPerDay || availability?.maxPerDay || 5;
+    
+    // If friend has limited status, use minPerDay instead
+    if (friendAvailability?.status === 'limited') {
+      maxPerDay = friendAvailability?.minPerDay || 1;
+    }
+    
+    const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
+    
+    return {
+      maxPerDay,
+      isFull: allApptsOnDate.length >= maxPerDay,
+      count: allApptsOnDate.length,
+      friendAvailability
+    };
+  }, [formData.friendId, formData.startTime, friendsAvailability, availability]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1022,13 +1072,8 @@ const AppointmentModal = ({
                           
                           {/* Max Appointments & Current Count */}
                           {(() => {
-                            const selectedFriend = friends.find(f => f._id === formData.friendId);
-                            // Use the FRIEND's maxPerDay setting when scheduling with them
-                            const friendAvailability = formData.friendId ? friendsAvailability[formData.friendId] : null;
-                            const maxPerDay = friendAvailability?.maxPerDay || availability?.maxPerDay || 5;
-                            // Use ALL appointments for maxPerDay validation (not filtered by friend)
+                            const { maxPerDay, isFull, count } = capacityData;
                             const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
-                            const isFull = allApptsOnDate.length >= maxPerDay;
                             
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">

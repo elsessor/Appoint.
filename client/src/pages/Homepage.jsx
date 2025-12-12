@@ -12,7 +12,7 @@ import {
 import { Link } from "react-router";
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { capitialize } from "../lib/utils";
+import { capitalize } from "../lib/utils";
 import usePresence from "../hooks/usePresence";
 import useAvailabilityStatus from "../hooks/useAvailabilityStatus";
 import useMultiplePresence from "../hooks/useMultiplePresence";
@@ -527,7 +527,7 @@ const HomePage = () => {
                   <option value="all">All Languages</option>
                   {availableLanguages.map((lang) => (
                     <option key={lang} value={lang}>
-                      {capitialize(lang)}
+                      {capitalize(lang)}
                     </option>
                   ))}
                 </select>
@@ -607,11 +607,11 @@ const HomePage = () => {
                           <div className="flex flex-col gap-1.5">
                             <span className="badge badge-secondary text-xs sm:text-sm gap-1">
                               {getLanguageFlag(user.nativeLanguage)}
-                              <span>Native: {capitialize(user.nativeLanguage)}</span>
+                              <span>Native: {capitalize(user.nativeLanguage)}</span>
                             </span>
                             <span className="badge badge-outline text-xs sm:text-sm gap-1">
                               {getLanguageFlag(user.learningLanguage)}
-                              <span>Learning: {capitialize(user.learningLanguage)}</span>
+                              <span>Learning: {capitalize(user.learningLanguage)}</span>
                             </span>
                           </div>
 
@@ -712,11 +712,11 @@ const HomePage = () => {
                         <div className="flex flex-col gap-1.5">
                           <span className="badge badge-secondary text-xs sm:text-sm gap-1">
                             {getLanguageFlag(user.nativeLanguage)}
-                            <span>Native: {capitialize(user.nativeLanguage)}</span>
+                            <span>Native: {capitalize(user.nativeLanguage)}</span>
                           </span>
                           <span className="badge badge-outline text-xs sm:text-sm gap-1">
                             {getLanguageFlag(user.learningLanguage)}
-                            <span>Learning: {capitialize(user.learningLanguage)}</span>
+                            <span>Learning: {capitalize(user.learningLanguage)}</span>
                           </span>
                         </div>
 
