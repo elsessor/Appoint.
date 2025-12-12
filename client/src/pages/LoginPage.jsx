@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ShipWheelIcon } from "lucide-react";
-import { Link } from "react-router";
+import { ShipWheelIcon, ArrowLeft } from "lucide-react";
+import { Link, useNavigate } from "react-router";
 import useLogin from "../hooks/useLogin";
 import { useThemeStore } from "../store/useThemeStore";
 import ThemeSelector from "../components/ThemeSelector";
@@ -13,6 +13,7 @@ const LoginPage = () => {
 
   const { isPending, error, loginMutation } = useLogin();
   const { theme } = useThemeStore();
+  const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -24,6 +25,15 @@ const LoginPage = () => {
       className="h-screen flex items-center justify-center bg-base-100 overflow-hidden"
       data-theme={theme}
     >
+      {/* Back Button - Outside Card */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4 z-10 btn btn-ghost btn-sm gap-2"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back
+      </button>
+
       {/* Main Content - Centered */}
       <div className="border border-primary/25 flex flex-col lg:flex-row w-full max-w-5xl mx-auto bg-base-100 rounded-xl shadow-lg overflow-hidden relative">
         {/* Theme Selector - Absolute Top Right */}

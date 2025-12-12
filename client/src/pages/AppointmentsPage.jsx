@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { format, parseISO, isToday } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow } from 'date-fns';
 import { Calendar, Clock, Video, Phone, MapPin, Trash2, Edit, Bell, Clock3, CheckCircle, CheckCircle2, XCircle, ListIcon, Star } from "lucide-react";
 import { getAppointments, deleteAppointment, updateAppointment, getAuthUser } from '../lib/api';
 import PageLoader from '../components/PageLoader';
@@ -541,6 +541,214 @@ const AppointmentsPage = () => {
                       })
                     )}
                   </div>
+                ) : filterStatus === 'all' ? (
+                  <div className="space-y-6 w-full">
+                    {(() => {
+                      // Group appointments by date
+                      const groupedByDate = {};
+                      filteredAppointments.forEach((apt) => {
+                        const startTime = typeof apt.startTime === 'string' ? parseISO(apt.startTime) : new Date(apt.startTime);
+                        const dateKey = format(startTime, 'yyyy-MM-dd');
+                        if (!groupedByDate[dateKey]) {
+                          groupedByDate[dateKey] = [];
+                        }
+                        groupedByDate[dateKey].push(apt);
+                      });
+
+                      // Sort dates and appointments within each date
+                      const sortedDates = Object.keys(groupedByDate).sort();
+                      
+                      return sortedDates.map((dateKey) => {
+                        const startTime = parseISO(dateKey);
+                        const isTodayDate = isToday(startTime);
+                        const isTomorrowDate = isTomorrow(startTime);
+                        
+                        let dateLabel = format(startTime, 'EEEE, MMMM d, yyyy');
+                        if (isTodayDate) dateLabel = `Today - ${format(startTime, 'MMMM d')}`;
+                        if (isTomorrowDate) dateLabel = `Tomorrow - ${format(startTime, 'MMMM d')}`;
+
+                        return (
+                          <div key={dateKey}>
+                            {/* Date Header */}
+                            <div className="mb-3 flex items-center gap-3">
+                              <h3 className="text-lg font-bold text-base-content">{dateLabel}</h3>
+                              <div className="flex-1 h-px bg-gradient-to-r from-base-300 to-transparent"></div>
+                              <span className="text-sm font-medium text-base-content/60 bg-base-200 px-3 py-1 rounded-full">
+                                {groupedByDate[dateKey].length} appointment{groupedByDate[dateKey].length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            {/* Appointments for this date */}
+                            <div className="space-y-3">
+                              {groupedByDate[dateKey]
+                                .sort((a, b) => {
+                                  const timeA = typeof a.startTime === 'string' ? parseISO(a.startTime) : new Date(a.startTime);
+                                  const timeB = typeof b.startTime === 'string' ? parseISO(b.startTime) : new Date(b.startTime);
+                                  return timeA - timeB;
+                                })
+                                .map((appointment) => (
+                      <div key={appointment._id} className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-transform bg-gradient-to-r from-base-100 to-base-200">
+                        <div className="flex h-full">
+                          <div
+                            className={`w-1 ${(() => {
+                              // If other participant is offline, show grey indicator
+                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                              const otherUser = appointmentUserId === currentUserId ? appointment.friendId : appointment.userId;
+                              const availability = (otherUser?.availabilityStatus || '').toLowerCase();
+                              if (availability === 'offline') {
+                                return 'bg-gradient-to-b from-gray-400 to-gray-500';
+                              }
+
+                              if (appointment.status === 'completed') {
+                                const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+                                return attended
+                                  ? 'bg-gradient-to-b from-blue-500 to-blue-600'
+                                  : 'bg-gradient-to-b from-purple-500 to-purple-600';
+                              }
+                              return getStatusAccent(appointment.status);
+                            })()}`}
+                          />
+                          <div className="flex-1 p-4 flex items-center justify-between gap-4">
+                            {/* User Info */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
+                                <img
+                                  src={
+                                    (() => {
+                                      const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                      const otherUserProfilePic = appointmentUserId === currentUserId 
+                                        ? appointment.friendId?.profilePic 
+                                        : appointment.userId?.profilePic;
+                                      return otherUserProfilePic || '/default-profile.svg';
+                                    })()
+                                  }
+                                  alt="User"
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.src = '/default-profile.svg'; }}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-semibold text-base-content truncate">
+                                    {(() => {
+                                      const appointmentUserId = appointment.userId?._id || appointment.userId;
+                                      const otherUserName = appointmentUserId === currentUserId 
+                                        ? appointment.friendId?.fullName 
+                                        : appointment.userId?.fullName;
+                                      return otherUserName;
+                                    })()}
+                                  </p>
+                                  {/* Status Badge - Glass Effect - Small */}
+                                  {appointment.status !== 'completed' && (
+                                    <span className={`badge badge-xs badge-outline backdrop-blur-sm border-opacity-30 ${
+                                      appointment.status === 'confirmed' ? 'border-success bg-success/10 text-success' :
+                                      appointment.status === 'pending' ? 'border-warning bg-warning/10 text-warning' :
+                                      appointment.status === 'cancelled' ? 'border-error bg-error/10 text-error' :
+                                      appointment.status === 'declined' ? 'border-error bg-error/10 text-error' :
+                                      'border-neutral bg-neutral/10 text-neutral'
+                                    }`}>
+                                      {appointment.status}
+                                    </span>
+                                  )}
+                                  {/* Joined/Missed Indicator - Glass Effect - Small */}
+                                  {appointment.status === 'completed' && (() => {
+                                    const attended = (appointment.attendedBy || []).map(String).includes(currentUserId);
+                                    return (
+                                      <span className={`badge badge-xs badge-outline backdrop-blur-sm ${
+                                        attended 
+                                          ? 'border-info bg-info/20 text-info' 
+                                          : 'border-secondary bg-secondary/20 text-secondary'
+                                      }`}>
+                                        {attended ? 'joined' : 'missed'}
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                                <p className="text-xs text-base-content/70 flex items-center gap-1 mt-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {formatAppointmentDateTime(appointment)}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Ratings Stars */}
+                            {appointment.status === 'completed' && (() => {
+                              const ratings = appointment.ratings || [];
+                              const appointmentUserId = appointment.userId?._id || appointment.userId;
+                              const appointmentFriendId = appointment.friendId?._id || appointment.friendId;
+                              const otherId = (appointmentUserId === currentUserId) ? appointmentFriendId : appointmentUserId;
+                              const otherRating = ratings.find(r => (r.userId?._id || r.userId) === (otherId) || (r.userId && r.userId.toString() === (otherId && otherId.toString())));
+                              return (
+                                <div
+                                  className="flex items-center gap-0.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                                  onClick={() => {
+                                    if (otherRating) {
+                                      setViewingRating(otherRating);
+                                      setShowViewRatingModal(true);
+                                    }
+                                  }}
+                                  title={otherRating ? 'Click to view feedback' : 'No rating from other user'}
+                                >
+                                  {Array.from({ length: 5 }).map((_, i) => {
+                                    const filled = otherRating ? i < (otherRating.rating || 0) : false;
+                                    return (
+                                      <Star key={i} className={`w-4 h-4 ${filled ? 'text-yellow-400' : 'text-gray-400'}`} strokeWidth={filled ? 0 : 1.2} fill={filled ? 'currentColor' : 'none'} />
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Meeting Type & Title */}
+                            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                              <span className="badge badge-outline badge-sm flex items-center gap-1">
+                                {getMeetingTypeIcon(appointment.meetingType)}
+                                {appointment.meetingType}
+                              </span>
+                            </div>
+
+                            {/* Action Button */}
+                            <button
+                              onClick={() => setSelectedAppointment(appointment)}
+                              className="btn btn-xs btn-primary flex-shrink-0"
+                            >
+                              View
+                            </button>
+
+                            {/* Rate Button - Only for completed */}
+                            {appointment.status === 'completed' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRatingTarget(appointment);
+                                  setRatingModalOpen(true);
+                                }}
+                                className="btn btn-xs btn-outline btn-secondary flex-shrink-0"
+                              >
+                                Rate
+                              </button>
+                            )}
+
+                            {/* Cancel Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(appointment._id);
+                              }}
+                              className="btn btn-xs btn-outline btn-error flex-shrink-0"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredAppointments.map((appointment) => (
@@ -639,20 +847,27 @@ const AppointmentsPage = () => {
 
                                                     if (availability === 'offline') {
                                                       return (
-                                                        <div className={`badge badge-xs badge-neutral`}>
+                                                        <div className="badge badge-xs badge-outline backdrop-blur-sm border-neutral border-opacity-30 bg-neutral/10 text-neutral">
                                                           Offline
                                                         </div>
                                                       );
                                                     }
 
-                                                    const badgeClass = isCompleted
-                                                      ? (attended ? 'badge-primary' : 'badge-warning')
-                                                      : getStatusBadgeColor(appointment.status);
-                                                    const label = isCompleted
-                                                      ? (attended ? 'Joined' : 'Missed')
-                                                      : (appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending');
+                                                    // Don't show badge for completed appointments
+                                                    if (isCompleted) {
+                                                      return null;
+                                                    }
+
+                                                    const badgeClass = appointment.status === 'confirmed' 
+                                                      ? 'border-success bg-success/20 text-success'
+                                                      : appointment.status === 'pending'
+                                                      ? 'border-warning bg-warning/20 text-warning border-1'
+                                                      : appointment.status === 'declined'
+                                                      ? 'border-error bg-error/20 text-error'
+                                                      : 'border-neutral bg-neutral/20 text-neutral';
+                                                    const label = appointment.status?.charAt(0).toUpperCase() + appointment.status?.slice(1) || 'Pending';
                                                     return (
-                                                      <div className={`badge badge-xs ${badgeClass}`}>
+                                                      <div className={`badge badge-xs badge-outline backdrop-blur-sm ${badgeClass}`}>
                                                         {label}
                                                       </div>
                                                     );
