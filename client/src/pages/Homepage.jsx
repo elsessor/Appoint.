@@ -616,25 +616,10 @@ const HomePage = () => {
 
                           {/* Languages Section */}
                           <div className="flex flex-col gap-1.5">
-                            {(user.nativeLanguage || user.nationality) && (
-                              <span className="badge badge-secondary text-xs sm:text-sm gap-1">
-                                {getLanguageFlag(user.nativeLanguage || user.nationality)}
-                                <span>Native: {capitialize(user.nativeLanguage || user.nationality)}</span>
-                              </span>
-                            )}
-                            {(user.learningLanguage || (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0)) && (
+                            {(Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0) && (
                               <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                                {user.learningLanguage ? (
-                                  <>
-                                    {getLanguageFlag(user.learningLanguage)}
-                                    <span>Learning: {capitialize(user.learningLanguage)}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    {getLanguageFlag(user.languagesKnown?.[0])}
-                                    <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
-                                  </>
-                                )}
+                                {getLanguageFlag(user.languagesKnown?.[0])}
+                                <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
                               </span>
                             )}
                           </div>
@@ -737,23 +722,25 @@ const HomePage = () => {
                           {(user.nativeLanguage || user.nationality) && (
                             <span className="badge badge-secondary text-xs sm:text-sm gap-1">
                               {getLanguageFlag(user.nativeLanguage || user.nationality)}
-                              <span>Native: {capitialize(user.nativeLanguage || user.nationality)}</span>
+                              <span>Nationality: {capitialize(user.nativeLanguage || user.nationality)}</span>
                             </span>
                           )}
                           {(user.learningLanguage || (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0)) && (
-                            <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                              {user.learningLanguage ? (
-                                <>
-                                  {getLanguageFlag(user.learningLanguage)}
-                                  <span>Learning: {capitialize(user.learningLanguage)}</span>
-                                </>
-                              ) : (
-                                <>
-                                  {getLanguageFlag(user.languagesKnown?.[0])}
-                                  <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
-                                </>
-                              )}
-                            </span>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="badge badge-outline text-xs sm:text-sm gap-1">
+                                {user.learningLanguage ? (
+                                  <>
+                                    {getLanguageFlag(user.learningLanguage)}
+                                    <span>Learning: {capitialize(user.learningLanguage)}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {getLanguageFlag(user.languagesKnown?.[0])}
+                                    <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}{user.languagesKnown?.length > 2 ? ` +${user.languagesKnown.length - 2}` : ''}</span>
+                                  </>
+                                )}
+                              </span>
+                            </div>
                           )}
                         </div>
 

@@ -4,11 +4,57 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { completeOnboarding } from "../lib/api";
-import { LoaderIcon, MapPinIcon, ShuffleIcon, Phone, X, Users } from "lucide-react";
-import { LANGUAGES } from "../constants";
+import { LoaderIcon, MapPinIcon, ShuffleIcon, Phone, X, Users, ChevronDown } from "lucide-react";
+import { LANGUAGES, LANGUAGE_TO_FLAG } from "../constants";
 import ThemeSelector from "../components/ThemeSelector";
 import FemaleSymbol from "../assets/icons/female-symbol.svg";
 import MaleSymbol from "../assets/icons/male-symbol.svg";
+
+// Validation helper functions
+const validatePhoneNumber = (phone) => {
+  if (!phone) return { valid: true, error: null };
+  // Basic format check: should have at least 10 digits
+  const digitCount = phone.replace(/\D/g, '').length;
+  if (digitCount < 10) {
+    return { valid: false, error: "Phone number must have at least 10 digits" };
+  }
+  if (digitCount > 13) {
+    return { valid: false, error: "Phone number cannot exceed 13 digits" };
+  }
+  return { valid: true, error: null };
+};
+
+const validateBirthDate = (birthDate) => {
+  if (!birthDate) return { valid: true, error: null };
+  
+  const birth = new Date(birthDate);
+  const today = new Date();
+  
+  // Check if date is in future
+  if (birth > today) {
+    return { valid: false, error: "Birth date cannot be in the future" };
+  }
+  
+  // Calculate age
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  
+  // Minimum age constraint: 13 years
+  if (age < 13) {
+    return { valid: false, error: "You must be at least 13 years old" };
+  }
+  
+  // Maximum age constraint: 120 years (sanity check)
+  if (age > 120) {
+    return { valid: false, error: "Please enter a valid birth date" };
+  }
+  
+  return { valid: true, error: null };
+};
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
@@ -16,184 +62,265 @@ const OnboardingPage = () => {
   const queryClient = useQueryClient();
 
   const suggestedSkills = [
-    "Time Management",
-    "Communication",
-    "Leadership",
-    "Coordination",
-    "Problem Solving",
-    "Organization",
-    "Customer Service",
-    "Programming",
-    "Design",
-    "Marketing",
-    "Sales",
-    "Project Management",
-    "Public Speaking",
-    "Data Analysis",
-    "Web Development",
-    "UI/UX Design",
-    "Graphic Design",
-    "Copywriting",
-    "Content Creation",
-    "Teaching",
-    "Financial Analysis",
-    "Business Strategy",
-    "Negotiation",
-    "Team Building",
-    "Mentoring",
-    "Critical Thinking",
-    "Research",
-    "Technical Writing",
-    "Social Media Management",
-    "Content Strategy",
-    "Digital Marketing",
-    "SEO",
-    "Email Marketing",
-    "Brand Management",
-    "Public Relations",
-    "Event Planning",
-    "Community Management",
-    "Influencer Relations",
-    "Social Media Analytics",
-    "Video Production",
-    "Photography",
-    "Editing",
-    "Animation",
-    "Illustration",
-    "Adobe Creative Suite",
-    "Figma",
-    "Sketch",
-    "JavaScript",
-    "Python",
-    "React",
-    "Node.js",
-    "Database Design",
-    "API Development",
-    "Mobile App Development",
-    "Cloud Computing",
-    "DevOps",
-    "Cybersecurity",
-    "AI/Machine Learning",
-    "Data Science",
-    "Excel",
-    "Tableau",
-    "Power BI",
-    "Business Analysis",
-    "Accounting",
+    "Legal consultation",
+    "Contract review",
+    "Intellectual property advice",
+    "Family law guidance",
+    "Financial planning",
+    "Investment advice",
+    "Tax preparation",
+    "Estate planning",
+    "Retirement planning",
+    "Debt counseling",
+    "Business consulting",
+    "Startup mentorship",
+    "Business plan review",
+    "Franchise consulting",
+    "Career coaching",
+    "Resume review",
+    "Interview preparation",
+    "Job search strategy",
+    "Salary negotiation",
+    "Real estate advice",
+    "Property investment",
+    "Mortgage consulting",
+    "Insurance consultation",
+    "Risk management",
+    "Accounting services",
     "Bookkeeping",
-    "Tax Planning",
-    "Investment Management",
-    "Legal Expertise",
-    "Contract Management",
-    "Human Resources",
-    "Recruitment",
-    "Employee Relations",
-    "Training & Development",
-    "Supply Chain Management",
-    "Logistics",
-    "Inventory Management",
-    "Quality Assurance",
-    "Customer Success",
-    "User Experience Research",
-    "Product Management",
-    "Agile Methodology",
-    "Scrum",
-    "Kanban",
-    "Documentation",
-    "Presentation Skills",
-    "Writing",
-    "Editing",
-    "Proofreading",
-    "Translation",
-    "Language Teaching",
-    "Tutoring",
-    "Online Course Creation",
-    "Podcast Production",
-    "Voiceover",
-    "Audio Engineering",
-    "Music Production",
-    "DJing",
-    "Music Composition",
-    "Personal Training",
-    "Fitness Coaching",
-    "Nutrition Counseling",
-    "Life Coaching",
-    "Career Counseling",
-    "Therapy/Counseling",
-    "Real Estate",
-    "Property Management",
-    "Interior Design",
-    "Architecture",
-    "Construction Management",
-    "Carpentry",
-    "Plumbing",
-    "Electrical Work",
-    "Automotive Repair",
-    "Cooking",
-    "Baking",
-    "Nutrition",
-    "Food Photography",
-    "Recipe Development",
-    "Hospitality Management",
-    "Customer Service Excellence",
-    "Travel Planning",
-    "Tour Guiding",
-    "Language Skills",
-    "Cultural Consultation",
+    "Payroll consulting",
+    "HR consulting",
+    "Recruitment strategy",
+    "Employee relations",
+    "Performance management",
+    "Marketing strategy",
+    "SEO consulting",
+    "Email marketing",
+    "Affiliate marketing",
+    "Brand positioning",
+    "Market research",
+    "Sales coaching",
+    "Lead generation",
+    "Customer service training",
+    "Project management consulting",
+    "Agile coaching",
+    "Product management advice",
+    "Medical consultation",
+    "Telemedicine appointments",
+    "Mental health counseling",
+    "Nutrition counseling",
+    "Meal planning",
+    "Fitness training",
+    "Yoga instruction",
+    "Life coaching",
+    "Wellness coaching",
+    "Physical therapy",
+    "Speech therapy",
+    "Massage therapy consultation",
+    "Math tutoring",
+    "Language learning",
+    "English as a second language",
+    "Test preparation",
+    "SAT prep",
+    "Music lessons",
+    "Piano lessons",
+    "Art instruction",
+    "Programming",
+    "Python programming",
+    "Web development",
+    "Writing coaching",
+    "Public speaking",
+    "Graphic design",
+    "Logo design",
+    "Video editing",
+    "Photography consultation",
+    "Web design",
+    "Content writing",
+    "Social media management",
+    "Brand strategy",
+    "UI/UX design",
+    "Interior design consultation",
+    "Fashion design advice",
+    "Audio production",
+    "Podcast editing",
+    "Music production",
+    "Software development",
+    "Cybersecurity",
+    "IT support",
+    "Cloud consulting",
+    "Data analysis",
+    "AI/ML consulting",
+    "Database management",
+    "Leadership coaching",
+    "Executive coaching",
+    "Team building",
+    "Conflict resolution",
+    "Time management",
+    "Productivity coaching",
+    "Goal setting",
+    "Parenting advice",
+    "Personal styling",
+    "Home organization",
+    "Meditation instruction",
+    "Confidence building",
+    "Cooking classes",
+    "Baking lessons",
+    "Gardening advice",
+    "Pet training",
+    "Travel planning",
+    "Gaming coaching",
+    "Sports coaching",
+    "Dance instruction",
+    "Martial arts instruction",
+    "Photography tips",
+    "Astronomy",
+    "Chess coaching",
+    "Car maintenance advice",
+    "Event planning",
+    "Wedding planning",
+    "Makeup tutorials",
+    "Skincare consultation",
+    "Hair styling advice",
+    "Zero waste lifestyle",
+    "Eco-friendly living",
+    "Renewable energy consulting",
   ];
 
   const suggestedInterests = [
-    "Career Development",
-    "Business Strategy",
-    "Personal Growth",
-    "Health & Wellness",
-    "Education & Learning",
-    "Technology & Innovation",
-    "Creative Projects",
-    "Financial Planning",
-    "Leadership Coaching",
-    "Work-Life Balance",
-    "Networking",
-    "Problem Solving",
-    "Decision Making",
-    "Communication Skills",
-    "Mentoring",
-    "Industry Expertise",
-    "Project Management",
-    "Team Building",
-    "Time Management",
-    "Stress Management",
-    "Public Speaking",
-    "Writing & Content",
-    "Design & Aesthetics",
-    "Marketing & Branding",
-    "Data & Analytics",
-    "Customer Relations",
-    "Sales Strategy",
-    "Risk Management",
-    "Compliance & Legal",
-    "Entrepreneurship",
-    "Scaling Business",
-    "Social Impact",
+    "Professional Services",
+    "Legal matters",
+    "Financial planning",
+    "Business growth",
+    "Startup ecosystem",
+    "Career advancement",
+    "Real estate investing",
+    "Insurance & protection",
+    "Accounting & taxes",
+    "HR management",
+    "Marketing & branding",
+    "Sales excellence",
+    "Project management",
+    "Digital transformation",
+    "Health & wellness",
+    "Medical health",
+    "Mental health",
+    "Fitness & training",
+    "Nutrition & diet",
+    "Yoga & mindfulness",
+    "Life coaching",
+    "Holistic health",
+    "Physical therapy",
+    "Education & learning",
+    "Test preparation",
+    "Language learning",
+    "Music lessons",
+    "Art & creativity",
+    "Programming skills",
+    "Writing & storytelling",
+    "Academic excellence",
+    "Creative services",
+    "Graphic design",
+    "Video production",
+    "Photography",
+    "Web design",
+    "Content creation",
+    "Social media strategy",
+    "Brand development",
+    "UI/UX design",
+    "Interior design",
+    "Fashion & style",
+    "Audio & music",
+    "Technology & IT",
+    "Software development",
+    "Cybersecurity",
+    "IT solutions",
+    "Cloud technology",
+    "Data science",
+    "Artificial intelligence",
+    "Database management",
+    "Personal development",
+    "Leadership skills",
+    "Executive coaching",
+    "Team dynamics",
+    "Conflict resolution",
+    "Time management",
+    "Productivity",
+    "Goal achievement",
+    "Parenting support",
+    "Personal styling",
+    "Home organization",
+    "Meditation & mindfulness",
+    "Self-improvement",
+    "Hobbies & interests",
+    "Cooking & culinary",
+    "Gardening",
+    "Pet care",
+    "Travel & exploration",
+    "Gaming & esports",
+    "Sports & fitness",
+    "Dance & movement",
+    "Martial arts",
+    "Crafts & DIY",
+    "Photography passion",
+    "Astronomy",
+    "Game strategy",
+    "Automotive",
+    "Real estate",
+    "Events & entertainment",
+    "Beauty & personal care",
     "Sustainability",
-    "User Experience",
-    "Product Development",
-    "Quality Assurance",
-    "Agile Practices",
-    "Conflict Resolution",
-    "Negotiation",
-    "Relationship Building",
-    "Cultural Exchange",
-    "Language Practice",
-    "International Business",
-    "Remote Work",
-    "Startup Life",
-    "Corporate Culture",
-    "Work Efficiency",
-    "Technical Skills",
-    "Soft Skills",
-    "Professional Development",
+    "Environmental care",
+    "Green living",
+    "Eco-friendly practices",
+    "Community involvement",
   ];
+
+  // Nationality list - alphabetically sorted for easy navigation
+  const NATIONALITIES = [
+    "Afghan", "Albanian", "Algerian", "Andorran", "Angolan", "Argentinian", "Armenian", "Australian", "Austrian", "Azerbaijani",
+    "Bahamian", "Bahraini", "Bangladeshi", "Barbadian", "Belarusian", "Belgian", "Belizean", "Beninese", "Bhutanese", "Bolivian",
+    "Bosnian", "Botswanan", "Brazilian", "Bruneian", "Bulgarian", "Burkinabe", "Burundian",
+    "Cambodian", "Cameroonian", "Canadian", "Cape Verdean", "Central African", "Chadian", "Chilean", "Chinese", "Colombian", "Comoran",
+    "Congolese", "Costa Rican", "Croatian", "Cuban", "Cypriot", "Czech",
+    "Danish", "Djiboutian", "Dominican", "Dutch",
+    "East Timorese", "Ecuadorian", "Egyptian", "Salvadoran", "Equatorial Guinean", "Eritrean", "Estonian", "Ethiopian",
+    "Fijian", "Filipino", "Finnish", "French",
+    "Gabonese", "Gambian", "Georgian", "German", "Ghanaian", "Greek", "Grenadian", "Guatemalan", "Guinean", "Guinea-Bissauan", "Guyanese",
+    "Haitian", "Honduran", "Hungarian",
+    "Icelandic", "Indian", "Indonesian", "Iranian", "Iraqi", "Irish", "Israeli", "Italian", "Ivorian",
+    "Jamaican", "Japanese", "Jordanian",
+    "Kazakhstani", "Kenyan", "Kiribatian", "North Korean", "South Korean", "Kuwaiti", "Kyrgyzstani",
+    "Laotian", "Latvian", "Lebanese", "Lesothan", "Liberian", "Libyan", "Liechtensteiner", "Lithuanian", "Luxembourgish",
+    "Macedonian", "Malagasy", "Malawian", "Malaysian", "Maldivian", "Malian", "Maltese", "Marshallese", "Mauritanian", "Mauritian",
+    "Mexican", "Micronesian", "Moldovan", "Monegasque", "Mongolian", "Montenegrin", "Moroccan", "Mozambican", "Myanmar",
+    "Namibian", "Nauruan", "Nepalese", "Dutch", "New Zealander", "Nicaraguan", "Nigerien", "Nigerian", "Norwegian",
+    "Omani",
+    "Pakistani", "Palauan", "Palestinian", "Panamanian", "Papua New Guinean", "Paraguayan", "Peruvian", "Philippine", "Polish", "Portuguese",
+    "Qatari",
+    "Romanian", "Russian", "Rwandan",
+    "Saint Kitts and Nevisian", "Saint Lucian", "Vincentian", "Samoan", "Sammarinese", "Sao Tomean", "Saudi Arabian", "Senegalese",
+    "Serbian", "Seychellois", "Sierra Leonean", "Singaporean", "Slovak", "Slovenian", "Solomon Islander", "Somali", "South African",
+    "Spanish", "Sri Lankan", "Sudanese", "Surinamese", "Swedish", "Swiss", "Syrian",
+    "Taiwanese", "Tajikistani", "Tanzanian", "Thai", "Togolese", "Tongan", "Trinidadian and Tobagonian", "Tunisian", "Turkish",
+    "Turkmenistani", "Tuvaluan",
+    "Ugandan", "Ukrainian", "United Arab Emirati", "British", "American", "Uruguayan", "Uzbekistani",
+    "Vanuatuan", "Vatican", "Venezuelan", "Vietnamese",
+    "Yemeni",
+    "Zambian", "Zimbabwean"
+  ];
+
+  const getNationalityFlag = (nationality) => {
+    if (!nationality) return null;
+    const countryCode = LANGUAGE_TO_FLAG[nationality.toLowerCase().replace(/\s+/g, '')];
+    if (!countryCode) return null;
+    return (
+      <img
+        src={`https://flagcdn.com/24x18/${countryCode}.png`}
+        alt={`${nationality} flag`}
+        className="h-3.5 w-5 rounded-sm object-cover"
+      />
+    );
+  };
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formState, setFormState] = useState({
@@ -211,17 +338,35 @@ const OnboardingPage = () => {
     skills: authUser?.skills || [],
   });
 
-  // Generate default professional avatar on mount
+  // Facebook-like avatar colors
+  const avatarColors = [
+    { bg: '#0084FF', text: '#ffffff' }, // Facebook blue
+    { bg: '#31A24C', text: '#ffffff' }, // Green
+    { bg: '#E1306C', text: '#ffffff' }, // Pink
+    { bg: '#F77737', text: '#ffffff' }, // Orange
+    { bg: '#9B59B6', text: '#ffffff' }, // Purple
+    { bg: '#E74C3C', text: '#ffffff' }, // Red
+    { bg: '#1ABC9C', text: '#ffffff' }, // Teal
+    { bg: '#34495E', text: '#ffffff' }  // Dark gray
+  ];
+
+  const [avatarColor, setAvatarColor] = useState(0);
+
+  // Generate default Facebook-style avatar with initials
   useEffect(() => {
     if (!formState.profilePic) {
-      const colors = [
-        '#3498db', '#2980b9', '#1abc9c', '#16a085',
-        '#9b59b6', '#8e44ad', '#e74c3c', '#c0392b',
-        '#f39c12', '#e67e22', '#f1c40f', '#27ae60'
-      ];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      const bgColor = '#f5f5f5';
-      const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`;
+      const initials = formState.fullName
+        ?.split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || '?';
+      
+      const randomColorIndex = Math.floor(Math.random() * avatarColors.length);
+      const color = avatarColors[randomColorIndex];
+      setAvatarColor(randomColorIndex);
+      
+      const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${color.bg}"/><text x="100" y="130" font-size="90" font-weight="bold" text-anchor="middle" fill="${color.text}" font-family="Arial, sans-serif" letter-spacing="-2">${initials}</text></svg>`;
       const avatar = `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
       setFormState(prev => ({ ...prev, profilePic: avatar }));
     }
@@ -236,6 +381,16 @@ const OnboardingPage = () => {
   const [interestSearch, setInterestSearch] = useState("");
   const [showInterestSuggestions, setShowInterestSuggestions] = useState(false);
   const [customInterestInput, setCustomInterestInput] = useState("");
+  const [showNationalitySuggestions, setShowNationalitySuggestions] = useState(false);
+  const [nationalitySearch, setNationalitySearch] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    phone: null,
+    birthDate: null,
+  });
+
+  const filteredNationalities = nationalitySearch
+    ? NATIONALITIES.filter((n) => n.toLowerCase().includes(nationalitySearch.toLowerCase()))
+    : NATIONALITIES;
 
   const filteredInterestSuggestions = interestSearch
     ? suggestedInterests.filter((i) => {
@@ -329,6 +484,21 @@ const OnboardingPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (currentStep === 2) {
+      // Validate phone number before submitting
+      const phoneValidation = validatePhoneNumber(formState.phone);
+      const birthDateValidation = validateBirthDate(formState.birthDate);
+      
+      setValidationErrors({
+        phone: phoneValidation.error,
+        birthDate: birthDateValidation.error,
+      });
+      
+      // Don't submit if there are validation errors
+      if (!phoneValidation.valid || !birthDateValidation.valid) {
+        toast.error("Please fix the validation errors before submitting");
+        return;
+      }
+      
       onboardingMutation(formState);
     } else {
       handleNext();
@@ -367,6 +537,25 @@ const OnboardingPage = () => {
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 13);
     setFormState({ ...formState, phone: value });
+    
+    // Validate phone number
+    const validation = validatePhoneNumber(value);
+    setValidationErrors(prev => ({
+      ...prev,
+      phone: validation.error
+    }));
+  };
+
+  const handleBirthDateChange = (e) => {
+    const value = e.target.value;
+    setFormState({ ...formState, birthDate: value });
+    
+    // Validate birth date
+    const validation = validateBirthDate(value);
+    setValidationErrors(prev => ({
+      ...prev,
+      birthDate: validation.error
+    }));
   };
 
   const handleProfilePictureUpload = (e) => {
@@ -396,7 +585,6 @@ const OnboardingPage = () => {
   };
 
   const handleRandomAvatar = () => {
-    // Generate Facebook-style professional avatar using initials or user ID
     const initials = formState.fullName
       ?.split(' ')
       .map(n => n[0])
@@ -404,25 +592,34 @@ const OnboardingPage = () => {
       .toUpperCase()
       .slice(0, 2) || '?';
     
-    const colors = [
-      { bg: '#0084FF', text: '#ffffff' }, // Facebook blue
-      { bg: '#31A24C', text: '#ffffff' }, // Green
-      { bg: '#E1306C', text: '#ffffff' }, // Pink
-      { bg: '#F77737', text: '#ffffff' }, // Orange
-      { bg: '#9B59B6', text: '#ffffff' }, // Purple
-      { bg: '#E74C3C', text: '#ffffff' }, // Red
-      { bg: '#1ABC9C', text: '#ffffff' }, // Teal
-      { bg: '#34495E', text: '#ffffff' }  // Dark gray
-    ];
+    const randomColorIndex = Math.floor(Math.random() * avatarColors.length);
+    setAvatarColor(randomColorIndex);
     
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const bgColor = randomColor.bg;
-    const textColor = randomColor.text;
-    
-    const avatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><text x="100" y="115" font-size="80" font-weight="bold" text-anchor="middle" fill="${textColor}" font-family="Arial, sans-serif">${initials}</text></svg>`)}`;
+    const color = avatarColors[randomColorIndex];
+    const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${color.bg}"/><text x="100" y="130" font-size="90" font-weight="bold" text-anchor="middle" fill="${color.text}" font-family="Arial, sans-serif" letter-spacing="-2">${initials}</text></svg>`;
+    const avatar = `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
     
     setFormState({ ...formState, profilePic: avatar });
-    toast.success('Professional avatar generated!');
+    toast.success('Avatar color changed!');
+  };
+
+  const handleChangeAvatarColor = (colorIndex) => {
+    const generateAvatarWithColor = (colorIdx) => {
+      const initials = formState.fullName
+        ?.split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || '?';
+      
+      const color = avatarColors[colorIdx];
+      const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${color.bg}"/><text x="100" y="130" font-size="90" font-weight="bold" text-anchor="middle" fill="${color.text}" font-family="Arial, sans-serif" letter-spacing="-2">${initials}</text></svg>`;
+      return `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
+    };
+    
+    setAvatarColor(colorIndex);
+    const avatar = generateAvatarWithColor(colorIndex);
+    setFormState({ ...formState, profilePic: avatar });
   };
 
   return (
@@ -565,13 +762,63 @@ const OnboardingPage = () => {
                   <label className="label pb-2">
                     <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Nationality</span>
                   </label>
-                  <input
-                    type="text"
-                    value={formState.nationality}
-                    onChange={(e) => setFormState({ ...formState, nationality: e.target.value })}
-                    placeholder="e.g., United States, Canada, India..."
-                    className="input input-bordered input-sm bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
-                  />
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowNationalitySuggestions(!showNationalitySuggestions)}
+                      className="btn btn-sm btn-outline w-full justify-start text-left h-auto px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        {formState.nationality ? (
+                          <>
+                            {getNationalityFlag(formState.nationality)}
+                            <span>{formState.nationality}</span>
+                          </>
+                        ) : (
+                          <span className="text-base-content/50">Select your nationality...</span>
+                        )}
+                      </div>
+                    </button>
+
+                    {showNationalitySuggestions && (
+                      <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-hidden flex flex-col" onMouseLeave={() => setShowNationalitySuggestions(false)}>
+                        {/* Search Input Inside Dropdown */}
+                        <div className="p-2 border-b border-base-300 sticky top-0 bg-base-100">
+                          <input
+                            type="text"
+                            value={nationalitySearch}
+                            onChange={(e) => setNationalitySearch(e.target.value)}
+                            placeholder="Search nationality..."
+                            className="input input-bordered input-xs w-full text-xs"
+                            autoFocus
+                          />
+                        </div>
+
+                        {/* Nationality List */}
+                        <div className="overflow-y-auto flex-1">
+                          {filteredNationalities.length > 0 ? (
+                            filteredNationalities.map((nationality) => (
+                              <button
+                                type="button"
+                                key={nationality}
+                                onClick={() => {
+                                  setFormState({ ...formState, nationality });
+                                  setShowNationalitySuggestions(false);
+                                  setNationalitySearch("");
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs flex items-center gap-2"
+                              >
+                                {getNationalityFlag(nationality)}
+                                <span>{nationality}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-xs text-base-content/50">No nationalities found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Location & Phone & Birthdate Grid */}
@@ -607,11 +854,18 @@ const OnboardingPage = () => {
                         value={formState.phone}
                         onChange={handlePhoneChange}
                         maxLength="13"
-                        className="input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        className={`input input-bordered input-sm w-full pl-10 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors text-xs ${
+                          validationErrors.phone ? 'border-error focus:border-error' : 'border-base-300 focus:border-primary'
+                        }`}
                         placeholder="+63 976 789 1329"
                       />
                     </div>
-                    <span className="text-xs text-base-content/50 mt-1">{formState.phone.length}/13</span>
+                    <div className="flex justify-between items-start gap-2 mt-1">
+                      <span className="text-xs text-base-content/50">{formState.phone.length}/13</span>
+                      {validationErrors.phone && (
+                        <span className="text-xs text-error font-medium">{validationErrors.phone}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -624,9 +878,14 @@ const OnboardingPage = () => {
                     type="date"
                     name="birthDate"
                     value={formState.birthDate}
-                    onChange={(e) => setFormState({ ...formState, birthDate: e.target.value })}
-                    className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                    onChange={handleBirthDateChange}
+                    className={`input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors text-xs ${
+                      validationErrors.birthDate ? 'border-error focus:border-error' : 'border-base-300 focus:border-primary'
+                    }`}
                   />
+                  {validationErrors.birthDate && (
+                    <span className="text-xs text-error font-medium mt-1">{validationErrors.birthDate}</span>
+                  )}
                 </div>
               </div>
               </>

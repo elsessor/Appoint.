@@ -17,7 +17,7 @@ const LanguageBadge = ({ type, language }) => {
 
   return (
     <div className={`inline-flex items-center justify-center gap-2 px-2 py-1 rounded-lg text-xs font-medium ${
-      type === 'native' ? 'bg-primary text-primary-content' : 'bg-secondary/20 text-secondary'
+      type === 'nationality' ? 'bg-primary text-primary-content' : 'bg-secondary/20 text-secondary'
     }`}>
       {countryCode && (
         <img
@@ -26,7 +26,7 @@ const LanguageBadge = ({ type, language }) => {
           className="h-3.5 w-5 rounded-sm object-cover"
         />
       )}
-      <span>{type === 'native' ? language : 'Learn: ' + language}</span>
+      <span>{type === 'nationality' ? language : 'Learn: ' + language}</span>
     </div>
   );
 };
@@ -212,7 +212,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
   const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
-  const native = friend.nativeLanguage || friend.native || "Unknown";
+  const nationality = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
   const userOnline = usePresence(friend._id); // Subscribe to presence updates
@@ -273,8 +273,19 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
           </div>
 
           <div className="flex flex-col gap-1 hidden sm:flex">
-            <LanguageBadge type="native" language={native} />
-            <LanguageBadge type="learning" language={learning} />
+            <LanguageBadge type="nationality" language={nationality} />
+            {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 ? (
+              <div className="flex items-center gap-1 flex-wrap">
+                {friend.languagesKnown.slice(0, 2).map((lang, idx) => (
+                  <LanguageBadge key={idx} type="learning" language={lang} />
+                ))}
+                {friend.languagesKnown.length > 2 && (
+                  <span className="badge badge-secondary/20 text-secondary text-xs px-2 py-1 rounded-lg font-medium">+{friend.languagesKnown.length - 2}</span>
+                )}
+              </div>
+            ) : (
+              <LanguageBadge type="learning" language={learning} />
+            )}
           </div>
 
           <div className="card-actions justify-between gap-0.5 sm:gap-2 mt-auto">
@@ -342,7 +353,7 @@ const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
   const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
-  const native = friend.nativeLanguage || friend.native || "Unknown";
+  const nationality = friend.nativeLanguage || friend.native || "Unknown";
   const learning = friend.learningLanguage || friend.learning || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
   const userOnline = usePresence(friend._id); // Subscribe to presence updates
@@ -395,9 +406,20 @@ const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
           <p className={`text-xs font-medium capitalize ${statusColor}`}>
             {!userOnline ? 'Offline' : status}
           </p>
-          <div className="flex gap-2 mt-1 text-xs">
-            <span className="badge badge-sm badge-primary">{native}</span>
-            <span className="badge badge-sm badge-secondary/30">{learning}</span>
+          <div className="flex gap-2 mt-1 text-xs flex-wrap">
+            <span className="badge badge-sm badge-primary">{nationality}</span>
+            {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 ? (
+              <>
+                {friend.languagesKnown.slice(0, 2).map((lang, idx) => (
+                  <span key={idx} className="badge badge-sm badge-secondary/30">{lang}</span>
+                ))}
+                {friend.languagesKnown.length > 2 && (
+                  <span className="badge badge-sm badge-secondary/30">+{friend.languagesKnown.length - 2}</span>
+                )}
+              </>
+            ) : (
+              <span className="badge badge-sm badge-secondary/30">{learning}</span>
+            )}
           </div>
         </div>
 

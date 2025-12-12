@@ -11,5 +11,20 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('stream-chat')) return 'stream-chat-vendor'
+            if (id.includes('react-query') || id.includes('@tanstack/react-query')) return 'react-query-vendor'
+            if (id.includes('react-dom') || id.includes('react/')) return 'react-vendor'
+            return 'vendor'
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1500
   }
 })

@@ -3,6 +3,23 @@ import useAuthUser from "../hooks/useAuthUser";
 import { updateProfilePicture, getMyProfile, updateMyProfile } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
+import { LANGUAGE_TO_FLAG } from "../constants";
+
+const getLanguageFlag = (language) => {
+  if (!language) return null;
+  const langLower = language.toLowerCase();
+  const countryCode = LANGUAGE_TO_FLAG[langLower];
+  if (countryCode) {
+    return (
+      <img
+        src={`https://flagcdn.com/24x18/${countryCode}.png`}
+        alt={`${langLower} flag`}
+        className="h-3.5 w-5 rounded-sm object-cover inline-block mr-1"
+      />
+    );
+  }
+  return null;
+};
 
 const ProfilePage = () => {
   const { authUser } = useAuthUser();
@@ -713,7 +730,10 @@ const ProfilePage = () => {
                       className="bg-base-300 rounded px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   ) : (
-                    <span className="text-base-content/80">{profile.nationality || 'Add nationality'}</span>
+                    <span className="text-base-content/80 flex items-center">
+                      {profile.nationality && getLanguageFlag(profile.nationality)}
+                      {profile.nationality || 'Add nationality'}
+                    </span>
                   )}
                 </div>
 
@@ -760,12 +780,17 @@ const ProfilePage = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.languagesKnown.map((lang) => (
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {profile.languagesKnown.slice(0, 2).map((lang) => (
                       <span key={lang} className="inline-block px-3 py-1 bg-info/20 text-info rounded-full text-xs font-medium">
                         {lang}
                       </span>
                     ))}
+                    {profile.languagesKnown.length > 2 && (
+                      <span className="inline-block px-3 py-1 bg-info/20 text-info rounded-full text-xs font-bold">
+                        +{profile.languagesKnown.length - 2}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
