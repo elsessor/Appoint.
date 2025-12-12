@@ -85,8 +85,12 @@ export async function signup(req, res) {
         name: newUser.fullName,
         // Don't send image - can cause permission issues
       });
+      console.log("✅ Stream user created successfully for:", newUser._id.toString());
     } catch (err) {
-      console.log("Error creating Stream user:", err?.message || err);
+      console.error("❌ CRITICAL: Failed to create Stream user during signup:", err?.message || err);
+      // Delete the user since Stream setup failed
+      await User.findByIdAndDelete(newUser._id);
+      return res.status(500).json({ message: "Failed to setup chat services. Please try again." });
     }
 
     const token = signJwt(newUser._id);
@@ -153,15 +157,17 @@ export async function onboard(req, res) {
     const userId = req.user && req.user._id;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const { fullName, bio, nativeLanguage, learningLanguage, location, phone, skills } = req.body;
-    if (!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
+    const { fullName, bio, nationality, location, phone, skills, interests } = req.body;
+    console.log('Onboarding request body:', req.body);
+    console.log('profilePic in req.body:', req.body.profilePic);
+    
+    if (!fullName || !bio || !nationality || !location) {
       return res.status(400).json({
         message: "All fields are required",
         missingFields: [
           !fullName && "fullName",
           !bio && "bio",
-          !nativeLanguage && "nativeLanguage",
-          !learningLanguage && "learningLanguage",
+          !nationality && "nationality",
           !location && "location",
         ].filter(Boolean),
       });
@@ -172,6 +178,7 @@ export async function onboard(req, res) {
       {
         ...req.body,
         skills: Array.isArray(skills) ? skills : [],
+        interests: Array.isArray(interests) ? interests : [],
         isOnboarded: true,
       },
       { new: true }
@@ -185,8 +192,10 @@ export async function onboard(req, res) {
         name: updatedUser.fullName,
         // Don't send image - can cause permission issues
       });
+      console.log("✅ Stream user updated successfully during onboarding:", updatedUser._id.toString());
     } catch (streamError) {
-      console.log("Error updating Stream user during onboarding:", streamError?.message || streamError);
+      console.error("❌ CRITICAL: Failed to update Stream user during onboarding:", streamError?.message || streamError);
+      return res.status(500).json({ message: "Failed to sync profile with chat services. Please try again." });
     }
 
     return res.status(200).json({ success: true, user: updatedUser });

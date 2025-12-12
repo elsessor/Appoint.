@@ -27,23 +27,32 @@ const ProfilePage = () => {
     appointmentsCompleted: 0,
     rating: 0,
     successRate: 0,
+    birthDate: '',
+    nationality: '',
+    languagesKnown: [],
+    occupation: '',
+    profilePic: '',
+    skills: [],
+    interests: [],
   });
   const [draft, setDraft] = useState(profile);
   const draftRef = useRef(draft);
 
   useEffect(() => {
     if (!authUser) return;
+    console.log('authUser:', authUser);
     
     let cancelled = false;
     
     (async () => {
       try {
         const profileData = await getMyProfile();
+        console.log('Profile data from API:', profileData);
         if (cancelled) return;
 
         const profileUpdate = {
           name: profileData.fullName || authUser?.fullName || '',
-          profilePicture: profileData.profilePic || authUser?.profilePic || '',
+          profilePic: profileData.profilePic || authUser?.profilePic || '',
           about: profileData.bio || '',
           location: profileData.location || '',
           phone: profileData.phone || '',
@@ -60,6 +69,11 @@ const ProfilePage = () => {
           appointmentsCompleted: profileData.appointmentsCompleted || 0,
           rating: profileData.rating || 0,
           successRate: profileData.successRate || 0,
+          birthDate: profileData.birthDate || '',
+          nationality: profileData.nationality || '',
+          languagesKnown: profileData.languagesKnown || [],
+          occupation: profileData.occupation || '',
+          interests: profileData.interests || [],
         };
 
         setProfile(prev => ({ ...prev, ...profileUpdate }));
@@ -81,9 +95,12 @@ const ProfilePage = () => {
         const authBio = authUser?.bio || '';
         const authLoc = authUser?.location || '';
         
+        // Generate avatar for old accounts without profilePic
+        const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser?._id || 'default'}`;
+        
         const fallback = {
           name: authName,
-          profilePicture: authPic,
+          profilePic: authPic || defaultAvatar,
           about: authBio,
           location: authLoc,
           phone: '',
@@ -100,6 +117,11 @@ const ProfilePage = () => {
           appointmentsCompleted: 0,
           rating: 0,
           successRate: 0,
+          birthDate: '',
+          nationality: '',
+          languagesKnown: [],
+          occupation: '',
+          interests: [],
         };
         
         setProfile(prev => ({ ...prev, ...fallback }));
@@ -112,6 +134,7 @@ const ProfilePage = () => {
     };
   }, [authUser]);
   const [skills, setSkills] = useState(["Time Management", "Coordination", "Skills Management"]);
+  const [interests, setInterests] = useState([]);
 
   useEffect(() => {
     if (Array.isArray(profile.skills)) setSkills(profile.skills);
@@ -227,6 +250,11 @@ const ProfilePage = () => {
         appointmentsCompleted: toSave.appointmentsCompleted || 0,
         rating: toSave.rating || 0,
         successRate: toSave.successRate || 0,
+        birthDate: toSave.birthDate || '',
+        nationality: toSave.nationality || '',
+        languagesKnown: Array.isArray(toSave.languagesKnown) ? toSave.languagesKnown : [],
+        occupation: toSave.occupation || '',
+        interests: Array.isArray(toSave.interests) ? toSave.interests : [],
       };
       
       console.log('Payload being sent:', updatePayload);
@@ -241,7 +269,7 @@ const ProfilePage = () => {
       
       const profileUpdate = {
         name: updatedProfileData.fullName || authUser?.fullName || '',
-        profilePicture: updatedProfileData.profilePic || authUser?.profilePic || '',
+        profilePic: updatedProfileData.profilePic || authUser?.profilePic || '',
         about: updatedProfileData.bio || '',
         location: updatedProfileData.location || '',
         phone: updatedProfileData.phone || '',
@@ -258,6 +286,11 @@ const ProfilePage = () => {
         appointmentsCompleted: updatedProfileData.appointmentsCompleted || 0,
         rating: updatedProfileData.rating || 0,
         successRate: updatedProfileData.successRate || 0,
+        birthDate: updatedProfileData.birthDate || '',
+        nationality: updatedProfileData.nationality || '',
+        languagesKnown: updatedProfileData.languagesKnown || [],
+        occupation: updatedProfileData.occupation || '',
+        interests: updatedProfileData.interests || [],
       };
       
       setProfile(profileUpdate);
@@ -381,19 +414,26 @@ const ProfilePage = () => {
       
       const compressedDataUrl = await compressImage(file);
       
-      setProfile(prev => ({ ...prev, profilePicture: compressedDataUrl }));
-      const next = { ...draftRef.current, profilePicture: compressedDataUrl };
+      setProfile(prev => ({ ...prev, profilePic: compressedDataUrl }));
+      const next = { ...draftRef.current, profilePic: compressedDataUrl };
       setDraft(next);
       draftRef.current = next;
 
       await updateProfilePicture({ profilePic: compressedDataUrl });
+      console.log('Profile picture updated, invalidating queries');
       
+      // Refetch both authUser and profile data
       await queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      
+      // Also manually refetch the profile to get latest data
+      const updatedProfile = await getMyProfile();
+      console.log('Refetched profile:', updatedProfile);
+      setProfile(prev => ({ ...prev, profilePic: updatedProfile.profilePic }));
       
       const key = authUser ? `profile_${authUser._id}` : 'profile_guest';
       const saved = localStorage.getItem(key);
       const parsed = saved ? JSON.parse(saved) : {};
-      const merged = { ...parsed, profilePicture: compressedDataUrl };
+      const merged = { ...parsed, profilePic: compressedDataUrl };
       localStorage.setItem(key, JSON.stringify(merged));
       
       toast.success("Profile picture updated successfully");
@@ -458,7 +498,7 @@ const ProfilePage = () => {
           {/* Profile Picture */}
           <div className="relative">
             <img
-              src={authUser?.profilePic || profile.profilePicture || "/profile.jpg"}
+              src={authUser?.profilePic || profile.profilePic || "/profile.jpg"}
               alt={authUser?.fullName || profile.name}
               className="w-20 sm:w-32 h-20 sm:h-32 rounded-full object-cover border-4 border-base-200 shadow-xl"
               onError={(e) => {
@@ -608,8 +648,8 @@ const ProfilePage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Contact & Social */}
           <div className="space-y-6">
-            <div className="bg-base-100 rounded-lg p-4 shadow">
-              <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <div className="bg-base-100 rounded-xl p-5 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold mb-4 flex items-center text-primary">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -640,12 +680,99 @@ const ProfilePage = () => {
                     <span className="text-base-content/80">{profile.phone || 'Add phone'}</span>
                   )}
                 </div>
+
+                {/* Birth Date */}
+                <div className="flex items-center space-x-3 text-sm">
+                  <svg className="w-4 h-4 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={draft.birthDate}
+                      onChange={onFieldChange('birthDate')}
+                      className="bg-base-300 rounded px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <span className="text-base-content/80">
+                      {profile.birthDate ? new Date(profile.birthDate).toLocaleDateString() : 'Add birth date'}
+                    </span>
+                  )}
+                </div>
+
+                {/* Nationality */}
+                <div className="flex items-center space-x-3 text-sm">
+                  <svg className="w-4 h-4 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {isEditing ? (
+                    <input
+                      value={draft.nationality}
+                      onChange={onFieldChange('nationality')}
+                      placeholder="e.g., United States, Canada..."
+                      className="bg-base-300 rounded px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <span className="text-base-content/80">{profile.nationality || 'Add nationality'}</span>
+                  )}
+                </div>
+
+                {/* Occupation */}
+                <div className="flex items-center space-x-3 text-sm">
+                  <svg className="w-4 h-4 text-base-content/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15a23.93 23.93 0 07-9-1.977m18-3.438a20.88 20.88 0 003.507-5.856m-15.232 16.184a109.48 109.48 0 015.25-5.855m-12.617-2.605L9 21m9-11.248L9 3" />
+                  </svg>
+                  {isEditing ? (
+                    <input
+                      value={draft.occupation}
+                      onChange={onFieldChange('occupation')}
+                      placeholder="e.g., Software Engineer, Designer..."
+                      className="bg-base-300 rounded px-2 py-1 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <span className="text-base-content/80">{profile.occupation || 'Add occupation'}</span>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Social Links */}
-            <div className="bg-base-100 rounded-lg p-4 shadow">
-              <h3 className="text-lg font-semibold mb-4">Connect With Me</h3>
+            {/* Languages Known */}
+            {profile.languagesKnown && profile.languagesKnown.length > 0 && (
+              <div className="bg-base-100 rounded-xl p-5 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold mb-4 text-primary">Languages Known</h3>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.languagesKnown.map((lang) => (
+                      <div key={lang} className="inline-flex items-center gap-2 px-3 py-1 bg-info/20 text-info rounded-full text-xs font-medium">
+                        {lang}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = profile.languagesKnown.filter(l => l !== lang);
+                            setProfile(prev => ({ ...prev, languagesKnown: updated }));
+                            setDraft(prev => ({ ...prev, languagesKnown: updated }));
+                          }}
+                          className="text-xs ml-1 hover:opacity-60"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.languagesKnown.map((lang) => (
+                      <span key={lang} className="inline-block px-3 py-1 bg-info/20 text-info rounded-full text-xs font-medium">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="bg-base-100 rounded-xl p-5 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow">
+              <h3 className="text-lg font-semibold mb-4 text-primary">Connect With Me</h3>
               <div className="space-y-3">
                 {/* Portfolio/Website */}
                 <div className="flex items-center space-x-3">
@@ -776,19 +903,18 @@ const ProfilePage = () => {
           {/* Right Column - About & Skills */}
           <div className="lg:col-span-2 space-y-6">
             {/* About Section */}
-            <div className="bg-base-100 rounded-lg p-6 shadow">
-              <h3 className="text-xl font-bold mb-4">About</h3>
+            <div className="bg-base-100 rounded-xl p-6 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow h-80">
+              <h3 className="text-xl font-bold mb-4 text-primary">About</h3>
               {isEditing ? (
                 <textarea
                   value={draft.about}
                   onChange={onFieldChange('about')}
-                  rows={6}
                   placeholder="Write something about yourself..."
-                  className="w-full bg-base-300 rounded p-3 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full h-64 bg-base-300 rounded p-3 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                 />
               ) : (
-                <div>
-                  <div className={`text-base-content/80 leading-relaxed whitespace-pre-wrap ${!isAboutExpanded && 'line-clamp-3'}`}>
+                <div className="h-64 overflow-y-auto">
+                  <div className={`text-base-content/80 leading-relaxed whitespace-pre-wrap ${!isAboutExpanded && 'line-clamp-none'}`}>
                     {profile.about || 'Add information about yourself'}
                   </div>
                   {profile.about && profile.about.length > 150 && (
@@ -804,123 +930,143 @@ const ProfilePage = () => {
             </div>
 
             {/* Skills & Interests Section */}
-            <div className="bg-base-100 rounded-lg p-6 shadow">
-              <h3 className="text-xl font-semibold mb-4">Skills & Expertise</h3>
-              {isEditing ? (
-                    <div>
-                      {/* Skills box with dropdown mechanics */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold mb-2">Skills</h4>
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
-                          <div className="w-full max-w-xs">
-                            <input
-                              placeholder="Search skill (e.g. Programming) and click from dropdown"
-                              value={skillSearch}
-                              onChange={(e) => setSkillSearch(e.target.value)}
-                              className="input input-bordered w-full"
-                            />
-                            {filteredSuggestions.length > 0 && (
-                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
-                                {filteredSuggestions.map((s) => (
-                                  <button
-                                    type="button"
-                                    key={s}
-                                    onClick={() => { addSkillToDraft(s); setSkillSearch(''); }}
-                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-sm text-base-content/70">
-                            Start typing to see matching skills, then click to add.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Interests box with its own dropdown */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-semibold mb-2">Interests</h4>
-                        <div className="flex flex-col md:flex-row items-start md:items-center gap-2 relative">
-                          <div className="w-full max-w-xs">
-                            <input
-                              placeholder="Search interest (e.g. Baking) and click from dropdown"
-                              value={interestSearch}
-                              onChange={(e) => setInterestSearch(e.target.value)}
-                              className="input input-bordered w-full"
-                            />
-                            {filteredInterestSuggestions.length > 0 && (
-                              <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-10">
-                                {filteredInterestSuggestions.map((s) => (
-                                  <button
-                                    type="button"
-                                    key={s}
-                                    onClick={() => { addSkillToDraft(s); setInterestSearch(''); }}
-                                    className="w-full text-left px-3 py-2 hover:bg-base-200"
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-sm text-base-content/70">
-                            Start typing to see matching interests, then click to add.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Separate box for custom skills/interests without dropdown */}
-                      <div className="flex flex-col md:flex-row items-start md:items-center gap-2 mb-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Skills Column */}
+              <div className="bg-base-100 rounded-xl p-6 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold mb-4 text-primary">Skills</h3>
+                {isEditing ? (
+                  <div>
+                    {/* Skills search box */}
+                    <div className="mb-3">
+                      <div className="w-full">
                         <input
-                          placeholder="Add custom skill or interest"
-                          value={customSkillInput}
-                          onChange={(e) => setCustomSkillInput(e.target.value)}
-                          className="input input-bordered w-full max-w-xs"
+                          placeholder="Search skill (e.g. Programming)"
+                          value={skillSearch}
+                          onChange={(e) => setSkillSearch(e.target.value)}
+                          className="input input-bordered input-sm w-full text-sm"
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const trimmed = customSkillInput.trim();
-                            if (trimmed) {
-                              addSkillToDraft(trimmed);
-                              setCustomSkillInput('');
-                            }
-                          }}
-                          className="btn btn-sm btn-primary"
-                        >
-                          Add
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-                        {(draft.skills || skills || []).map((skill, index) => (
-                          <span key={index} className="inline-flex items-center gap-2 px-4 py-2 bg-base-300 text-primary rounded-full text-base font-medium">
-                            <span>{skill}</span>
-                            <button type="button" onClick={() => removeSkillFromDraft(index)} className="text-xs text-error ml-2">×</button>
-                          </span>
-                        ))}
+                        {filteredSuggestions.length > 0 && (
+                          <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto z-10">
+                            {filteredSuggestions.map((s) => (
+                              <button
+                                type="button"
+                                key={s}
+                                onClick={() => { addSkillToDraft(s); setSkillSearch(''); }}
+                                className="w-full text-left px-2 py-1.5 hover:bg-base-200 text-sm"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-3">
-                      {(skills || []).map((skill, index) => (
-                        <span
-                          key={index}
-                          className="px-5 py-3 bg-base-300 text-primary rounded-full text-base font-medium"
-                        >
-                          {skill}
+
+                    {/* Display skills */}
+                    <div className="flex flex-wrap gap-2">
+                      {(draft.skills || skills || []).map((skill, index) => (
+                        <span key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-300 text-primary rounded-full text-xs font-medium">
+                          <span>{skill}</span>
+                          <button type="button" onClick={() => removeSkillFromDraft(index)} className="text-xs text-error hover:opacity-70">×</button>
                         </span>
                       ))}
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div>
+                    {(skills && skills.length > 0) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-base-300 text-primary rounded-full text-xs font-medium"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-base-content/50 text-sm">No skills added yet</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Interests Column */}
+              <div className="bg-base-100 rounded-xl p-6 shadow-md border border-base-300/50 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold mb-4 text-secondary">Interests</h3>
+                {isEditing ? (
+                  <div>
+                    {/* Interests search box */}
+                    <div className="mb-3">
+                      <div className="w-full">
+                        <input
+                          placeholder="Search interest (e.g. Baking)"
+                          value={interestSearch}
+                          onChange={(e) => setInterestSearch(e.target.value)}
+                          className="input input-bordered input-sm w-full text-sm"
+                        />
+                        {filteredInterestSuggestions.length > 0 && (
+                          <div className="mt-1 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-40 overflow-y-auto z-10">
+                            {filteredInterestSuggestions.map((s) => (
+                              <button
+                                type="button"
+                                key={s}
+                                onClick={() => { addSkillToDraft(s); setInterestSearch(''); }}
+                                className="w-full text-left px-2 py-1.5 hover:bg-base-200 text-sm"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Display interests */}
+                    <div className="flex flex-wrap gap-2">
+                      {(profile.interests || []).map((interest, index) => (
+                        <span key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-base-300 text-secondary rounded-full text-xs font-medium">
+                          <span>{interest}</span>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              const updated = (profile.interests || []).filter((_, i) => i !== index);
+                              setProfile(prev => ({ ...prev, interests: updated }));
+                              setDraft(prev => ({ ...prev, interests: updated }));
+                            }} 
+                            className="text-xs text-error hover:opacity-70"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {(profile.interests && profile.interests.length > 0) ? (
+                      <div className="flex flex-wrap gap-2">
+                        {profile.interests.map((interest, index) => (
+                          <span
+                            key={index}
+                            className="px-3 py-1 bg-secondary/20 text-secondary rounded-full text-xs font-medium"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-base-content/50 text-sm">No interests added yet</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
   );
 };
 

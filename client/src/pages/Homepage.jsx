@@ -267,10 +267,16 @@ const HomePage = () => {
 
     // Apply language filter
     if (languageFilter !== "all") {
-      filtered = filtered.filter((user) =>
-        user.nativeLanguage === languageFilter ||
-        user.learningLanguage === languageFilter
-      );
+      filtered = filtered.filter((user) => {
+        // Support both old and new field structures
+        const userLanguages = [
+          user.nativeLanguage,
+          user.learningLanguage,
+          user.nationality,
+          ...(Array.isArray(user.languagesKnown) ? user.languagesKnown : [])
+        ].filter(Boolean);
+        return userLanguages.includes(languageFilter);
+      });
     }
 
     return filtered;
@@ -280,8 +286,13 @@ const HomePage = () => {
   const availableLanguages = useMemo(() => {
     const languages = new Set();
     recommendedUsers.forEach((user) => {
+      // Support both old and new field structures
       if (user.nativeLanguage) languages.add(user.nativeLanguage);
       if (user.learningLanguage) languages.add(user.learningLanguage);
+      if (user.nationality) languages.add(user.nationality);
+      if (Array.isArray(user.languagesKnown)) {
+        user.languagesKnown.forEach(lang => languages.add(lang));
+      }
     });
     return Array.from(languages).sort();
   }, [recommendedUsers]);
@@ -605,14 +616,27 @@ const HomePage = () => {
 
                           {/* Languages Section */}
                           <div className="flex flex-col gap-1.5">
-                            <span className="badge badge-secondary text-xs sm:text-sm gap-1">
-                              {getLanguageFlag(user.nativeLanguage)}
-                              <span>Native: {capitialize(user.nativeLanguage)}</span>
-                            </span>
-                            <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                              {getLanguageFlag(user.learningLanguage)}
-                              <span>Learning: {capitialize(user.learningLanguage)}</span>
-                            </span>
+                            {(user.nativeLanguage || user.nationality) && (
+                              <span className="badge badge-secondary text-xs sm:text-sm gap-1">
+                                {getLanguageFlag(user.nativeLanguage || user.nationality)}
+                                <span>Native: {capitialize(user.nativeLanguage || user.nationality)}</span>
+                              </span>
+                            )}
+                            {(user.learningLanguage || (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0)) && (
+                              <span className="badge badge-outline text-xs sm:text-sm gap-1">
+                                {user.learningLanguage ? (
+                                  <>
+                                    {getLanguageFlag(user.learningLanguage)}
+                                    <span>Learning: {capitialize(user.learningLanguage)}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {getLanguageFlag(user.languagesKnown?.[0])}
+                                    <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
+                                  </>
+                                )}
+                              </span>
+                            )}
                           </div>
 
                           {/* Bio Section */}
@@ -710,14 +734,27 @@ const HomePage = () => {
 
                         {/* Languages Section */}
                         <div className="flex flex-col gap-1.5">
-                          <span className="badge badge-secondary text-xs sm:text-sm gap-1">
-                            {getLanguageFlag(user.nativeLanguage)}
-                            <span>Native: {capitialize(user.nativeLanguage)}</span>
-                          </span>
-                          <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                            {getLanguageFlag(user.learningLanguage)}
-                            <span>Learning: {capitialize(user.learningLanguage)}</span>
-                          </span>
+                          {(user.nativeLanguage || user.nationality) && (
+                            <span className="badge badge-secondary text-xs sm:text-sm gap-1">
+                              {getLanguageFlag(user.nativeLanguage || user.nationality)}
+                              <span>Native: {capitialize(user.nativeLanguage || user.nationality)}</span>
+                            </span>
+                          )}
+                          {(user.learningLanguage || (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0)) && (
+                            <span className="badge badge-outline text-xs sm:text-sm gap-1">
+                              {user.learningLanguage ? (
+                                <>
+                                  {getLanguageFlag(user.learningLanguage)}
+                                  <span>Learning: {capitialize(user.learningLanguage)}</span>
+                                </>
+                              ) : (
+                                <>
+                                  {getLanguageFlag(user.languagesKnown?.[0])}
+                                  <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
+                                </>
+                              )}
+                            </span>
+                          )}
                         </div>
 
                         {/* Bio Section */}

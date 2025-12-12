@@ -72,7 +72,7 @@ export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
       .select("friends favorites")
-      .populate("friends", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
+      .populate("friends", "fullName profilePic nationality languagesKnown availabilityStatus");
 
     const friendsWithFavoriteStatus = user.friends.map(friend => {
       const friendObj = friend.toObject();
@@ -171,7 +171,7 @@ export async function getFriendRequests(req, res) {
     const incomingReqs = await FriendRequest.find({
       recipient: req.user.id,
       status: "pending",
-    }).populate("sender", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
+    }).populate("sender", "fullName profilePic nationality languagesKnown availabilityStatus");
 
     const acceptedReqs = await FriendRequest.find({
       sender: req.user.id,
@@ -190,7 +190,7 @@ export async function getOutgoingFriendReqs(req, res) {
     const outgoingRequests = await FriendRequest.find({
       sender: req.user.id,
       status: "pending",
-    }).populate("recipient", "fullName profilePic nativeLanguage learningLanguage availabilityStatus");
+    }).populate("recipient", "fullName profilePic nationality languagesKnown availabilityStatus");
 
     res.status(200).json(outgoingRequests);
   } catch (error) {
@@ -510,25 +510,34 @@ export async function getMyProfile(req, res) {
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    res.status(200).json({
+
+    // Ensure old accounts have default values for new fields
+    const profileData = {
       fullName: user.fullName,
-      profilePic: user.profilePic,
-      bio: user.bio,
-      location: user.location,
-      phone: user.phone,
-      twitter: user.twitter,
-      github: user.github,
-      pinterest: user.pinterest,
-      linkedin: user.linkedin,
-      portfolio: user.portfolio,
-      jobTitle: user.jobTitle,
-      company: user.company,
-      yearsExperience: user.yearsExperience,
-      appointmentsCompleted: user.appointmentsCompleted,
-      rating: user.rating,
-      successRate: user.successRate,
-      skills: user.skills || [],
-    });
+      profilePic: user.profilePic || "",
+      bio: user.bio || "",
+      location: user.location || "",
+      phone: user.phone || "",
+      twitter: user.twitter || "",
+      github: user.github || "",
+      pinterest: user.pinterest || "",
+      linkedin: user.linkedin || "",
+      portfolio: user.portfolio || "",
+      jobTitle: user.jobTitle || "",
+      company: user.company || "",
+      yearsExperience: user.yearsExperience || 0,
+      appointmentsCompleted: user.appointmentsCompleted || 0,
+      rating: user.rating || 0,
+      successRate: user.successRate || 0,
+      skills: Array.isArray(user.skills) ? user.skills : [],
+      birthDate: user.birthDate || "",
+      nationality: user.nationality || "",
+      languagesKnown: Array.isArray(user.languagesKnown) ? user.languagesKnown : [],
+      occupation: user.occupation || "",
+      interests: Array.isArray(user.interests) ? user.interests : [],
+    };
+
+    res.status(200).json(profileData);
   } catch (error) {
     console.error("Error in getMyProfile controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -540,7 +549,8 @@ export async function updateMyProfile(req, res) {
     const userId = req.user.id;
     const { 
       fullName, bio, location, phone, twitter, github, pinterest, linkedin, portfolio,
-      skills, jobTitle, company, yearsExperience, appointmentsCompleted, rating, successRate 
+      skills, jobTitle, company, yearsExperience, appointmentsCompleted, rating, successRate,
+      birthDate, nationality, languagesKnown, occupation, interests, profilePic
     } = req.body;
 
     const updates = {};
@@ -560,6 +570,12 @@ export async function updateMyProfile(req, res) {
     if (rating !== undefined) updates.rating = rating;
     if (successRate !== undefined) updates.successRate = successRate;
     if (skills !== undefined) updates.skills = Array.isArray(skills) ? skills : [];
+    if (birthDate !== undefined) updates.birthDate = birthDate;
+    if (nationality !== undefined) updates.nationality = nationality;
+    if (languagesKnown !== undefined) updates.languagesKnown = Array.isArray(languagesKnown) ? languagesKnown : [];
+    if (occupation !== undefined) updates.occupation = occupation;
+    if (interests !== undefined) updates.interests = Array.isArray(interests) ? interests : [];
+    if (profilePic !== undefined) updates.profilePic = profilePic;
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ message: "No profile fields provided to update" });
@@ -614,6 +630,11 @@ export async function updateMyProfile(req, res) {
         rating: updatedUser.rating,
         successRate: updatedUser.successRate,
         skills: updatedUser.skills || [],
+        birthDate: updatedUser.birthDate || "",
+        nationality: updatedUser.nationality || "",
+        languagesKnown: updatedUser.languagesKnown || [],
+        occupation: updatedUser.occupation || "",
+        interests: updatedUser.interests || [],
       },
     });
   } catch (error) {

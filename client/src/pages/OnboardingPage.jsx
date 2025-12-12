@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -142,21 +142,136 @@ const OnboardingPage = () => {
     "Cultural Consultation",
   ];
 
+  const suggestedInterests = [
+    "Career Development",
+    "Business Strategy",
+    "Personal Growth",
+    "Health & Wellness",
+    "Education & Learning",
+    "Technology & Innovation",
+    "Creative Projects",
+    "Financial Planning",
+    "Leadership Coaching",
+    "Work-Life Balance",
+    "Networking",
+    "Problem Solving",
+    "Decision Making",
+    "Communication Skills",
+    "Mentoring",
+    "Industry Expertise",
+    "Project Management",
+    "Team Building",
+    "Time Management",
+    "Stress Management",
+    "Public Speaking",
+    "Writing & Content",
+    "Design & Aesthetics",
+    "Marketing & Branding",
+    "Data & Analytics",
+    "Customer Relations",
+    "Sales Strategy",
+    "Risk Management",
+    "Compliance & Legal",
+    "Entrepreneurship",
+    "Scaling Business",
+    "Social Impact",
+    "Sustainability",
+    "User Experience",
+    "Product Development",
+    "Quality Assurance",
+    "Agile Practices",
+    "Conflict Resolution",
+    "Negotiation",
+    "Relationship Building",
+    "Cultural Exchange",
+    "Language Practice",
+    "International Business",
+    "Remote Work",
+    "Startup Life",
+    "Corporate Culture",
+    "Work Efficiency",
+    "Technical Skills",
+    "Soft Skills",
+    "Professional Development",
+  ];
+
+  const [currentStep, setCurrentStep] = useState(1);
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
     bio: authUser?.bio || "",
-    nativeLanguage: authUser?.nativeLanguage || "",
-    learningLanguage: authUser?.learningLanguage || "",
+    nationality: authUser?.nationality || "",
+    languagesKnown: authUser?.languagesKnown || [],
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
     phone: authUser?.phone || "",
     gender: authUser?.gender || "",
+    birthDate: authUser?.birthDate || "",
+    occupation: authUser?.occupation || "",
+    interests: authUser?.interests || [],
     skills: authUser?.skills || [],
   });
+
+  // Generate default professional avatar on mount
+  useEffect(() => {
+    if (!formState.profilePic) {
+      const colors = [
+        '#3498db', '#2980b9', '#1abc9c', '#16a085',
+        '#9b59b6', '#8e44ad', '#e74c3c', '#c0392b',
+        '#f39c12', '#e67e22', '#f1c40f', '#27ae60'
+      ];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      const bgColor = '#f5f5f5';
+      const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`;
+      const avatar = `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
+      setFormState(prev => ({ ...prev, profilePic: avatar }));
+    }
+  }, []);
+
+  const [languageSearch, setLanguageSearch] = useState("");
+  const [showLanguageSuggestions, setShowLanguageSuggestions] = useState(false);
 
   const [skillSearch, setSkillSearch] = useState("");
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
   const [customSkillInput, setCustomSkillInput] = useState("");
+  const [interestSearch, setInterestSearch] = useState("");
+  const [showInterestSuggestions, setShowInterestSuggestions] = useState(false);
+  const [customInterestInput, setCustomInterestInput] = useState("");
+
+  const filteredInterestSuggestions = interestSearch
+    ? suggestedInterests.filter((i) => {
+        const query = interestSearch.toLowerCase();
+        return i.toLowerCase().includes(query) && !formState.interests.includes(i);
+      })
+    : suggestedInterests.filter((i) => !formState.interests.includes(i));
+
+  const addInterest = (interest) => {
+    if (!formState.interests.includes(interest)) {
+      setFormState({
+        ...formState,
+        interests: [...formState.interests, interest],
+      });
+    }
+    setInterestSearch("");
+    setShowInterestSuggestions(false);
+  };
+
+  const addCustomInterest = () => {
+    const trimmedInterest = customInterestInput.trim();
+    if (trimmedInterest && !formState.interests.includes(trimmedInterest)) {
+      setFormState({
+        ...formState,
+        interests: [...formState.interests, trimmedInterest],
+      });
+      setCustomInterestInput("");
+    }
+  };
+
+  const removeInterest = (interestToRemove) => {
+    setFormState({
+      ...formState,
+      interests: formState.interests.filter((i) => i !== interestToRemove),
+    });
+  };
 
   const filteredSkillSuggestions = skillSearch
     ? suggestedSkills.filter((s) => {
@@ -197,40 +312,27 @@ const OnboardingPage = () => {
     },
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onboardingMutation(formState);
+  const handleNext = () => {
+    if (currentStep === 1) {
+      if (!formState.fullName.trim()) {
+        toast.error("Please enter your full name");
+        return;
+      }
+      setCurrentStep(2);
+    }
   };
 
-  const handleRandomAvatar = () => {
-    // Randomly choose between Iran avatar or generated SVG
-    const useIranAvatar = Math.random() < 0.5;
+  const handlePrevious = () => {
+    setCurrentStep(1);
+  };
 
-    let randomAvatar;
-
-    if (useIranAvatar) {
-      // Use Iran avatar
-      const idx = Math.floor(Math.random() * 100) + 1; // 1-100 included
-      randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (currentStep === 2) {
+      onboardingMutation(formState);
     } else {
-      // Generate SVG avatar
-      const colors = [
-        '#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', 
-        '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199',
-        '#ff6b6b', '#ee5a6f', '#c92a2a', '#e74c3c', '#d63031', '#fd79a8',
-        '#74b9ff', '#0984e3', '#2d3436', '#636e72', '#2ecc71', '#27ae60',
-        '#f39c12', '#e67e22', '#9b59b6', '#8e44ad', '#1abc9c', '#16a085',
-        '#34495e', '#2c3e50', '#c0392b', '#e91e63', '#3f51b5', '#2196f3',
-        '#ff9800', '#795548', '#673ab7', '#00bcd4', '#009688', '#4caf50'
-      ];
-      const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      const bgColor = '#f5f5f5';
-      
-      randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`)}`;
+      handleNext();
     }
-
-    setFormState({ ...formState, profilePic: randomAvatar });
-    toast.success("Profile picture updated!");
   };
 
   const addSkill = (skill) => {
@@ -271,13 +373,11 @@ const OnboardingPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size must be less than 5MB');
       return;
@@ -287,12 +387,42 @@ const OnboardingPage = () => {
     reader.onload = (event) => {
       const base64String = event.target?.result;
       setFormState({ ...formState, profilePic: base64String });
-      toast.success('Profile picture updated!');
+      toast.success('Profile picture uploaded!');
     };
     reader.onerror = () => {
       toast.error('Failed to read image file');
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRandomAvatar = () => {
+    // Generate Facebook-style professional avatar using initials or user ID
+    const initials = formState.fullName
+      ?.split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?';
+    
+    const colors = [
+      { bg: '#0084FF', text: '#ffffff' }, // Facebook blue
+      { bg: '#31A24C', text: '#ffffff' }, // Green
+      { bg: '#E1306C', text: '#ffffff' }, // Pink
+      { bg: '#F77737', text: '#ffffff' }, // Orange
+      { bg: '#9B59B6', text: '#ffffff' }, // Purple
+      { bg: '#E74C3C', text: '#ffffff' }, // Red
+      { bg: '#1ABC9C', text: '#ffffff' }, // Teal
+      { bg: '#34495E', text: '#ffffff' }  // Dark gray
+    ];
+    
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const bgColor = randomColor.bg;
+    const textColor = randomColor.text;
+    
+    const avatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><text x="100" y="115" font-size="80" font-weight="bold" text-anchor="middle" fill="${textColor}" font-family="Arial, sans-serif">${initials}</text></svg>`)}`;
+    
+    setFormState({ ...formState, profilePic: avatar });
+    toast.success('Professional avatar generated!');
   };
 
   return (
@@ -323,6 +453,30 @@ const OnboardingPage = () => {
         <div className="card bg-base-100/95 backdrop-blur-xl shadow-2xl border border-base-300/30 overflow-hidden">
           <div className="card-body p-4 sm:p-6 lg:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Step Indicator */}
+              <div className="flex justify-center items-center gap-4 mb-6">
+                <div className={`flex flex-col items-center gap-1 ${currentStep >= 1 ? 'opacity-100' : 'opacity-50'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                    currentStep >= 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content'
+                  }`}>
+                    1
+                  </div>
+                  <span className="text-xs font-semibold">Basic Info</span>
+                </div>
+                <div className={`h-0.5 w-8 ${currentStep >= 2 ? 'bg-primary' : 'bg-base-300'}`}></div>
+                <div className={`flex flex-col items-center gap-1 ${currentStep >= 2 ? 'opacity-100' : 'opacity-50'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                    currentStep >= 2 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content'
+                  }`}>
+                    2
+                  </div>
+                  <span className="text-xs font-semibold">Profile</span>
+                </div>
+              </div>
+
+              {/* Step 1: Profile Picture and Basic Info */}
+              {currentStep === 1 && (
+              <>
               {/* Profile Picture Section */}
               <div className="flex flex-col items-center space-y-3">
                 <div className="relative group">
@@ -331,8 +485,11 @@ const OnboardingPage = () => {
                     {formState.profilePic ? (
                       <img
                         src={formState.profilePic}
-                        alt="Profile Preview"
+                        alt="Profile Avatar"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="#f5f5f5"/><circle cx="100" cy="75" r="35" fill="#8b9dc3"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="#8b9dc3"/></svg>`)}`;
+                        }}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full bg-gradient-to-br from-base-300 to-base-400">
@@ -403,48 +560,21 @@ const OnboardingPage = () => {
                   <span className="text-xs text-base-content/50 mt-1">{formState.bio.length}/300</span>
                 </div>
 
-                {/* Languages Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="form-control">
-                    <label className="label pb-2">
-                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Native Language</span>
-                    </label>
-                    <select
-                      name="nativeLanguage"
-                      value={formState.nativeLanguage}
-                      onChange={(e) => setFormState({ ...formState, nativeLanguage: e.target.value })}
-                      className="select select-bordered select-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
-                    >
-                      <option value="">Select your native language</option>
-                      {LANGUAGES.map((lang) => (
-                        <option key={`native-${lang}`} value={lang.toLowerCase()}>
-                          {lang}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-control">
-                    <label className="label pb-2">
-                      <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Learning Language</span>
-                    </label>
-                    <select
-                      name="learningLanguage"
-                      value={formState.learningLanguage}
-                      onChange={(e) => setFormState({ ...formState, learningLanguage: e.target.value })}
-                      className="select select-bordered select-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
-                    >
-                      <option value="">Select language you're learning</option>
-                      {LANGUAGES.map((lang) => (
-                        <option key={`learning-${lang}`} value={lang.toLowerCase()}>
-                          {lang}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Nationality */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Nationality</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formState.nationality}
+                    onChange={(e) => setFormState({ ...formState, nationality: e.target.value })}
+                    placeholder="e.g., United States, Canada, India..."
+                    className="input input-bordered input-sm bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                  />
                 </div>
 
-                {/* Location & Phone Grid */}
+                {/* Location & Phone & Birthdate Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="form-control">
                     <label className="label pb-2">
@@ -482,6 +612,117 @@ const OnboardingPage = () => {
                       />
                     </div>
                     <span className="text-xs text-base-content/50 mt-1">{formState.phone.length}/13</span>
+                  </div>
+                </div>
+
+                {/* Birth Date */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Birth Date</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="birthDate"
+                    value={formState.birthDate}
+                    onChange={(e) => setFormState({ ...formState, birthDate: e.target.value })}
+                    className="input input-bordered input-sm w-full bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                  />
+                </div>
+              </div>
+              </>
+              )}
+
+              {/* Step 2: Profile Details (Languages, Gender, Skills, Interests) */}
+              {currentStep === 2 && (
+              <>
+              <div className="space-y-4">
+                {/* Languages Known */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Languages Known</span>
+                    <span className="text-xs text-base-content/50">Select languages you speak</span>
+                  </label>
+                  <div className="space-y-2">
+                    {/* Languages Dropdown with Search */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowLanguageSuggestions(!showLanguageSuggestions)}
+                        className="btn btn-sm btn-outline w-full justify-start text-left h-auto px-3 py-2"
+                      >
+                        {formState.languagesKnown.length > 0 ? `${formState.languagesKnown.length} language${formState.languagesKnown.length !== 1 ? 's' : ''} selected` : 'Select languages...'}
+                      </button>
+
+                      {showLanguageSuggestions && (
+                        <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-hidden flex flex-col" onMouseLeave={() => setShowLanguageSuggestions(false)}>
+                          {/* Search Input Inside Dropdown */}
+                          <div className="p-2 border-b border-base-300 sticky top-0 bg-base-100">
+                            <input
+                              type="text"
+                              value={languageSearch}
+                              onChange={(e) => setLanguageSearch(e.target.value)}
+                              placeholder="Search languages..."
+                              className="input input-bordered input-xs w-full text-xs"
+                              autoFocus
+                            />
+                          </div>
+
+                          {/* Languages List */}
+                          <div className="overflow-y-auto flex-1">
+                            {LANGUAGES.filter((lang) => {
+                              const query = languageSearch.toLowerCase();
+                              return lang.toLowerCase().includes(query) && !formState.languagesKnown.includes(lang);
+                            }).length > 0 ? (
+                              LANGUAGES.filter((lang) => {
+                                const query = languageSearch.toLowerCase();
+                                return lang.toLowerCase().includes(query) && !formState.languagesKnown.includes(lang);
+                              }).map((lang) => (
+                                <button
+                                  type="button"
+                                  key={lang}
+                                  onClick={() => {
+                                    setFormState({
+                                      ...formState,
+                                      languagesKnown: [...formState.languagesKnown, lang],
+                                    });
+                                    setShowLanguageSuggestions(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs"
+                                >
+                                  {lang}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-xs text-base-content/50">No languages found</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Languages Display */}
+                    {formState.languagesKnown.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {formState.languagesKnown.map((lang) => (
+                          <div
+                            key={lang}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-info/15 to-success/15 border border-info/25 text-info rounded-full text-xs font-medium hover:from-info/25 hover:to-success/25 transition-all"
+                          >
+                            <span>{lang}</span>
+                            <button
+                              type="button"
+                              onClick={() => setFormState({
+                                ...formState,
+                                languagesKnown: formState.languagesKnown.filter((l) => l !== lang),
+                              })}
+                              className="hover:opacity-60 transition-opacity"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -663,25 +904,151 @@ const OnboardingPage = () => {
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Submit Button */}
-              <button 
-                className="btn btn-primary btn-md w-full gap-2 mt-6 font-semibold shadow-lg hover:shadow-xl transition-all" 
-                disabled={isPending} 
-                type="submit"
-              >
-                {!isPending ? (
-                  <>
-                    <span>Complete Onboarding</span>
-                  </>
-                ) : (
-                  <>
-                    <LoaderIcon className="animate-spin size-4" />
-                    <span>Processing...</span>
-                  </>
+                {/* Occupation Field */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Occupation (Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formState.occupation}
+                    onChange={(e) => setFormState({ ...formState, occupation: e.target.value })}
+                    placeholder="e.g., Software Engineer, Designer, Teacher..."
+                    className="input input-bordered input-sm bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                  />
+                </div>
+
+                {/* Interests Section */}
+                <div className="form-control">
+                  <label className="label pb-2">
+                    <span className="label-text text-xs sm:text-sm font-semibold text-base-content">Interests</span>
+                    <span className="text-xs text-base-content/50">Select or add custom interests</span>
+                  </label>
+                  <div className="space-y-2">
+                    {/* Interests Dropdown with Search */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowInterestSuggestions(!showInterestSuggestions)}
+                        className="btn btn-sm btn-outline w-full justify-start text-left h-auto px-3 py-2"
+                      >
+                        {formState.interests.length > 0 ? `${formState.interests.length} interest${formState.interests.length !== 1 ? 's' : ''} selected` : 'Select interests...'}
+                      </button>
+
+                      {showInterestSuggestions && (
+                        <div className="absolute z-20 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-hidden flex flex-col" onMouseLeave={() => setShowInterestSuggestions(false)}>
+                          {/* Search Input Inside Dropdown */}
+                          <div className="p-2 border-b border-base-300 sticky top-0 bg-base-100">
+                            <input
+                              type="text"
+                              value={interestSearch}
+                              onChange={(e) => setInterestSearch(e.target.value)}
+                              placeholder="Search interests..."
+                              className="input input-bordered input-xs w-full text-xs"
+                              autoFocus
+                            />
+                          </div>
+
+                          {/* Interests List */}
+                          <div className="overflow-y-auto flex-1">
+                            {filteredInterestSuggestions.length > 0 ? (
+                              filteredInterestSuggestions.map((interest) => (
+                                <button
+                                  type="button"
+                                  key={interest}
+                                  onClick={() => {
+                                    addInterest(interest);
+                                    setShowInterestSuggestions(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-primary/10 hover:text-primary transition-colors border-b border-base-300/20 last:border-b-0 font-medium text-xs"
+                                >
+                                  {interest}
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-xs text-base-content/50">No interests found</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom Interest Input */}
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={customInterestInput}
+                        onChange={(e) => setCustomInterestInput(e.target.value.slice(0, 30))}
+                        onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addCustomInterest())}
+                        maxLength="30"
+                        className="input input-bordered input-sm flex-1 bg-base-200/60 hover:bg-base-200/80 focus:bg-base-100 transition-colors border-base-300 focus:border-primary text-xs"
+                        placeholder="Add custom interest..."
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomInterest}
+                        className="btn btn-primary btn-sm"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <span className="text-xs text-base-content/50">{customInterestInput.length}/30</span>
+
+                    {/* Interests Display */}
+                    {formState.interests.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {formState.interests.map((interest) => (
+                          <div
+                            key={interest}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-secondary/15 to-accent/15 border border-secondary/25 text-secondary rounded-full text-xs font-medium hover:from-secondary/25 hover:to-accent/25 transition-all"
+                          >
+                            <span>{interest}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeInterest(interest)}
+                              className="hover:opacity-60 transition-opacity"
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              </>
+              )}
+
+              {/* Navigation Buttons */}
+              <div className="flex gap-3 mt-8">
+                {currentStep === 2 && (
+                  <button
+                    type="button"
+                    onClick={handlePrevious}
+                    className="btn btn-outline btn-md flex-1 font-semibold"
+                  >
+                    Back
+                  </button>
                 )}
-              </button>
+                <button 
+                  className={`btn btn-primary btn-md ${currentStep === 1 ? 'w-full' : 'flex-1'} font-semibold shadow-lg hover:shadow-xl transition-all`} 
+                  disabled={isPending} 
+                  type="submit"
+                >
+                  {!isPending ? (
+                    <>
+                      <span>{currentStep === 2 ? 'Complete Onboarding' : 'Next'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <LoaderIcon className="animate-spin size-4" />
+                      <span>Processing...</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </form>
           </div>
         </div>

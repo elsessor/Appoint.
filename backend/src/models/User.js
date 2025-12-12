@@ -25,13 +25,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    nativeLanguage: {
+    nationality: {
       type: String,
       default: "",
     },
-    learningLanguage: {
-      type: String,
-      default: "",
+    languagesKnown: {
+      type: [String],
+      default: [],
     },
     location: {
       type: String,
@@ -40,6 +40,15 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       default: "",
+    },
+    gender: {
+      type: String,
+      enum: ["", "male", "female", "prefer_not_to_say"],
+      default: "",
+    },
+    birthDate: {
+      type: Date,
+      default: null,
     },
     twitter: {
       type: String,
@@ -90,6 +99,14 @@ const userSchema = new mongoose.Schema(
       max: 100,
     },
     skills: {
+      type: [String],
+      default: [],
+    },
+    occupation: {
+      type: String,
+      default: "",
+    },
+    interests: {
       type: [String],
       default: [],
     },
