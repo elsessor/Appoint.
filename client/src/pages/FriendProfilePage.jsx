@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin, Globe, Briefcase, Star, Clock, TrendingUp, Video, CheckCircle, Heart, Linkedin, Twitter, UserPlusIcon, XIcon, Github, Link as LinkIcon } from 'lucide-react';
-import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, toggleFavorite, sendFriendRequest, cancelFriendRequest, getOutgoingFriendReqs, unfriendUser, getAuthUser, createAppointment } from '../lib/api';
+import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, toggleFavorite, sendFriendRequest, cancelFriendRequest, getOutgoingFriendReqs, unfriendUser, getAuthUser, createAppointment, getUserAvailability } from '../lib/api';
 import { isOnline } from '../lib/presence';
 import PageLoader from '../components/PageLoader';
 import AppointmentModal from '../components/appointments/AppointmentModal';
 import { useThemeStore } from '../store/useThemeStore';
 import { formatLastOnline } from '../lib/utils';
+import { getSocket } from '../lib/socket';
 import toast from 'react-hot-toast';
 
 const FriendProfilePage = () => {
@@ -21,6 +22,7 @@ const FriendProfilePage = () => {
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [friendAvailability, setFriendAvailability] = useState(null);
 
   const { data: friend, isLoading, isError } = useQuery({
     queryKey: ['friendProfile', id],
@@ -125,6 +127,78 @@ const FriendProfilePage = () => {
     }
   }, [outgoingFriendReqs]);
 
+  // Fetch friend's availability for appointment modal
+  useEffect(() => {
+    if (friend?._id) {
+      getUserAvailability(friend._id)
+        .then((response) => {
+          setFriendAvailability({
+            status: response?.availabilityStatus || 'available',
+            maxPerDay: response?.availability?.maxPerDay || 5,
+            minPerDay: response?.availability?.minPerDay || 1,
+            ...response?.availability
+          });
+          console.log('📊 [FriendProfilePage] Fetched friend availability:', {
+            status: response?.availabilityStatus,
+            maxPerDay: response?.availability?.maxPerDay,
+            minPerDay: response?.availability?.minPerDay,
+          });
+        })
+        .catch((error) => console.error('Failed to fetch friend availability:', error));
+    }
+  }, [friend?._id]);
+
+  // Listen for real-time availability changes via Socket.io
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !friend?._id) return;
+
+    const handleAvailabilityChanged = ({ userId, availabilityStatus, availability }) => {
+      // Only update if this event is for the friend we're viewing
+      if (userId === friend._id) {
+        console.log('📊 [FriendProfilePage] Real-time availability change received:', { availabilityStatus, availability });
+        setFriendAvailability({
+          status: availabilityStatus || 'available',
+          maxPerDay: availability?.maxPerDay || 5,
+          minPerDay: availability?.minPerDay || 1,
+          ...availability
+        });
+        // Refetch calendar data to update indicators
+        queryClient.invalidateQueries({ queryKey: ['upcomingAppointments', friend._id] });
+      }
+    };
+
+    socket.on('availability:changed', handleAvailabilityChanged);
+
+    return () => {
+      socket.off('availability:changed', handleAvailabilityChanged);
+    };
+  }, [friend?._id, queryClient]);
+
+  // Listen for appointment changes to refresh calendar
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !friend?._id) return;
+
+    const handleAppointmentEvent = () => {
+      console.log('[FriendProfilePage] Appointment event received - refreshing calendar');
+      // Refetch calendar data when appointments are created/updated/deleted
+      queryClient.invalidateQueries({ queryKey: ['upcomingAppointments', friend._id] });
+    };
+
+    socket.on('appointment:created', handleAppointmentEvent);
+    socket.on('appointment:updated', handleAppointmentEvent);
+    socket.on('appointment:deleted', handleAppointmentEvent);
+    socket.on('appointment:statusChanged', handleAppointmentEvent);
+
+    return () => {
+      socket.off('appointment:created', handleAppointmentEvent);
+      socket.off('appointment:updated', handleAppointmentEvent);
+      socket.off('appointment:deleted', handleAppointmentEvent);
+      socket.off('appointment:statusChanged', handleAppointmentEvent);
+    };
+  }, [friend?._id, queryClient]);
+
   if (isLoading) return <PageLoader />;
 
   if (isError || !friend) {
@@ -146,11 +220,11 @@ const FriendProfilePage = () => {
     );
   }
 
-  const availabilityBadgeColor = friend.availabilityStatus === 'available'
+  const availabilityBadgeColor = (friendAvailability?.status || friend.availabilityStatus) === 'available'
     ? 'btn-success'
-    : friend.availabilityStatus === 'limited'
+    : (friendAvailability?.status || friend.availabilityStatus) === 'limited'
     ? 'btn-warning'
-    : friend.availabilityStatus === 'offline'
+    : (friendAvailability?.status || friend.availabilityStatus) === 'offline'
     ? 'btn-neutral'
     : 'btn-error';
 
@@ -202,8 +276,9 @@ const FriendProfilePage = () => {
                     {/* Status Indicator */}
                     {(() => {
                       const online = isOnline(friend._id);
+                      const currentStatus = friendAvailability?.status || friend.availabilityStatus;
                       const colorClass = online
-                        ? (friend.availabilityStatus === 'available' ? 'bg-success shadow-lg shadow-success/50' : friend.availabilityStatus === 'limited' ? 'bg-warning shadow-lg shadow-warning/50' : 'bg-error shadow-lg shadow-error/50')
+                        ? (currentStatus === 'available' ? 'bg-success shadow-lg shadow-success/50' : currentStatus === 'limited' ? 'bg-warning shadow-lg shadow-warning/50' : 'bg-error shadow-lg shadow-error/50')
                         : 'bg-neutral-500';
                       return (
                         <div className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-3 border-base-100 ${colorClass} flex items-center justify-center`}>
@@ -581,13 +656,13 @@ const FriendProfilePage = () => {
                   <div className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
                     <span className="text-base-content/70 font-medium text-sm">Status</span>
                     <span className={`badge font-semibold py-2 px-3 text-xs ${
-                      friend.availabilityStatus === 'available' 
+                      (friendAvailability?.status || friend.availabilityStatus) === 'available' 
                         ? 'badge-success' 
-                        : friend.availabilityStatus === 'limited' 
+                        : (friendAvailability?.status || friend.availabilityStatus) === 'limited' 
                         ? 'badge-warning' 
                         : 'badge-error'
                     }`}>
-                      {friend.availabilityStatus?.charAt(0).toUpperCase() + friend.availabilityStatus?.slice(1) || 'Offline'}
+                      {(friendAvailability?.status || friend.availabilityStatus)?.charAt(0).toUpperCase() + (friendAvailability?.status || friend.availabilityStatus)?.slice(1) || 'Offline'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
@@ -621,7 +696,12 @@ const FriendProfilePage = () => {
                     const isAvailable = availableDays.includes(dayOfWeek);
                     
                     // Get max bookings per day from availability settings
-                    const maxPerDay = friend.availability?.maxPerDay || 5;
+                    let maxPerDay = friend.availability?.maxPerDay || friendAvailability?.maxPerDay || 5;
+                    
+                    // Apply status-based logic: if limited, use minPerDay instead
+                    if ((friendAvailability?.status || friend.availabilityStatus) === 'limited') {
+                      maxPerDay = friend.availability?.minPerDay || friendAvailability?.minPerDay || 1;
+                    }
                     
                     // For now, use a consistent pattern based on day number
                     // Use real booking data from backend
@@ -629,7 +709,7 @@ const FriendProfilePage = () => {
                     const bookingCount = isAvailable ? (bookingArray[i] || 0) : 0;
                     const isFullyBooked = bookingCount >= maxPerDay;
                     const hasBookings = bookingCount > 0 && bookingCount < maxPerDay;
-                    const isAway = friend.availabilityStatus === 'away';
+                    const isAway = (friendAvailability?.status || friend.availabilityStatus) === 'away';
                     
                     // Determine status
                     let status = 'not-scheduled'; // Default
@@ -779,6 +859,7 @@ const FriendProfilePage = () => {
           }}
           initialFriendId={friend._id}
           initialDate={selectedDate}
+          friendsAvailability={friend._id ? { [friend._id]: friendAvailability } : {}}
         />
       )}
     </div>

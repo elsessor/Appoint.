@@ -123,14 +123,20 @@ const AvailabilityInfo = ({ availability = {}, availabilityStatus = 'available' 
         )}
 
         {/* Max Appointments Per Day */}
-        {availability.maxPerDay && (
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            <span className="text-xs font-medium">
-              Max {availability.maxPerDay} appointment{availability.maxPerDay !== 1 ? 's' : ''} per day
-            </span>
-          </div>
-        )}
+        {(() => {
+          let displayValue = availability.maxPerDay || 5;
+          if (availabilityStatus === 'limited') {
+            displayValue = availability.minPerDay || 1;
+          }
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <span className="text-xs font-medium">
+                {availabilityStatus === 'limited' ? 'Limited to ' : 'Max '}{displayValue} appointment{displayValue !== 1 ? 's' : ''} per day
+              </span>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

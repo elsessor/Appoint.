@@ -140,6 +140,10 @@ const userSchema = new mongoose.Schema(
         type: Number,
         default: 5,
       },
+      minPerDay: {
+        type: Number,
+        default: 1,
+      },
       breakTimes: {
         type: [
           {
@@ -211,6 +215,10 @@ const userSchema = new mongoose.Schema(
       maxPerDay: {
         type: Number,
         default: 5,
+      },
+      minPerDay: {
+        type: Number,
+        default: 1,
       },
       breakTimes: {
         type: [{ start: String, end: String }],

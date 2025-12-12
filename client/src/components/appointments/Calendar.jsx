@@ -513,9 +513,18 @@ const Calendar = ({
           const dayHoliday = isHoliday(day, phHolidays) ? getHolidayName(day, phHolidays) : null;
           
           // Get max appointments for the current user (or viewed friend if applicable)
-          const maxPerDay = viewingFriendId 
+          let maxPerDay = viewingFriendId 
             ? (friendsAvailability[viewingFriendId]?.maxPerDay || 5)
             : (currentUser?.availability?.maxPerDay || 5);
+          
+          // Apply status-based logic: if limited, use minPerDay instead
+          if (viewingFriendId && friendsAvailability[viewingFriendId]) {
+            if (friendsAvailability[viewingFriendId].status === 'limited') {
+              maxPerDay = friendsAvailability[viewingFriendId]?.minPerDay || 1;
+            }
+          } else if (currentUser?.availabilityStatus === 'limited') {
+            maxPerDay = currentUser?.availability?.minPerDay || 1;
+          }
           
           // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);

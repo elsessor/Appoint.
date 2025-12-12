@@ -215,13 +215,14 @@ export const emitAppointmentDeleted = (appointmentId, userId, friendId) => {
 };
 
 // Emit availability status change to all connected clients
-export const emitAvailabilityStatusChanged = (userId, newStatus) => {
+export const emitAvailabilityStatusChanged = (userId, newStatus, availabilityData = {}) => {
   if (!io || !userId) return;
 
-  console.log(`[Socket] 📢 Broadcasting availability:statusChanged for user ${userId}: ${newStatus}`);
-  io.emit('availability:statusChanged', { 
+  console.log(`[Socket] 📢 Broadcasting availability:changed for user ${userId}: ${newStatus}`);
+  io.emit('availability:changed', { 
     userId: userId.toString(), 
-    availabilityStatus: newStatus 
+    availabilityStatus: newStatus,
+    availability: availabilityData
   });
 };
 
