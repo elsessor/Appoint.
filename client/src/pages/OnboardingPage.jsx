@@ -203,19 +203,31 @@ const OnboardingPage = () => {
   };
 
   const handleRandomAvatar = () => {
-    const colors = [
-      '#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', 
-      '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199',
-      '#ff6b6b', '#ee5a6f', '#c92a2a', '#e74c3c', '#d63031', '#fd79a8',
-      '#74b9ff', '#0984e3', '#2d3436', '#636e72', '#2ecc71', '#27ae60',
-      '#f39c12', '#e67e22', '#9b59b6', '#8e44ad', '#1abc9c', '#16a085',
-      '#34495e', '#2c3e50', '#c0392b', '#e91e63', '#3f51b5', '#2196f3',
-      '#ff9800', '#795548', '#673ab7', '#00bcd4', '#009688', '#4caf50'
-    ];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    const bgColor = '#f5f5f5';
-    
-    const randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`)}`;
+    // Randomly choose between Iran avatar or generated SVG
+    const useIranAvatar = Math.random() < 0.5;
+
+    let randomAvatar;
+
+    if (useIranAvatar) {
+      // Use Iran avatar
+      const idx = Math.floor(Math.random() * 100) + 1; // 1-100 included
+      randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
+    } else {
+      // Generate SVG avatar
+      const colors = [
+        '#8b9dc3', '#6b8bb8', '#5a7ba6', '#4a6b94', '#3a5b84', '#2a4b74', 
+        '#748c9e', '#5d7a8f', '#95a8b8', '#a5b5c5', '#7c91a8', '#6c8199',
+        '#ff6b6b', '#ee5a6f', '#c92a2a', '#e74c3c', '#d63031', '#fd79a8',
+        '#74b9ff', '#0984e3', '#2d3436', '#636e72', '#2ecc71', '#27ae60',
+        '#f39c12', '#e67e22', '#9b59b6', '#8e44ad', '#1abc9c', '#16a085',
+        '#34495e', '#2c3e50', '#c0392b', '#e91e63', '#3f51b5', '#2196f3',
+        '#ff9800', '#795548', '#673ab7', '#00bcd4', '#009688', '#4caf50'
+      ];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      const bgColor = '#f5f5f5';
+      
+      randomAvatar = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" fill="${bgColor}"/><circle cx="100" cy="75" r="35" fill="${randomColor}"/><ellipse cx="100" cy="160" rx="60" ry="50" fill="${randomColor}"/></svg>`)}`;
+    }
 
     setFormState({ ...formState, profilePic: randomAvatar });
     toast.success("Profile picture updated!");

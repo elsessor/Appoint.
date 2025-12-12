@@ -276,7 +276,7 @@ const AppointmentsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 lg:px-6" data-theme={theme}>
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 lg:px-6 animate-fade-in" data-theme={theme}>
       {selectedAppointment ? (
         <AppointmentDetailsView
           appointment={selectedAppointment}

@@ -535,7 +535,7 @@ const FriendsPage = () => {
   }, [friends, searchQuery, statusFilter, favoriteFilter]);
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 animate-fade-in">
       <div className="w-full max-w-full lg:max-w-7xl mx-auto">
         <div className="mb-4 sm:mb-6">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-1 sm:mb-2">Friends</h1>

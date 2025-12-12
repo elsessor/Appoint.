@@ -32,8 +32,8 @@ const useLogout = () => {
       
       // Small delay to ensure disconnect event is sent before redirect
       setTimeout(() => {
-        console.log('[useLogout] Redirecting to login');
-        window.location.href = "/login";
+        console.log('[useLogout] Redirecting to landing page');
+        window.location.href = "/";
       }, 100);
     },
   });

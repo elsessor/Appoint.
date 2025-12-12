@@ -276,7 +276,7 @@ const HomePage = () => {
   }, [recommendedUsers]);
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-20 px-2 sm:px-4">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-20 px-2 sm:px-4 animate-fade-in">
       <div className="w-full max-w-full lg:max-w-6xl mx-auto space-y-4 sm:space-y-6">
         <div className="space-y-2 sm:space-y-4">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>

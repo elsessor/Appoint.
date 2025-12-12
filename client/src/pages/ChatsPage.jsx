@@ -177,7 +177,7 @@ const ChatsPage = () => {
 
   // Desktop view: Show both conversations list and chat side-by-side
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-screen pt-2 lg:pt-16 pb-16 lg:pb-0 gap-0 lg:gap-0 overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-screen pt-2 lg:pt-16 pb-16 lg:pb-0 gap-0 lg:gap-0 overflow-hidden animate-fade-in">
       <div className="w-full lg:w-80 lg:border-r border-b lg:border-b-0 border-base-300 flex-shrink-0">
         {chatClient && <ConversationList chatClient={chatClient} onSelectUser={handleSelectUser} />}
       </div>

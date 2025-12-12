@@ -6,6 +6,67 @@
   @apply bg-purple-700 hover:bg-purple-800 text-white;
 }
 
+/* ========== PAGE TRANSITION ANIMATIONS ========== */
+
+/* Fade in animation for pages */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide up animation for pages */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale animation for pages */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Apply fade-in animation to pages */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Apply fade-in animation to main content containers */
+.min-h-screen {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Apply slide-up animation to flex containers */
+.flex-col, .flex {
+  animation: slideUp 0.4s ease-out;
+}
+
+/* Component animations */
+.card, [class*="rounded-"] {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input {
+  transition: all 0.2s ease-out;
+}
+
 /* Hide scrollbar while keeping functionality */
 .scrollbar-hide {
   -ms-overflow-style: none; /* IE and Edge */

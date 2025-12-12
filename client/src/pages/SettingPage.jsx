@@ -144,7 +144,7 @@ const SettingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 animate-fade-in">
       <div className="w-full max-w-full lg:max-w-4xl mx-auto bg-base-200 rounded-xl border-t-4 border-primary p-3 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
           <h1 className="text-xl sm:text-2xl font-bold">Settings</h1>

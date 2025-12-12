@@ -4,12 +4,14 @@ import { Link, useNavigate } from "react-router";
 import useLogin from "../hooks/useLogin";
 import { useThemeStore } from "../store/useThemeStore";
 import ThemeSelector from "../components/ThemeSelector";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 const LoginPage = () => {
   const [loginData, setLoginData] = useState({
     email: "",
     password: "",
   });
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
 
   const { isPending, error, loginMutation } = useLogin();
   const { theme } = useThemeStore();
@@ -83,6 +85,13 @@ const LoginPage = () => {
                   <div className="form-control w-full space-y-2">
                     <label className="label">
                       <span className="label-text">Password</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPasswordOpen(true)}
+                        className="label-text-alt text-primary hover:underline text-xs"
+                      >
+                         Forgot Password? Change it here
+                      </button>
                     </label>
                     <input
                       type="password"
@@ -133,6 +142,11 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+      />
     </div>
   );
 };

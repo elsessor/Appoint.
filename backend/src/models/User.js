@@ -251,6 +251,15 @@ const userSchema = new mongoose.Schema(
     deletionScheduledFor: {
       type: Date,
     },
+    // Password reset
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
     // Last time user was online
     lastOnline: {
       type: Date,

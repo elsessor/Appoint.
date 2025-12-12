@@ -53,7 +53,7 @@ const BookingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 animate-fade-in">
       <AppointmentModal
         isOpen={showBookingModal}
         onClose={() => {
