@@ -17,7 +17,7 @@ import {
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
 import ConversationList from "../components/ConversationList";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ArrowLeft } from "lucide-react";
 
 const ChatsPage = () => {
   const { id: targetUserId } = useParams();
@@ -25,7 +25,19 @@ const ChatsPage = () => {
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState(targetUserId || null);
+  const [selectedUserName, setSelectedUserName] = useState("");
+  const [isMobileView, setIsMobileView] = useState(false);
   const { authUser } = useAuthUser();
+
+  // Detect if we're on mobile
+  useEffect(() => {
+    const checkMobileView = () => {
+      setIsMobileView(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkMobileView();
+    window.addEventListener("resize", checkMobileView);
+    return () => window.removeEventListener("resize", checkMobileView);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -98,13 +110,79 @@ const ChatsPage = () => {
     }
   };
 
+  const handleSelectUser = (userId, userName) => {
+    setSelectedUserId(userId);
+    setSelectedUserName(userName);
+  };
+
+  const handleBackToConversations = () => {
+    setSelectedUserId(null);
+    setSelectedUserName("");
+  };
+
   if (!chatClient) return <ChatLoader />;
 
-  return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {chatClient && <ConversationList chatClient={chatClient} onSelectUser={setSelectedUserId} />}
+  // Mobile messenger-like view: Show either conversations list OR chat, not both
+  if (isMobileView) {
+    if (selectedUserId) {
+      // Show only the chat with back button
+      return (
+        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100">
+          {/* Chat Header with Back Button */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-base-300 bg-base-200 flex-shrink-0">
+            <button
+              onClick={handleBackToConversations}
+              className="btn btn-ghost btn-sm btn-circle"
+              title="Back to conversations"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h2 className="font-semibold text-sm flex-1 truncate">{selectedUserName}</h2>
+          </div>
 
-      <div className="flex-1 flex flex-col">
+          {/* Chat Area */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {chatClient && channel && selectedUserId ? (
+              <Chat client={chatClient} key={selectedUserId}>
+                <Channel channel={channel} key={selectedUserId}>
+                  <div className="flex-1 flex flex-col relative">
+                    <CallButton handleVideoCall={handleVideoCall} />
+                    <Window>
+                      <MessageList />
+                      <MessageInput focus />
+                    </Window>
+                  </div>
+                  <Thread />
+                </Channel>
+              </Chat>
+            ) : loading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <span className="loading loading-spinner loading-lg"></span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    } else {
+      // Show only the conversations list
+      return (
+        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100">
+          <div className="w-full h-full flex flex-col">
+            {chatClient && <ConversationList chatClient={chatClient} onSelectUser={handleSelectUser} />}
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Desktop view: Show both conversations list and chat side-by-side
+  return (
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-screen pt-2 lg:pt-16 pb-16 lg:pb-0 gap-0 lg:gap-0">
+      <div className="w-full lg:w-80 lg:border-r border-b lg:border-b-0 border-base-300 flex-shrink-0">
+        {chatClient && <ConversationList chatClient={chatClient} onSelectUser={handleSelectUser} />}
+      </div>
+
+      <div className="flex-1 flex flex-col px-2 sm:px-4">
         {chatClient && channel && selectedUserId ? (
           <Chat client={chatClient} key={selectedUserId}>
             <Channel channel={channel} key={selectedUserId}>

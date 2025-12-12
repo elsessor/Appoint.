@@ -637,7 +637,7 @@ const AppointmentBookingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 flex flex-col lg:flex-row" data-theme={theme}>
+    <div className="min-h-screen bg-base-100 flex flex-col lg:flex-row pt-2 lg:pt-16 pb-16 lg:pb-0" data-theme={theme}>
       {/* Mobile Sidebar Overlay */}
       {showSidebar && isMultiCalendarMode && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setShowSidebar(false)} />
@@ -669,15 +669,15 @@ const AppointmentBookingPage = () => {
       )}
 
       <div className="flex flex-col flex-1">
-        <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
+        <div className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 lg:p-8">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-2 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-base-content">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-base-content">
                 {viewingFriendId ? 'Book Appointment' : 'Your Calendar'}
               </h1>
               {!viewingFriendId && (
-                <p className="text-sm text-base-content/60 mt-1">Manage your appointments and availability</p>
+                <p className="text-xs sm:text-sm text-base-content/60 mt-0.5 sm:mt-1\">Manage your appointments and availability</p>
               )}
             </div>
             <div className="flex gap-2 flex-wrap">

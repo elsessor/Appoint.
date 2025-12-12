@@ -20,6 +20,7 @@ import useMultiplePresence from "../hooks/useMultiplePresence";
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 import useAuthUser from "../hooks/useAuthUser";
+import FriendsCarousel from "../components/FriendsCarousel";
 
 const HomePage = () => {
   const queryClient = useQueryClient();
@@ -276,14 +277,14 @@ const HomePage = () => {
   }, [recommendedUsers]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full" style={{ paddingBottom: '100px' }}>
-      <div className="container mx-auto space-y-10">
-        <div className="space-y-4">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>
-          <p className="text-base-content opacity-70">Here's what's happening with your appointments.</p>
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-20 px-2 sm:px-4">
+      <div className="w-full max-w-full lg:max-w-6xl mx-auto space-y-4 sm:space-y-6">
+        <div className="space-y-2 sm:space-y-4">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Welcome back{authUser?.fullName ? `, ${authUser.fullName}` : ""}!</h2>
+          <p className="text-xs sm:text-sm text-base-content opacity-70">Here's what's happening with your appointments.</p>
           
           {/* Analytics Period Selector */}
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-1 sm:gap-2 mt-2 sm:mt-4 flex-wrap">
             {[
               { value: "yesterday", label: "Yesterday" },
               { value: "lastWeek", label: "Last 7 Days" },
@@ -292,41 +293,41 @@ const HomePage = () => {
               <button
                 key={period.value}
                 onClick={() => setAnalyticsPeriod(period.value)}
-                className={`btn btn-sm ${
+                className={`btn btn-xs sm:btn-sm ${
                   analyticsPeriod === period.value 
                     ? "btn-primary" 
                     : "btn-outline"
                 }`}
               >
-                {period.label}
+                <span className="text-xs sm:text-sm">{period.label}</span>
               </button>
             ))}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6">
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body">
+              <div className="card-body p-3 sm:p-4">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Total Appointments</p>
-                    <p className="text-3xl font-bold mt-2">{appointmentsCurrent}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base-content opacity-70 text-xs sm:text-sm min-h-[2rem] flex items-center">Total Appointments</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{appointmentsCurrent}</p>
                   </div>
-                  <div className="badge badge-lg badge-primary">
-                    <CalendarIcon className="size-4" />
+                  <div className="badge badge-sm sm:badge-lg badge-primary flex-shrink-0 ml-2">
+                    <CalendarIcon className="size-3 sm:size-4" />
                   </div>
                 </div>
-                <div className={`text-xs ${appointmentsDelta.positive ? "text-success" : "text-error"} mt-3`}>
+                <div className={`text-xs ${appointmentsDelta.positive ? "text-success" : "text-error"} mt-2 sm:mt-3`}>
                   {appointmentsDelta.label} from last period
                 </div>
               </div>
             </div>
 
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body">
+              <div className="card-body p-3 sm:p-4">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Completed Calls</p>
-                    <p className="text-3xl font-bold mt-2">{completedCurrent}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base-content opacity-70 text-xs sm:text-sm min-h-[2rem] flex items-center">Completed Calls</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{completedCurrent}</p>
                   </div>
                   <div className="badge badge-lg" style={{ backgroundColor: "#00c875" }}>
                     <VideoIcon className="size-4" style={{ color: "#08173fff" }} />
@@ -444,23 +445,27 @@ const HomePage = () => {
               </div>
             </div>
 
-            {/* Search and Filter Section */}
-            <div className="mt-6 flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 opacity-50" />
+          {/* Search and Filter Section */}
+            <div className="mt-4 sm:mt-6 flex flex-col gap-3 sm:gap-4">
+              {/* Search Bar */}
+              <div className="relative w-full">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 opacity-50 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by name, or location"
-                  className="input input-bordered w-full pl-10"
+                  placeholder="Search by name or location"
+                  className="input input-bordered w-full pl-10 text-sm sm:text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <div className="sm:w-64">
+
+              {/* Language Filter */}
+              <div className="w-full sm:max-w-xs">
                 <select
-                  className="select select-bordered w-full"
+                  className="select select-bordered w-full text-sm sm:text-base"
                   value={languageFilter}
                   onChange={(e) => setLanguageFilter(e.target.value)}
+                  aria-label="Filter by language"
                 >
                   <option value="all">All Languages</option>
                   {availableLanguages.map((lang) => (
@@ -491,92 +496,217 @@ const HomePage = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredUsers.map((user) => {
-                const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
+            <>
+              {/* Mobile Carousel */}
+              <div className="lg:hidden -mx-2 sm:-mx-4">
+                <FriendsCarousel itemsPerView={1}>
+                  {filteredUsers.map((user) => {
+                    const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
 
-                return (
-                  <div
-                    key={user._id}
-                    className="card bg-base-200 hover:shadow-lg transition-all duration-300 relative"
-                  >
-                    <Link 
-                      to={`/profile/${user._id}`}
-                      className="btn btn-circle btn-sm hover:btn-primary transition-all duration-300 absolute top-4 right-4 z-10"
-                      title="View Profile"
-                      aria-label="View Profile"
+                    return (
+                      <div
+                        key={user._id}
+                        className="card bg-base-200 hover:shadow-lg transition-all duration-300 relative overflow-hidden flex flex-col h-full"
+                      >
+                        <Link 
+                          to={`/profile/${user._id}`}
+                          className="btn btn-circle btn-sm hover:btn-primary transition-all duration-300 absolute top-4 right-4 z-10"
+                          title="View Profile"
+                          aria-label={`View ${user.fullName} profile`}
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </Link>
+
+                        <div className="card-body p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
+                          {/* User Info Section */}
+                          <div className="flex items-center gap-3 pr-10">
+                            <div className="avatar flex-shrink-0">
+                              <div className="w-16 h-16 rounded-full overflow-hidden bg-base-300">
+                                <img 
+                                  src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} 
+                                  alt={user.fullName}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src = '/default-profile.png';
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{user.fullName}</h3>
+                              {user.location && (
+                                <div className="flex items-center text-xs opacity-70 mt-1 gap-1 line-clamp-1">
+                                  <MapPinIcon className="w-3 h-3 flex-shrink-0" />
+                                  <span className="truncate">{user.location}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Languages Section */}
+                          <div className="flex flex-col gap-1.5">
+                            <span className="badge badge-secondary text-xs sm:text-sm gap-1">
+                              {getLanguageFlag(user.nativeLanguage)}
+                              <span>Native: {capitialize(user.nativeLanguage)}</span>
+                            </span>
+                            <span className="badge badge-outline text-xs sm:text-sm gap-1">
+                              {getLanguageFlag(user.learningLanguage)}
+                              <span>Learning: {capitialize(user.learningLanguage)}</span>
+                            </span>
+                          </div>
+
+                          {/* Bio Section */}
+                          {user.bio && (
+                            <p className="text-xs sm:text-sm opacity-70 line-clamp-2 leading-relaxed">{user.bio}</p>
+                          )}
+
+                          {/* Action Button - Always at bottom */}
+                          <button
+                            className={`btn btn-sm w-full gap-2 mt-auto ${
+                              hasRequestBeenSent ? "btn-outline btn-error" : "btn-primary"
+                            }`}
+                            onClick={() => {
+                              setLoadingUserId(user._id);
+                              if (hasRequestBeenSent) {
+                                const requestId = outgoingRequestMap.get(user._id);
+                                if (requestId) {
+                                  cancelRequestMutation(requestId);
+                                }
+                              } else {
+                                sendRequestMutation(user._id);
+                              }
+                            }}
+                            disabled={loadingUserId === user._id}
+                            aria-label={hasRequestBeenSent ? `Cancel friend request to ${user.fullName}` : `Send friend request to ${user.fullName}`}
+                          >
+                            {loadingUserId === user._id ? (
+                              <span className="loading loading-spinner loading-sm"></span>
+                            ) : hasRequestBeenSent ? (
+                              <>
+                                <XIcon className="w-4 h-4" />
+                                <span>Cancel</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserPlusIcon className="w-4 h-4" />
+                                <span>Add Friend</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </FriendsCarousel>
+              </div>
+
+              {/* Desktop Grid */}
+              <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {filteredUsers.map((user) => {
+                  const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
+
+                  return (
+                    <div
+                      key={user._id}
+                      className="card bg-base-200 hover:shadow-lg transition-all duration-300 relative overflow-hidden flex flex-col h-full"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </Link>
-                    <div className="card-body p-5 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="avatar">
-                          <div className="size-16 rounded-full overflow-hidden">
-                            <img src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} alt={user.fullName} className="w-full h-full object-cover" />
+                      <Link 
+                        to={`/profile/${user._id}`}
+                        className="btn btn-circle btn-sm hover:btn-primary transition-all duration-300 absolute top-4 right-4 z-10"
+                        title="View Profile"
+                        aria-label={`View ${user.fullName} profile`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </Link>
+
+                      <div className="card-body p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
+                        {/* User Info Section */}
+                        <div className="flex items-center gap-3 pr-10">
+                          <div className="avatar flex-shrink-0">
+                            <div className="w-16 h-16 rounded-full overflow-hidden bg-base-300">
+                              <img 
+                                src={user.profilePic && user.profilePic.trim() ? user.profilePic : '/default-profile.png'} 
+                                alt={user.fullName}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.src = '/default-profile.png';
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base sm:text-lg line-clamp-1">{user.fullName}</h3>
+                            {user.location && (
+                              <div className="flex items-center text-xs opacity-70 mt-1 gap-1 line-clamp-1">
+                                <MapPinIcon className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{user.location}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div>
-                          <h3 className="font-semibold text-lg">{user.fullName}</h3>
-                          {user.location && (
-                            <div className="flex items-center text-xs opacity-70 mt-1">
-                              <MapPinIcon className="size-3 mr-1" />
-                              {user.location}
-                            </div>
-                          )}
+                        {/* Languages Section */}
+                        <div className="flex flex-col gap-1.5">
+                          <span className="badge badge-secondary text-xs sm:text-sm gap-1">
+                            {getLanguageFlag(user.nativeLanguage)}
+                            <span>Native: {capitialize(user.nativeLanguage)}</span>
+                          </span>
+                          <span className="badge badge-outline text-xs sm:text-sm gap-1">
+                            {getLanguageFlag(user.learningLanguage)}
+                            <span>Learning: {capitialize(user.learningLanguage)}</span>
+                          </span>
                         </div>
-                      </div>
 
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="badge badge-secondary">
-                          {getLanguageFlag(user.nativeLanguage)}
-                          Native: {capitialize(user.nativeLanguage)}
-                        </span>
-                        <span className="badge badge-outline">
-                          {getLanguageFlag(user.learningLanguage)}
-                          Learning: {capitialize(user.learningLanguage)}
-                        </span>
-                      </div>
-                      {user.bio && <p className="text-sm opacity-70 line-clamp-2">{user.bio}</p>}
-
-                      <button
-                        className={`btn btn-sm w-full gap-2 ${
-                          hasRequestBeenSent ? "btn-outline btn-error" : "btn-primary"
-                        }`}
-                        onClick={() => {
-                          setLoadingUserId(user._id);
-                          if (hasRequestBeenSent) {
-                            const requestId = outgoingRequestMap.get(user._id);
-                            if (requestId) {
-                              cancelRequestMutation(requestId);
-                            }
-                          } else {
-                            sendRequestMutation(user._id);
-                          }
-                        }}
-                        disabled={loadingUserId === user._id}
-                      >
-                        {loadingUserId === user._id ? (
-                          <span className="loading loading-spinner loading-sm"></span>
-                        ) : hasRequestBeenSent ? (
-                          <>
-                            <XIcon className="size-4" />
-                            Cancel
-                          </>
-                        ) : (
-                          <>
-                            <UserPlusIcon className="size-4" />
-                            Add Friend
-                          </>
+                        {/* Bio Section */}
+                        {user.bio && (
+                          <p className="text-xs sm:text-sm opacity-70 line-clamp-2 leading-relaxed">{user.bio}</p>
                         )}
-                      </button>
+
+                        {/* Action Button - Always at bottom */}
+                        <button
+                          className={`btn btn-sm w-full gap-2 mt-auto ${
+                            hasRequestBeenSent ? "btn-outline btn-error" : "btn-primary"
+                          }`}
+                          onClick={() => {
+                            setLoadingUserId(user._id);
+                            if (hasRequestBeenSent) {
+                              const requestId = outgoingRequestMap.get(user._id);
+                              if (requestId) {
+                                cancelRequestMutation(requestId);
+                              }
+                            } else {
+                              sendRequestMutation(user._id);
+                            }
+                          }}
+                          disabled={loadingUserId === user._id}
+                          aria-label={hasRequestBeenSent ? `Cancel friend request to ${user.fullName}` : `Send friend request to ${user.fullName}`}
+                        >
+                          {loadingUserId === user._id ? (
+                            <span className="loading loading-spinner loading-sm"></span>
+                          ) : hasRequestBeenSent ? (
+                            <>
+                              <XIcon className="w-4 h-4" />
+                              <span>Cancel</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserPlusIcon className="w-4 h-4" />
+                              <span>Add Friend</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       </div>
@@ -585,17 +715,16 @@ const HomePage = () => {
       {showJumpToTop && (
         <button
           onClick={scrollToTop}
-          className={`fixed bottom-5 flex items-center gap-3 px-6 py-4 bg-secondary text-secondary-content rounded-full shadow-2xl hover:shadow-3xl hover:bg-secondary/90 transition-all duration-300 ${isFadingOut ? 'animate-fade-out' : 'animate-fade-in'} font-semibold text-base border border-secondary/20 backdrop-blur-sm`}
+          className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 lg:bottom-8 lg:right-8 flex items-center gap-1 sm:gap-2 px-3 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 bg-secondary text-secondary-content rounded-full shadow-2xl hover:shadow-3xl hover:bg-secondary/90 transition-all duration-300 ${isFadingOut ? 'animate-fade-out' : 'animate-fade-in'} font-semibold text-xs sm:text-sm lg:text-base border border-secondary/20 backdrop-blur-sm`}
           title="Scroll to top"
           aria-label="Jump to top"
           style={{
-            left: 'calc(50% + 120px)',
-            transform: 'translateX(-50%)',
             boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(168, 85, 247, 0.3)'
           }}
         >
-          <span>Click here to Jump to the top</span>
-          <svg className="w-5 h-5 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span className="hidden sm:inline">Jump to top</span>
+          <span className="sm:hidden">Top</span>
+          <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-5 lg:h-5 transform rotate-180 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
         </button>

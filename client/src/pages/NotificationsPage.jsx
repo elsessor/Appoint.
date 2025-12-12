@@ -167,37 +167,37 @@ const NotificationsPage = () => {
   }, [appointmentNotifications, incomingRequests, acceptedRequests]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-base-100 min-h-full">
-      <div className="container mx-auto max-w-4xl space-y-8">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+      <div className="w-full max-w-full lg:max-w-4xl mx-auto space-y-6 sm:space-y-8">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4 sm:mb-6">Notifications</h1>
 
         {/* Filter Buttons */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6">
           <button
             onClick={() => setActiveFilter("all")}
-            className={`btn btn-sm ${activeFilter === "all" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-xs sm:btn-sm ${activeFilter === "all" ? "btn-primary" : "btn-ghost"}`}
           >
             All
             {unreadCounts.all > 0 && (
-              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+              <span className="badge badge-xs sm:badge-sm ml-1">{unreadCounts.all}</span>
             )}
           </button>
           
           <button
             onClick={() => setActiveFilter("unread")}
-            className={`btn btn-sm ${activeFilter === "unread" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-xs sm:btn-sm ${activeFilter === "unread" ? "btn-primary" : "btn-ghost"}`}
           >
             Unread
             {unreadCounts.all > 0 && (
-              <span className="badge badge-sm ml-1">{unreadCounts.all}</span>
+              <span className="badge badge-xs sm:badge-sm ml-1">{unreadCounts.all}</span>
             )}
           </button>
           
           <button
             onClick={() => setActiveFilter("appointments")}
-            className={`btn btn-sm ${activeFilter === "appointments" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-xs sm:btn-sm ${activeFilter === "appointments" ? "btn-primary" : "btn-ghost"}`}
           >
-            <CalendarIcon className="h-4 w-4 mr-1" />
+            <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
             Appointments
             {unreadCounts.appointments > 0 && (
               <span className="badge badge-sm ml-1">{unreadCounts.appointments}</span>

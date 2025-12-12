@@ -2,22 +2,27 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard, HelpCircle } from "lucide-react";
-import ThemeSelector from "./ThemeSelector";
+import { BellIcon, LogOutIcon, ShipWheelIcon, LayoutDashboard, HelpCircle, Settings, PaletteIcon } from "lucide-react";
 import useLogout from "../hooks/useLogout";
 import { getFriendRequests, getNotifications } from "../lib/api";
 import ConfirmDialog from './ConfirmDialog';
 import FAQsModal from './FAQsModal';
+import ThemeSelector from './ThemeSelector';
+import { useThemeStore } from "../store/useThemeStore";
+import { THEMES } from "../constants";
 
 const Navbar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, setTheme } = useThemeStore();
   const isChatPage = location.pathname?.startsWith("/chat/") && !location.pathname?.startsWith("/chats");
   const isOnboarded = authUser?.isOnboarded;
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showFAQs, setShowFAQs] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { logoutMutation } = useLogout();
 
   // Fetch friend requests
@@ -66,30 +71,12 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-base-200 border-b border-base-300 fixed top-0 right-0 z-40 h-16 flex items-center" style={{ left: 'var(--navbar-left, 0)' }}>
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 w-full">
-        <div className="flex items-center justify-end w-full">
-          {isChatPage && (
-            <div className="pl-5">
-              <Link to="/" className="flex items-center gap-2.5">
-                <ShipWheelIcon className="size-9 text-primary" />
-                <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary  tracking-wider">
-                  Appoint.
-                </span>
-              </Link>
-            </div>
-          )}
-
-          <div className="flex items-center gap-6 sm:gap-4 ml-auto">
-            <button
-              onClick={() => setShowFAQs(true)}
-              className="btn btn-ghost btn-circle"
-              title="Help & FAQs"
-              aria-label="Help and FAQs"
-            >
-              <HelpCircle className="h-6 w-6 text-base-content opacity-70" />
-            </button>
-
+    <nav className="hidden lg:flex bg-base-200 border-b border-base-300 fixed top-0 right-0 z-40 h-16 items-center" style={{ left: 'var(--navbar-left, 0)' }}>
+      <div className="w-full px-2 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-between w-full h-16">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 ml-auto pr-2">
+            {/* Notifications - Always visible */}
             <Link to={"/notifications"}>
               <div className="indicator">
                 {notificationsCount > 0 && (
@@ -97,29 +84,155 @@ const Navbar = () => {
                     {notificationsCount}
                   </span>
                 )}
-                <button className="btn btn-ghost btn-circle">
-                  <BellIcon className="h-6 w-6 text-base-content opacity-70" />
+                <button className="btn btn-ghost btn-circle btn-sm sm:btn-md">
+                  <BellIcon className="h-5 w-5 sm:h-6 sm:w-6 text-base-content opacity-70" />
                 </button>
               </div>
             </Link>
 
-            <ThemeSelector />
+            {/* Profile Dropdown - All Devices */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowProfileMenu(!showProfileMenu);
+                  setShowThemeMenu(false);
+                }}
+                className="avatar cursor-pointer hover:opacity-80 transition-opacity"
+                title="Profile menu"
+                aria-label="Profile and settings menu"
+              >
+                <div className="w-9 sm:w-10 rounded-full ring-2 ring-offset-1 ring-base-300 hover:ring-primary transition-all">
+                  <img
+                    src={authUser?.profilePic && authUser.profilePic.trim() ? authUser.profilePic : '/default-profile.png'}
+                    alt={`${authUser?.fullName || 'User'} avatar`}
+                    onError={(e) => {
+                      e.target.src = '/default-profile.png';
+                    }}
+                  />
+                </div>
+              </button>
 
-            <Link to="/profile" className="avatar" aria-label="profile">
-              <div className="w-9 rounded-full cursor-pointer">
-                <img
-                  src={authUser?.profilePic && authUser.profilePic.trim() ? authUser.profilePic : '/default-profile.png'}
-                  alt={`${authUser?.fullName || 'User'} avatar`}
-                  onError={(e) => {
-                    e.target.src = '/default-profile.png';
-                  }}
-                />
-              </div>
-            </Link>
+              {/* Profile Dropdown Menu */}
+              {showProfileMenu && (
+                <div className="absolute right-0 top-12 bg-base-100 border border-base-300 rounded-xl shadow-2xl z-50 min-w-64 py-1 overflow-hidden">
+                  {/* User Info Header */}
+                  <div className="px-5 py-3 border-b border-base-300 bg-gradient-to-r from-base-100 to-base-200">
+                    <p className="font-semibold text-sm text-base-content">{authUser?.fullName || 'User'}</p>
+                    <p className="text-xs text-base-content/50 mt-0.5">{authUser?.email}</p>
+                  </div>
 
-            <button className="btn btn-ghost btn-circle" onClick={() => setShowLogoutConfirm(true)}>
-              <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
-            </button>
+                  {/* Profile Link */}
+                  <Link
+                    to="/profile"
+                    className="flex items-center gap-3 px-5 py-2 hover:bg-base-200 transition-colors group"
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <div className="avatar">
+                      <div className="w-8 rounded-full ring-2 ring-base-300 group-hover:ring-primary transition-all">
+                        <img
+                          src={authUser?.profilePic && authUser.profilePic.trim() ? authUser.profilePic : '/default-profile.png'}
+                          alt={`${authUser?.fullName || 'User'} avatar`}
+                          onError={(e) => {
+                            e.target.src = '/default-profile.png';
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-base-content">View Profile</p>
+                      <p className="text-xs text-base-content/50">Manage your account</p>
+                    </div>
+                  </Link>
+
+                  {/* Settings Link */}
+                  <Link
+                    to="/settings"
+                    className="flex items-center gap-3 px-5 py-2 hover:bg-base-200 transition-colors group"
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <Settings className="h-5 w-5 text-base-content/60 group-hover:text-primary flex-shrink-0 transition-colors" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-base-content">Settings</p>
+                      <p className="text-xs text-base-content/50">Preferences & security</p>
+                    </div>
+                  </Link>
+
+                  {/* Theme Selector */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowThemeMenu(!showThemeMenu)}
+                      className="w-full flex items-center gap-3 px-5 py-2 hover:bg-base-200 transition-colors group"
+                    >
+                      <PaletteIcon className="h-5 w-5 text-base-content/60 group-hover:text-primary flex-shrink-0 transition-colors" />
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-medium text-base-content">Theme</p>
+                        <p className="text-xs text-base-content/50">Change appearance</p>
+                      </div>
+                    </button>
+
+                    {/* Theme Menu */}
+                    {showThemeMenu && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg z-50 p-2 max-h-60 overflow-y-auto">
+                        {THEMES.map((themeOption) => (
+                          <button
+                            key={themeOption.name}
+                            className={`w-full px-3 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm ${
+                              theme === themeOption.name
+                                ? "bg-primary/20 text-primary font-medium"
+                                : "hover:bg-base-200"
+                            }`}
+                            onClick={() => {
+                              setTheme(themeOption.name);
+                              setShowThemeMenu(false);
+                            }}
+                          >
+                            <span className="flex-1 text-left">{themeOption.label}</span>
+                            <div className="flex gap-1">
+                              {themeOption.colors.map((color, i) => (
+                                <span
+                                  key={i}
+                                  className="size-2 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* FAQ */}
+                  <button
+                    onClick={() => {
+                      setShowFAQs(true);
+                      setShowProfileMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-5 py-2 hover:bg-base-200 transition-colors text-left group"
+                  >
+                    <HelpCircle className="h-5 w-5 text-base-content/60 group-hover:text-primary flex-shrink-0 transition-colors" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-base-content">Help & FAQs</p>
+                      <p className="text-xs text-base-content/50">Find answers fast</p>
+                    </div>
+                  </button>
+
+                  {/* Logout */}
+                  <div className="border-t border-base-300 mt-0 pt-0">
+                    <button
+                      onClick={() => {
+                        setShowLogoutConfirm(true);
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-5 py-2 hover:bg-error/10 transition-colors group"
+                    >
+                      <LogOutIcon className="h-5 w-5 text-error/70 group-hover:text-error flex-shrink-0 transition-colors" />
+                      <p className="text-sm font-medium text-error">Logout</p>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

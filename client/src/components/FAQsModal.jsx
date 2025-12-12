@@ -185,30 +185,30 @@ const FAQsModal = ({ isOpen, onClose }) => {
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-base-100 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-base-100 rounded-lg sm:rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-gradient-to-r from-primary to-secondary p-6 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-white">Frequently Asked Questions</h1>
-                <p className="text-white/80 text-sm mt-1">Find answers to common questions about Appoint.</p>
+            <div className="bg-gradient-to-r from-primary to-secondary p-3 sm:p-6 flex items-center justify-between flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">Frequently Asked Questions</h1>
+                <p className="text-white/80 text-xs sm:text-sm mt-0.5 sm:mt-1">Find answers to common questions about Appoint.</p>
               </div>
               <button
                 onClick={onClose}
-                className="btn btn-circle btn-sm btn-ghost text-white hover:bg-white/20"
+                className="btn btn-circle btn-xs sm:btn-sm btn-ghost text-white hover:bg-white/20 flex-shrink-0 ml-2"
               >
-                <X className="size-5" />
+                <X className="size-4 sm:size-5" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="overflow-y-auto flex-1 p-6 space-y-3">
+            <div className="overflow-y-auto flex-1 p-3 sm:p-6 space-y-2 sm:space-y-3">
               {faqs.map((category) => (
                 <div key={category.category}>
-                  <h2 className="text-lg font-semibold text-primary mb-3 sticky top-0 bg-base-100 py-2">
+                  <h2 className="text-sm sm:text-lg font-semibold text-primary mb-2 sm:mb-3 sticky top-0 bg-base-100 py-1 sm:py-2">
                     {category.category}
                   </h2>
-                  <div className="space-y-2">
+                  <div className="space-y-1 sm:space-y-2">
                     {category.items.map((item, idx) => {
                       const globalIndex = allFaqItems.findIndex((faq) =>
                         faq.question === item.question && faq.category === category.category
@@ -222,17 +222,16 @@ const FAQsModal = ({ isOpen, onClose }) => {
                         >
                           <button
                             onClick={() => toggleExpand(globalIndex)}
-                            className="w-full p-4 flex items-center justify-between bg-base-200/50 hover:bg-base-200 transition-colors text-left"
+                            className="w-full p-2 sm:p-4 flex items-center justify-between bg-base-200/50 hover:bg-base-200 transition-colors text-left gap-2"
                           >
-                            <span className="font-medium text-base-content">{item.question}</span>
+                            <span className="font-medium text-xs sm:text-base text-base-content line-clamp-2 sm:line-clamp-none">{item.question}</span>
                             <ChevronDown
-                              className={`size-5 text-primary transition-transform ${
-                                isExpanded ? "rotate-180" : ""
-                              }`}
+                              className={`size-4 sm:size-5 text-primary transition-transform flex-shrink-0`}
+                              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
                             />
                           </button>
                           {isExpanded && (
-                            <div className="p-4 bg-base-100 border-t border-base-300 text-base-content/80">
+                            <div className="p-2 sm:p-4 bg-base-100 border-t border-base-300 text-xs sm:text-base text-base-content/80">
                               {item.answer}
                             </div>
                           )}
@@ -240,7 +239,7 @@ const FAQsModal = ({ isOpen, onClose }) => {
                       );
                     })}
                   </div>
-                  <div className="divider my-4" />
+                  <div className="divider my-2 sm:my-4" />
                 </div>
               ))}
             </div>

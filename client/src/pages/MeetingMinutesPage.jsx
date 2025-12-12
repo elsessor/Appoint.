@@ -51,28 +51,28 @@ const MeetingMinutesPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 lg:px-6">
+      <div className="max-w-full lg:max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Meeting Minutes</h1>
-            <p className="text-gray-400">View all your meeting summaries and action items</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1 sm:mb-2">Meeting Minutes</h1>
+            <p className="text-xs sm:text-sm text-gray-400">View all your meeting summaries and action items</p>
           </div>
-          <div className="badge badge-primary badge-lg">
+          <div className="badge badge-sm sm:badge-md lg:badge-lg badge-primary\">
             {minutes?.length || 0} Meetings
           </div>
         </div>
 
         {!minutes || minutes.length === 0 ? (
-          <div className="text-center py-20">
-            <FileText className="w-20 h-20 mx-auto text-gray-500 mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">No meeting minutes yet</h2>
-            <p className="text-gray-400 mb-6">
+          <div className="text-center py-12 sm:py-20">
+            <FileText className="w-16 sm:w-20 h-16 sm:h-20 mx-auto text-gray-500 mb-4" />
+            <h2 className="text-xl sm:text-2xl font-semibold mb-2">No meeting minutes yet</h2>
+            <p className="text-xs sm:text-sm text-gray-400 mb-6">
               Generate your first meeting minutes from a call
             </p>
           </div>
         ) : (
-          <div className="grid gap-6">
+          <div className="grid gap-3 sm:gap-4 lg:gap-6">
             {minutes.map((meeting) => (
               <MeetingCard
                 key={meeting._id}
@@ -190,8 +190,8 @@ const DetailedMinutesView = ({ minutes, onBack, onDelete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-base-100 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-8 px-4">
+      <div className="w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <button onClick={onBack} className="btn btn-ghost">
             <ArrowLeft className="w-5 h-5" />

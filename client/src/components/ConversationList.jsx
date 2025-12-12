@@ -75,7 +75,7 @@ const ConversationList = ({ chatClient, onSelectUser }) => {
   }
 
   return (
-    <div className="w-80 border-r border-base-300 bg-base-200 flex flex-col h-full">
+    <div className="w-full lg:w-80 border-r border-base-300 bg-base-200 flex flex-col h-full min-h-64 lg:min-h-full">
 
       {/* Search Bar */}
       <div className="p-4 border-b border-base-300">
@@ -235,7 +235,7 @@ const ConversationItem = ({
   const handleClick = () => {
     if (isSelecting) return; // Prevent rapid clicks
     setIsSelecting(true);
-    onSelectUser?.(friend._id);
+    onSelectUser?.(friend._id, friend.fullName);
     
     // Reset after 500ms to allow next selection
     setTimeout(() => setIsSelecting(false), 500);

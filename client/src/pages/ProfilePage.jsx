@@ -452,29 +452,26 @@ const ProfilePage = () => {
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header Section with Banner */}
-      <div className="bg-gradient-to-r from-primary to-secondary rounded-t-xl h-32"></div>
-      
-      <div className="bg-base-200 rounded-b-xl shadow-lg -mt-16 p-6">
-        <div className="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6 mb-6">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+      <div className="w-full max-w-full lg:max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-4 sm:mb-6">
           {/* Profile Picture */}
-          <div className="relative ml-6">
+          <div className="relative">
             <img
               src={authUser?.profilePic || profile.profilePicture || "/profile.jpg"}
               alt={authUser?.fullName || profile.name}
-              className="w-32 h-32 rounded-full object-cover border-4 border-base-200 shadow-xl"
+              className="w-20 sm:w-32 h-20 sm:h-32 rounded-full object-cover border-4 border-base-200 shadow-xl"
               onError={(e) => {
                 e.target.src = '/default-profile.svg';
               }}
             />
-            <div className="absolute bottom-0 right-0 w-6 h-6 bg-success rounded-full border-2 border-base-200"></div>
+            <div className="absolute bottom-0 right-0 w-4 sm:w-6 h-4 sm:h-6 bg-success rounded-full border-2 border-base-200"></div>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} disabled={isUploadingPhoto} />
           </div>
 
           {/* Name and Title */}
           <div className="flex-1">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
               <div>
                 <div className="flex items-center space-x-3 mb-1">
                   <h1 className="text-3xl font-bold">{authUser?.fullName || profile.name}</h1>

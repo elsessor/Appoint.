@@ -144,21 +144,32 @@ const SettingPage = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="bg-base-200 rounded-xl border-t-4 border-primary p-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold">Settings</h1>
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+      <div className="w-full max-w-full lg:max-w-4xl mx-auto bg-base-200 rounded-xl border-t-4 border-primary p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold">Settings</h1>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <ThemeSelector />
-            <button className="btn btn-ghost" onClick={() => logoutMutation()}>Logout</button>
+            {/* Desktop logout button */}
+            <button className="btn btn-ghost btn-sm hidden sm:flex" onClick={() => logoutMutation()}>Logout</button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
+        {/* Mobile logout button */}
+        <div className="sm:hidden mb-4">
+          <button 
+            className="btn btn-outline btn-error btn-sm w-full" 
+            onClick={() => logoutMutation()}
+          >
+            Logout
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 sm:gap-2 mb-4 sm:mb-6 flex-wrap">
           <button
             onClick={() => setActiveTab("Privacy Controls")}
             aria-pressed={activeTab === "Privacy Controls"}
-            className={`btn btn-ghost btn-sm rounded-full ${activeTab === "Privacy Controls" ? "bg-base-300 text-primary shadow" : ""}`}
+            className={`btn btn-ghost btn-xs sm:btn-sm rounded-full ${activeTab === "Privacy Controls" ? "bg-base-300 text-primary shadow" : ""}`}
           >
             Privacy Controls
           </button>
@@ -166,7 +177,7 @@ const SettingPage = () => {
           <button
             onClick={() => setActiveTab("Availability")}
             aria-pressed={activeTab === "Availability"}
-            className={`btn btn-ghost btn-sm rounded-full ${activeTab === "Availability" ? "bg-base-300 text-primary shadow" : ""}`}
+            className={`btn btn-ghost btn-xs sm:btn-sm rounded-full ${activeTab === "Availability" ? "bg-base-300 text-primary shadow" : ""}`}
           >
             Availability
           </button>
@@ -174,7 +185,7 @@ const SettingPage = () => {
           <button
             onClick={() => setActiveTab("Security")}
             aria-pressed={activeTab === "Security"}
-            className={`btn btn-ghost btn-sm rounded-full ${activeTab === "Security" ? "bg-base-300 text-primary shadow" : ""}`}
+            className={`btn btn-ghost btn-xs sm:btn-sm rounded-full ${activeTab === "Security" ? "bg-base-300 text-primary shadow" : ""}`}
           >
             Security
           </button>

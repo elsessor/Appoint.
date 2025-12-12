@@ -276,7 +276,7 @@ const AppointmentsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100" data-theme={theme}>
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-4" data-theme={theme}>
       {selectedAppointment ? (
         <AppointmentDetailsView
           appointment={selectedAppointment}
@@ -302,10 +302,10 @@ const AppointmentsPage = () => {
         />
       ) : (
         <>
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="max-w-7xl mx-auto px-0 lg:px-6 py-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-3xl font-extrabold text-base-content">Appointments</h1>
+                <h1 className="text-2xl lg:text-3xl font-extrabold text-base-content">Appointments</h1>
                 <p className="text-sm text-base-content/60">Manage your upcoming and past appointments</p>
               </div>
               <div className="flex items-center gap-2">
@@ -313,7 +313,7 @@ const AppointmentsPage = () => {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 py-2">
+          <div className="max-w-7xl mx-auto px-0 lg:px-6 py-2">
             <div className="flex gap-2 flex-wrap items-center">
                 {[
                   { value: 'scheduled', label: 'Today', count: appointmentsForToday.length, Icon: Calendar, priority: true },

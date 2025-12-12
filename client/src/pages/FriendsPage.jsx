@@ -9,6 +9,7 @@ import useAuthUser from "../hooks/useAuthUser";
 import usePresence from "../hooks/usePresence";
 import { isOnline } from '../lib/presence';
 import { getStatusColor, formatStatusLabel } from "../utils/statusColors";
+import FriendsCarousel from "../components/FriendsCarousel";
 
 const LanguageBadge = ({ type, language }) => {
   const langLower = language?.toLowerCase();
@@ -236,67 +237,68 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
 
   return (
     <>
-      <div className="card relative bg-gradient-to-br from-base-200 to-base-300 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group">
-        <div className="relative h-32 bg-gradient-to-r from-primary/20 to-secondary/20">
+      <div className="card relative bg-gradient-to-br from-base-200 to-base-300 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group h-full flex flex-col">
+        <div className="relative h-20 sm:h-32 bg-gradient-to-r from-primary/20 to-secondary/20">
           <Link
             to={`/profile/${friend._id || friend.id}`}
-            className="absolute top-3 right-3 btn btn-ghost btn-sm btn-circle z-10"
+            className="absolute top-1 sm:top-3 right-1 sm:right-3 btn btn-ghost btn-xs sm:btn-sm btn-circle z-10"
             title={`View ${name}'s profile`}
             aria-label={`View ${name} profile`}
             onClick={(e) => e.stopPropagation()}
           >
-            <User className="w-4 h-4" />
+            <User className="w-3 h-3 sm:w-4 sm:h-4" />
           </Link>
-          <div className="absolute -bottom-6 left-4">
+          <div className="absolute -bottom-4 sm:-bottom-6 left-2 sm:left-4">
             <div className="relative">
               <img 
                 src={avatar} 
                 alt={name} 
-                className="w-20 h-20 rounded-full border-4 border-base-200 object-cover group-hover:scale-105 transition-transform"
+                className="w-12 h-12 sm:w-20 sm:h-20 rounded-full border-3 sm:border-4 border-base-200 object-cover group-hover:scale-105 transition-transform"
               />
-              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-3 border-base-200 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
+              <div className={`absolute -bottom-0.5 sm:-bottom-1 -right-0.5 sm:-right-1 w-3 h-3 sm:w-5 sm:h-5 rounded-full border-2 sm:border-3 border-base-200 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
             </div>
           </div>
         </div>
 
-        <div className="card-body pt-10 pb-4">
+        <div className="card-body pt-6 sm:pt-10 pb-2 sm:pb-4 px-3 sm:px-4 flex-1 flex flex-col">
           <div>
-            <h3 className="card-title text-lg truncate">{name}</h3>
-            <p className="text-xs opacity-60">{status}</p>
+            <h3 className="card-title text-sm sm:text-lg truncate">{name}</h3>
+            <p className="text-xs opacity-60 line-clamp-1">{status}</p>
             {friend.location && (
-              <div className="flex items-center gap-1 text-xs opacity-70 mt-1">
-                <MapPin className="w-3 h-3" />
+              <div className="flex items-center gap-1 text-xs opacity-70 mt-0.5 line-clamp-1">
+                <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
                 <span className="truncate">{friend.location}</span>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1 hidden sm:flex">
             <LanguageBadge type="native" language={native} />
             <LanguageBadge type="learning" language={learning} />
           </div>
 
-          <div className="card-actions justify-between gap-2 mt-4">
+          <div className="card-actions justify-between gap-0.5 sm:gap-2 mt-auto">
             <Link
               to={`/chats/${friend._id || friend.id}`}
-              className="btn btn-sm btn-primary flex-1"
+              className="btn btn-xs sm:btn-sm btn-primary flex-1"
+              title="Chat"
             >
-              <MessageCircle className="w-4 h-4" />
-              Chat
+              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Chat</span>
             </Link>
             <button 
-              className="btn btn-circle btn-sm btn-ghost"
+              className="btn btn-circle btn-xs sm:btn-sm btn-ghost"
               onClick={handleCalendarClick}
               title="Book appointment"
             >
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
             <button 
-              className="btn btn-circle btn-sm btn-ghost hover:bg-error/20"
+              className="btn btn-circle btn-xs sm:btn-sm btn-ghost hover:bg-error/20"
               onClick={() => setShowUnfriendConfirm(true)}
               title="Unfriend"
             >
-              <UserX className="w-4 h-4 text-error" />
+              <UserX className="w-3 h-3 sm:w-4 sm:h-4 text-error" />
             </button>
           </div>
         </div>
@@ -533,11 +535,11 @@ const FriendsPage = () => {
   }, [friends, searchQuery, statusFilter, favoriteFilter]);
 
   return (
-    <div className="p-6 bg-base-100 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold text-primary mb-2">Friends</h1>
-          <p className="text-base-content opacity-70 mb-4">
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4">
+      <div className="w-full max-w-full lg:max-w-7xl mx-auto">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-1 sm:mb-2">Friends</h1>
+          <p className="text-xs sm:text-sm text-base-content opacity-70 mb-3 sm:mb-4">
             {searchQuery || statusFilter !== "all" ? (
               <span>Showing {filteredFriends.length} of {friends.length} friends</span>
             ) : (
@@ -548,10 +550,10 @@ const FriendsPage = () => {
           </p>
 
           {/* Search Bar with Icon */}
-          <div className="mb-4">
+          <div className="mb-3 sm:mb-4">
             <label htmlFor="friends-search" className="sr-only">Search friends</label>
-            <div className="relative w-full md:w-1/2">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50" />
+            <div className="relative w-full sm:w-full md:w-1/2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-base-content/50" />
               <input
                 id="friends-search"
                 type="text"
@@ -559,73 +561,73 @@ const FriendsPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name or language"
                 aria-label="Search friends by name or language"
-                className="input input-bordered w-full pl-10"
+                className="input input-sm sm:input-md input-bordered w-full pl-9 sm:pl-10 text-xs sm:text-base"
               />
             </div>
           </div>
 
           {/* Filter and View Toggle */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-col gap-2 sm:gap-4 items-start sm:items-center justify-between">
             {/* Status Filters */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setStatusFilter("all")}
-                className={`btn btn-sm gap-2 ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
               >
                 All
               </button>
               <button
                 onClick={() => setStatusFilter("online")}
-                className={`btn btn-sm gap-2 ${statusFilter === "online" ? "btn-success" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "online" ? "btn-success" : "btn-outline"}`}
               >
                 <CheckCircle className="w-4 h-4" />
                 Online
               </button>
               <button
                 onClick={() => setStatusFilter("limited")}
-                className={`btn btn-sm gap-2 ${statusFilter === "limited" ? "btn-warning" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "limited" ? "btn-warning" : "btn-outline"}`}
               >
-                <AlertCircle className="w-4 h-4" />
-                Limited
+                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Limited</span>
               </button>
               <button
                 onClick={() => setStatusFilter("away")}
-                className={`btn btn-sm gap-2 ${statusFilter === "away" ? "btn-error" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "away" ? "btn-error" : "btn-outline"}`}
               >
-                <Clock className="w-4 h-4" />
-                Away
+                <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Away</span>
               </button>
               <button
                 onClick={() => setStatusFilter("offline")}
-                className={`btn btn-sm gap-2 ${statusFilter === "offline" ? "btn-neutral" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "offline" ? "btn-neutral" : "btn-outline"}`}
               >
-                <Ban className="w-4 h-4" />
-                Offline
+                <Ban className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Offline</span>
               </button>
             </div>
 
             {/* Favorite Filter */}
-            <div className="flex gap-2">
+            <div className="flex gap-1 sm:gap-2">
               <button
                 onClick={() => setFavoriteFilter("all")}
-                className={`btn btn-sm gap-2 ${favoriteFilter === "all" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "all" ? "btn-primary" : "btn-outline"}`}
               >
-                All Friends
+                All
               </button>
               <button
                 onClick={() => setFavoriteFilter("favorites")}
-                className={`btn btn-sm gap-2 ${favoriteFilter === "favorites" ? "btn-error" : "btn-outline"}`}
+                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "favorites" ? "btn-error" : "btn-outline"}`}
               >
-                <Heart className="w-4 h-4" />
-                Favorites
+                <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Favorites</span>
               </button>
             </div>
 
             {/* View Toggle */}
-            <div className="flex gap-2 bg-base-300 p-1 rounded-lg">
+            <div className="flex gap-1 bg-base-300 p-0.5 sm:p-1 rounded-lg ml-auto sm:ml-0">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`btn btn-sm btn-circle ${viewMode === "grid" ? "btn-primary" : "btn-ghost"}`}
+                className={`btn btn-xs sm:btn-sm btn-circle ${viewMode === "grid" ? "btn-primary" : "btn-ghost"}`}
                 title="Grid view"
                 aria-label="Switch to grid view"
               >
@@ -644,13 +646,13 @@ const FriendsPage = () => {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {[1,2,3,4,5,6].map((i) => (
-              <div key={i} className="card bg-base-200 animate-pulse h-80">
-                <div className="card-body">
-                  <div className="h-40 bg-base-300 rounded mb-4" />
-                  <div className="h-4 bg-base-300 rounded w-2/3 mb-2" />
-                  <div className="h-3 bg-base-300 rounded" />
+              <div key={i} className="card bg-base-200 animate-pulse h-40 sm:h-60">
+                <div className="card-body p-2 sm:p-4">
+                  <div className="h-20 sm:h-32 bg-base-300 rounded mb-2 sm:mb-4" />
+                  <div className="h-3 sm:h-4 bg-base-300 rounded w-2/3 mb-1 sm:mb-2" />
+                  <div className="h-2 sm:h-3 bg-base-300 rounded" />
                 </div>
               </div>
             ))}
@@ -668,16 +670,33 @@ const FriendsPage = () => {
             <p className="text-lg opacity-70">No friends match your filters.</p>
           </div>
         ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredFriends.map((friend) => (
-              <FriendCard 
-                friend={friend} 
-                key={friend._id || friend.id}
-                onUnfriend={(friendId) => unfriendMutation.mutate(friendId)}
-                currentUserId={authUser?._id}
-              />
-            ))}
-          </div>
+          <>
+            {/* Mobile Carousel - Grid View */}
+            <div className="lg:hidden -mx-2 sm:-mx-4">
+              <FriendsCarousel itemsPerView={1}>
+                {filteredFriends.map((friend) => (
+                  <FriendCard 
+                    friend={friend} 
+                    key={friend._id || friend.id}
+                    onUnfriend={(friendId) => unfriendMutation.mutate(friendId)}
+                    currentUserId={authUser?._id}
+                  />
+                ))}
+              </FriendsCarousel>
+            </div>
+
+            {/* Desktop Grid - Grid View */}
+            <div className="hidden lg:grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
+              {filteredFriends.map((friend) => (
+                <FriendCard 
+                  friend={friend} 
+                  key={friend._id || friend.id}
+                  onUnfriend={(friendId) => unfriendMutation.mutate(friendId)}
+                  currentUserId={authUser?._id}
+                />
+              ))}
+            </div>
+          </>
         ) : (
           <div className="space-y-3">
             {filteredFriends.map((friend) => (
