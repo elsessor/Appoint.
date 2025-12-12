@@ -85,13 +85,6 @@ const LoginPage = () => {
                   <div className="form-control w-full space-y-2">
                     <label className="label">
                       <span className="label-text">Password</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsForgotPasswordOpen(true)}
-                        className="label-text-alt text-primary hover:underline text-xs"
-                      >
-                         Forgot Password? Change it here
-                      </button>
                     </label>
                     <input
                       type="password"
@@ -114,7 +107,18 @@ const LoginPage = () => {
                     )}
                   </button>
 
-                  <div className="text-center mt-4">
+                  <div className="text-center mt-4 space-y-4">
+                    <p className="text-sm">
+                      Forgot Password?{" "}
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPasswordOpen(true)}
+                        className="text-primary hover:underline cursor-pointer"
+                      >
+                        Click here
+                      </button>
+                    </p>
+
                     <p className="text-sm">
                       Don't have an account?{" "}
                       <Link to="/signup" className="text-primary hover:underline">
