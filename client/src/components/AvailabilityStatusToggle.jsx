@@ -38,6 +38,7 @@ const AvailabilityStatusToggle = ({ currentUser, onStatusChange }) => {
         end: '17:00',
         slotDuration: 30,
         buffer: 15,
+        minPerDay: 1,
         maxPerDay: 5,
         breakTimes: [],
         minLeadTime: 0,

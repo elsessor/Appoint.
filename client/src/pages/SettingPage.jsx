@@ -7,6 +7,7 @@ import { getMySettings, updateMySettings, changePassword, deleteMyAccount } from
 import { axiosInstance } from "../lib/axios";
 import { useQueryClient } from "@tanstack/react-query";
 import AvailabilitySettings from "../components/AvailabilitySettings";
+import { Settings } from "lucide-react";
 
 const SettingPage = () => {
   const { authUser } = useAuthUser();
@@ -201,9 +202,10 @@ const SettingPage = () => {
               <div className="py-3">
                 <button
                   onClick={() => setShowAvailabilitySettings(true)}
-                  className="btn btn-primary"
+                  className="btn btn-primary gap-2"
                 >
-                  ⚙️ Configure Availability
+                  <Settings className="w-4 h-4" />
+                  Configure Availability
                 </button>
                 <div className="text-xs text-slate-400 mt-2">
                   Set your working hours, availability status, break times, and appointment limits
