@@ -71,11 +71,20 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="hidden lg:flex bg-base-200 border-b border-base-300 fixed top-0 right-0 z-40 h-16 items-center" style={{ left: 'var(--navbar-left, 0)' }}>
-      <div className="w-full px-2 sm:px-4 lg:px-8">
+    <>
+      {/* Mobile Navbar - Small Devices Only */}
+      <nav className="lg:hidden fixed top-0 left-0 right-0 bg-base-200 border-b border-base-300 z-40 h-16 flex items-center px-4">
         <div className="flex items-center justify-between w-full h-16">
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 ml-auto pr-2">
+          <h1 className="text-xl font-bold text-primary">Appoint</h1>
+        </div>
+      </nav>
+
+      {/* Desktop Navbar - Large Devices Only */}
+      <nav className="hidden lg:flex bg-base-200 border-b border-base-300 fixed top-0 right-0 z-40 h-16 items-center" style={{ left: 'var(--navbar-left, 0)' }}>
+        <div className="w-full px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center justify-between w-full h-16">
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 ml-auto pr-2">
             {/* Notifications - Always visible */}
             <Link to={"/notifications"}>
               <div className="indicator">
@@ -249,7 +258,8 @@ const Navbar = () => {
       />
 
       <FAQsModal isOpen={showFAQs} onClose={() => setShowFAQs(false)} />
-    </nav>
+      </nav>
+    </>
   );
 };
 export default Navbar;

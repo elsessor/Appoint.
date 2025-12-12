@@ -264,7 +264,7 @@ const NotificationsPage = () => {
   navigate('/appointments?filter=incoming');
 }}
                           >
-                            <div className="w-10 h-10 rounded-lg">
+                            <div className="w-10 h-10 rounded-full">
                               <img
                                 src={(notification.senderId?.profilePic?.trim()) ? notification.senderId.profilePic : '/default-profile.svg'}
                                 alt={notification.senderId?.fullName || 'User'}
@@ -336,7 +336,7 @@ const NotificationsPage = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <div className="w-14 h-14 rounded-lg">
+                              <div className="w-14 h-14 rounded-full">
                                 <img 
                                   src={(request.sender.profilePic?.trim()) ? request.sender.profilePic : '/default-profile.svg'} 
                                   alt={request.sender.fullName}
@@ -382,7 +382,7 @@ const NotificationsPage = () => {
                             className="avatar mt-1 size-10 rounded-full flex-shrink-0 cursor-pointer"
                             onClick={() => navigate(`/profile/${notification.recipient._id}`)}
                           >
-                            <div className="w-10 h-10 rounded-lg">
+                            <div className="w-10 h-10 rounded-full">
                               <img
                                 src={(notification.recipient?.profilePic?.trim()) ? notification.recipient.profilePic : '/default-profile.svg'}
                                 alt={notification.recipient?.fullName}

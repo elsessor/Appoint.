@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
@@ -10,7 +10,7 @@ import {
   getAppointments,
 } from "../lib/api";
 import { Link } from "react-router";
-import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon } from "lucide-react";
+import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { capitialize } from "../lib/utils";
 import usePresence from "../hooks/usePresence";
@@ -24,6 +24,7 @@ import FriendsCarousel from "../components/FriendsCarousel";
 
 const HomePage = () => {
   const queryClient = useQueryClient();
+  const friendsCarouselRef = useRef(null);
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
   const [outgoingRequestMap, setOutgoingRequestMap] = useState(new Map());
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,6 +34,16 @@ const HomePage = () => {
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [analyticsPeriod, setAnalyticsPeriod] = useState("yesterday"); // "yesterday", "lastWeek", "lastMonth"
   const { authUser } = useAuthUser();
+
+  const scrollFriendsCarousel = (direction) => {
+    if (friendsCarouselRef.current) {
+      const scrollAmount = 250;
+      friendsCarouselRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // Handle scroll for jump-to-top button
   useEffect(() => {
@@ -303,88 +314,80 @@ const HomePage = () => {
             ))}
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mt-4 sm:mt-6">
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body p-3 sm:p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base-content opacity-70 text-xs sm:text-sm min-h-[2rem] flex items-center">Total Appointments</p>
-                    <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{appointmentsCurrent}</p>
+              <div className="card-body p-2 sm:p-3 lg:p-4 gap-2">
+                <p className="text-base-content opacity-70 text-[10px] sm:text-xs lg:text-sm line-clamp-2">Total Appointments</p>
+                <p className="text-lg sm:text-xl lg:text-3xl font-bold">{appointmentsCurrent}</p>
+                <div className="flex items-center justify-between">
+                  <div className={`text-[10px] sm:text-xs ${appointmentsDelta.positive ? "text-success" : "text-error"}`}>
+                    {appointmentsDelta.label}
                   </div>
-                  <div className="badge badge-sm sm:badge-lg badge-primary flex-shrink-0 ml-2">
-                    <CalendarIcon className="size-3 sm:size-4" />
+                  <div className="badge badge-xs sm:badge-sm lg:badge-lg badge-primary">
+                    <CalendarIcon className="size-2 sm:size-3 lg:size-4" />
                   </div>
-                </div>
-                <div className={`text-xs ${appointmentsDelta.positive ? "text-success" : "text-error"} mt-2 sm:mt-3`}>
-                  {appointmentsDelta.label} from last period
                 </div>
               </div>
             </div>
 
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body p-3 sm:p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base-content opacity-70 text-xs sm:text-sm min-h-[2rem] flex items-center">Completed Calls</p>
-                    <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{completedCurrent}</p>
+              <div className="card-body p-2 sm:p-3 lg:p-4 gap-2">
+                <p className="text-base-content opacity-70 text-[10px] sm:text-xs lg:text-sm line-clamp-2">Completed Calls</p>
+                <p className="text-lg sm:text-xl lg:text-3xl font-bold">{completedCurrent}</p>
+                <div className="flex items-center justify-between">
+                  <div className={`text-[10px] sm:text-xs ${completedDelta.positive ? "text-success" : "text-error"}`}>
+                    {completedDelta.label}
                   </div>
-                  <div className="badge badge-lg" style={{ backgroundColor: "#00c875" }}>
-                    <VideoIcon className="size-4" style={{ color: "#08173fff" }} />
+                  <div className="badge badge-xs sm:badge-sm lg:badge-lg" style={{ backgroundColor: "#00c875" }}>
+                    <VideoIcon className="size-2 sm:size-3 lg:size-4" style={{ color: "#08173fff" }} />
                   </div>
-                </div>
-                <div className={`text-xs ${completedDelta.positive ? "text-success" : "text-error"} mt-3`}>
-                  {completedDelta.label} from last period
                 </div>
               </div>
             </div>
 
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Active Contacts</p>
-                    <p className="text-3xl font-bold mt-2">{onlineContacts}</p>
+              <div className="card-body p-2 sm:p-3 lg:p-4 gap-2">
+                <p className="text-base-content opacity-70 text-[10px] sm:text-xs lg:text-sm line-clamp-2">Active Contacts</p>
+                <p className="text-lg sm:text-xl lg:text-3xl font-bold">{onlineContacts}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] sm:text-xs text-base-content opacity-60">
+                    {onlineContacts}/{realFriends.length}
+                  </span>
+                  <div className="badge badge-xs sm:badge-sm lg:badge-lg" style={{ backgroundColor: "#9d4edd" }}>
+                    <UserCheckIcon className="size-2 sm:size-3 lg:size-4" style={{ color: "#08173fff" }} />
                   </div>
-                  <div className="badge badge-lg" style={{ backgroundColor: "#9d4edd" }}>
-                    <UserCheckIcon className="size-4" style={{ color: "#08173fff" }} />
-                  </div>
-                </div>
-                <div className="text-xs text-base-content opacity-60 mt-3">
-                  <span className="font-semibold">{onlineContacts}</span> of <span className="font-semibold">{realFriends.length}</span> online
                 </div>
               </div>
             </div>
 
             <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Pending Appointments</p>
-                    <p className="text-3xl font-bold mt-2">{pendingAppointmentsCurrent}</p>
+              <div className="card-body p-2 sm:p-3 lg:p-4 gap-2">
+                <p className="text-base-content opacity-70 text-[10px] sm:text-xs lg:text-sm line-clamp-2">Pending</p>
+                <p className="text-lg sm:text-xl lg:text-3xl font-bold">{pendingAppointmentsCurrent}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] sm:text-xs text-base-content opacity-60">
+                    Confirmation
+                  </span>
+                  <div className="badge badge-xs sm:badge-sm lg:badge-lg" style={{ backgroundColor: "#ff9500" }}>
+                    <ClockIcon className="size-2 sm:size-3 lg:size-4" style={{ color: "#08173fff" }} />
                   </div>
-                  <div className="badge badge-lg" style={{ backgroundColor: "#ff9500" }}>
-                    <ClockIcon className="size-4" style={{ color: "#08173fff" }} />
-                  </div>
-                </div>
-                <div className="text-xs text-base-content opacity-60 mt-3">
-                  Waiting for your confirmation
                 </div>
               </div>
             </div>
 
-            <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
-              <div className="card-body">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-base-content opacity-70 text-sm min-h-[2.5rem] flex items-center">Friend Requests</p>
-                    <p className="text-3xl font-bold mt-2">{incomingCurrent}</p>
+            <div className="hidden sm:block">
+              <div className="card bg-base-200 shadow-md hover:shadow-lg transition-shadow">
+                <div className="card-body p-2 sm:p-3 lg:p-4 gap-2">
+                  <p className="text-base-content opacity-70 text-[10px] sm:text-xs lg:text-sm line-clamp-2">Requests</p>
+                  <p className="text-lg sm:text-xl lg:text-3xl font-bold">{incomingCurrent}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] sm:text-xs text-base-content opacity-60">
+                      {acceptedThisMonth} accepted
+                    </span>
+                    <div className="badge badge-xs sm:badge-sm lg:badge-lg" style={{ backgroundColor: "#ff7aa2" }}>
+                      <UsersIcon className="size-2 sm:size-3 lg:size-4" style={{ color: "#08173fff" }} />
+                    </div>
                   </div>
-                  <div className="badge badge-lg" style={{ backgroundColor: "#ff7aa2" }}>
-                    <UsersIcon className="size-4" style={{ color: "#08173fff" }} />
-                  </div>
-                </div>
-                <div className="text-xs text-base-content opacity-60 mt-3">
-                  <span className="font-semibold">{acceptedThisMonth}</span> accepted this month
                 </div>
               </div>
             </div>
@@ -412,8 +415,63 @@ const HomePage = () => {
               .friend-circle-wrapper {
                 transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
               }
+              .friends-carousel {
+                display: flex;
+                gap: 1.5rem;
+                overflow-x: auto;
+                scroll-behavior: smooth;
+                padding: 0.5rem 0;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+              }
+              .friends-carousel::-webkit-scrollbar {
+                display: none;
+              }
+              .friends-carousel {
+                -webkit-overflow-scrolling: touch;
+              }
             `}</style>
-            <div className="flex flex-wrap items-left justify-start gap-6">
+            
+            {/* Mobile Horizontal Swipe with Arrows */}
+            <div className="lg:hidden relative group">
+              {/* Left Arrow */}
+              <button
+                onClick={() => scrollFriendsCarousel('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 sm:-translate-x-8 z-10 bg-primary/80 hover:bg-primary text-primary-content p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                aria-label="Scroll friends left"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              {/* Right Arrow */}
+              <button
+                onClick={() => scrollFriendsCarousel('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 sm:translate-x-8 z-10 bg-primary/80 hover:bg-primary text-primary-content p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                aria-label="Scroll friends right"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+
+              <div className="friends-carousel" ref={friendsCarouselRef}>
+                {mainFriends.map((f) => (
+                  <div key={f._id || f.fullName} className="friend-circle-wrapper flex-shrink-0">
+                    <FriendCircle friend={f} />
+                  </div>
+                ))}
+                {realFriends.length > mainFriends.length && (
+                  <div className="flex-shrink-0 flex flex-col items-center justify-center w-20">
+                    <Link to="/friends" className="btn btn-primary btn-sm gap-1">
+                      <UsersIcon className="size-4" />
+                      More
+                    </Link>
+                    <div className="mt-3 text-xs font-semibold text-center">+{realFriends.length - mainFriends.length}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Grid View */}
+            <div className="hidden lg:flex flex-wrap items-left justify-start gap-6">
               {mainFriends.map((f) => (
                 <div key={f._id || f.fullName} className="friend-circle-wrapper">
                   <FriendCircle friend={f} />
@@ -445,23 +503,23 @@ const HomePage = () => {
             </div>
 
           {/* Search and Filter Section */}
-            <div className="mt-4 sm:mt-6 flex flex-col gap-3 sm:gap-4">
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-4 items-stretch sm:items-center">
               {/* Search Bar */}
-              <div className="relative w-full">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-5 opacity-50 pointer-events-none" />
+              <div className="relative flex-1">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 sm:size-5 opacity-50 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search by name or location"
-                  className="input input-bordered w-full pl-10 text-sm sm:text-base"
+                  placeholder="Search name or location"
+                  className="input input-bordered input-sm sm:input-lg w-full pl-9 sm:pl-10 text-xs sm:text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
 
               {/* Language Filter */}
-              <div className="w-full sm:max-w-xs">
+              <div className="flex-1 sm:flex-none sm:w-48">
                 <select
-                  className="select select-bordered w-full text-sm sm:text-base"
+                  className="select select-bordered select-sm sm:select-lg w-full text-xs sm:text-base"
                   value={languageFilter}
                   onChange={(e) => setLanguageFilter(e.target.value)}
                   aria-label="Filter by language"

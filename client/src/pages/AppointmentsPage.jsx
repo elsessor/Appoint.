@@ -313,7 +313,21 @@ const AppointmentsPage = () => {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-4 mb-4">
               <div>
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-base-content">Appointments</h1>
-                <p className="text-xs sm:text-sm text-base-content/60">Manage your upcoming and past appointments</p>
+                <p className="text-xs sm:text-sm text-base-content/60">
+                  {(() => {
+                    const filterLabels = {
+                      'scheduled': 'Today\'s appointments',
+                      'all': 'All appointments',
+                      'incoming': 'Incoming requests',
+                      'pending': 'Pending appointments sent by you',
+                      'confirmed': 'Confirmed appointments',
+                      'completed': 'Completed appointments',
+                      'cancelled': 'Cancelled appointments',
+                      'declined': 'Declined appointments'
+                    };
+                    return filterLabels[filterStatus] || 'Manage your appointments';
+                  })()}
+                </p>
               </div>
               <div className="flex items-center gap-2">
               </div>
@@ -321,7 +335,7 @@ const AppointmentsPage = () => {
           </div>
 
           <div className="max-w-7xl mx-auto px-0 sm:px-2 lg:px-6 py-2">
-            <div className="flex gap-1 sm:gap-2 flex-wrap items-center">
+            <div className="flex gap-2 flex-wrap items-center">
                 {[
                   { value: 'scheduled', label: 'Today', count: appointmentsForToday.length, Icon: Calendar, priority: true },
                   { value: 'all', label: 'All', count: involvedAppointments.length, Icon: ListIcon },
@@ -335,19 +349,20 @@ const AppointmentsPage = () => {
                   <button
                     key={tab.value}
                     onClick={() => setFilterStatus(tab.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 whitespace-nowrap btn-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-2 whitespace-nowrap btn btn-sm ${
                       filterStatus === tab.value
                         ? tab.priority
-                          ? 'btn btn-error btn-sm'
-                          : 'btn btn-primary btn-sm'
+                          ? 'btn btn-error'
+                          : 'btn btn-primary'
                         : tab.priority
-                        ? 'btn btn-outline btn-error btn-sm'
-                        : 'btn btn-outline btn-sm'
+                        ? 'btn btn-outline btn-error'
+                        : 'btn btn-outline'
                     }`}
+                    title={tab.label}
                   >
                     <tab.Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                    <span className={`badge badge-sm font-bold ${
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className={`badge badge-xs font-bold ${
                       filterStatus === tab.value
                         ? 'badge-ghost'
                         : tab.priority
@@ -916,6 +931,10 @@ const AppointmentsPage = () => {
 
                                 <div className="flex flex-col gap-1 mb-2 text-xs text-base-content/70">
                                   <div className="flex items-center gap-2 font-semibold text-base-content">
+                                    <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
+                                    <span className="text-xs sm:text-sm">{format(new Date(appointment.startTime), 'MMM d, yyyy')}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 font-semibold text-base-content">
                                     <Clock className="w-4 h-4 text-primary flex-shrink-0" />
                                     <span className="text-xs sm:text-sm">{format(new Date(appointment.startTime), 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
                                   </div>
@@ -923,7 +942,7 @@ const AppointmentsPage = () => {
                                     {getMeetingTypeIcon(appointment.meetingType)}
                                     <span>{appointment.meetingType || 'Video Call'}</span>
                                   </div>
-                                  {appointment.location && appointment.meetingType?.toLowerCase() === 'in-person' && (
+                                  {appointment.location && (
                                     <div className="flex items-center gap-2">
                                       <MapPin className="w-3 h-3" />
                                       <span className="truncate">{appointment.location}</span>

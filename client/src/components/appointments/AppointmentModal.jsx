@@ -220,9 +220,9 @@ const AppointmentModal = ({
       return appointments.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Match Calendar.jsx status filtering - show confirmed, scheduled, completed (hide pending, cancelled, declined)
+        // Include pending, confirmed, scheduled, and completed - exclude only cancelled and declined
         const status = appt.status?.toLowerCase();
-        if (!['confirmed', 'scheduled', 'completed'].includes(status)) return false;
+        if (['cancelled', 'declined'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]

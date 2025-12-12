@@ -550,9 +550,9 @@ const FriendsPage = () => {
           </p>
 
           {/* Search Bar with Icon */}
-          <div className="mb-3 sm:mb-4">
+          <div className="mb-4 sm:mb-6">
             <label htmlFor="friends-search" className="sr-only">Search friends</label>
-            <div className="relative w-full sm:w-full md:w-1/2">
+            <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-base-content/50" />
               <input
                 id="friends-search"
@@ -561,86 +561,87 @@ const FriendsPage = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name or language"
                 aria-label="Search friends by name or language"
-                className="input input-sm sm:input-md input-bordered w-full pl-9 sm:pl-10 text-xs sm:text-base"
+                className="input input-sm sm:input-lg input-bordered w-full pl-9 sm:pl-10 text-xs sm:text-base"
               />
             </div>
           </div>
 
           {/* Filter and View Toggle */}
-          <div className="flex flex-col gap-2 sm:gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-col gap-3 sm:gap-4 items-start sm:items-center justify-between">
             {/* Status Filters */}
-            <div className="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 w-full sm:gap-2">
               <button
                 onClick={() => setStatusFilter("all")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "all" ? "btn-primary" : "btn-outline"}`}
               >
                 All
               </button>
               <button
                 onClick={() => setStatusFilter("online")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "online" ? "btn-success" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "online" ? "btn-success" : "btn-outline"}`}
               >
-                <CheckCircle className="w-4 h-4" />
-                Online
+                <CheckCircle className="w-4 h-4 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Online</span>
               </button>
               <button
                 onClick={() => setStatusFilter("limited")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "limited" ? "btn-warning" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "limited" ? "btn-warning" : "btn-outline"}`}
               >
-                <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <AlertCircle className="w-4 h-4 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Limited</span>
               </button>
               <button
                 onClick={() => setStatusFilter("away")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "away" ? "btn-error" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "away" ? "btn-error" : "btn-outline"}`}
               >
-                <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                <Clock className="w-4 h-4 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Away</span>
               </button>
               <button
                 onClick={() => setStatusFilter("offline")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "offline" ? "btn-neutral" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${statusFilter === "offline" ? "btn-neutral" : "btn-outline"}`}
               >
-                <Ban className="w-3 h-3 sm:w-4 sm:h-4" />
+                <Ban className="w-4 h-4 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Offline</span>
               </button>
             </div>
 
-            {/* Favorite Filter */}
-            <div className="flex gap-1 sm:gap-2">
+            {/* Favorite and View Toggle - Right Aligned */}
+            <div className="flex gap-2 sm:gap-2 ml-auto sm:ml-auto w-full sm:w-auto justify-end">
               <button
                 onClick={() => setFavoriteFilter("all")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "all" ? "btn-primary" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "all" ? "btn-primary" : "btn-outline"}`}
               >
                 All
               </button>
               <button
                 onClick={() => setFavoriteFilter("favorites")}
-                className={`btn btn-xs sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "favorites" ? "btn-error" : "btn-outline"}`}
+                className={`btn btn-sm sm:btn-sm gap-1 sm:gap-2 ${favoriteFilter === "favorites" ? "btn-error" : "btn-outline"}`}
               >
-                <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+                <Heart className="w-4 h-4 sm:w-4 sm:h-4" />
                 <span className="hidden sm:inline">Favorites</span>
               </button>
-            </div>
 
-            {/* View Toggle */}
-            <div className="flex gap-1 bg-base-300 p-0.5 sm:p-1 rounded-lg ml-auto sm:ml-0">
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`btn btn-xs sm:btn-sm btn-circle ${viewMode === "grid" ? "btn-primary" : "btn-ghost"}`}
-                title="Grid view"
-                aria-label="Switch to grid view"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode("list")}
-                className={`btn btn-sm btn-circle ${viewMode === "list" ? "btn-primary" : "btn-ghost"}`}
-                title="List view"
-                aria-label="Switch to list view"
-              >
-                <List className="w-4 h-4" />
-              </button>
+              <div className="divider divider-horizontal mx-1 sm:mx-1 h-6" />
+
+              <div className="flex gap-1 bg-base-300 p-1 sm:p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`btn btn-sm sm:btn-sm btn-circle ${viewMode === "grid" ? "btn-primary" : "btn-ghost"}`}
+                  title="Grid view"
+                  aria-label="Switch to grid view"
+                >
+                  <Grid className="w-4 h-4 sm:w-4 sm:h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`btn btn-sm sm:btn-sm btn-circle ${viewMode === "list" ? "btn-primary" : "btn-ghost"}`}
+                  title="List view"
+                  aria-label="Switch to list view"
+                >
+                  <List className="w-4 h-4 sm:w-4 sm:h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
