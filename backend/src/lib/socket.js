@@ -225,3 +225,43 @@ export const emitAvailabilityStatusChanged = (userId, newStatus) => {
   });
 };
 
+// Emit appointment reminder to specific user
+export const emitAppointmentReminder = (userId, appointment) => {
+  if (!io || !userId) return;
+
+  console.log(`[Socket] 🔔 Sending appointment reminder to user ${userId}:`, appointment.title);
+  
+  const userSocketSet = userSockets.get(userId.toString());
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:reminder", appointment);
+    });
+  }
+};
+
+// Emit appointment started notification
+export const emitAppointmentStarted = (appointmentId, userId, friendId) => {
+  if (!io) return;
+
+  console.log(`[Socket] ⏱️ Appointment started: ${appointmentId}`);
+  
+  const appointmentData = { appointmentId };
+
+  // Emit to both participants
+  const userSocketSet = userSockets.get(userId.toString());
+  if (userSocketSet) {
+    userSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:started", appointmentData);
+    });
+  }
+
+  const friendSocketSet = userSockets.get(friendId.toString());
+  if (friendSocketSet) {
+    friendSocketSet.forEach((socketId) => {
+      io.to(socketId).emit("appointment:started", appointmentData);
+    });
+  }
+};
+
+export const getIO = () => io;
+export const getUserSockets = () => userSockets;
