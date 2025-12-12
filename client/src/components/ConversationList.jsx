@@ -92,7 +92,7 @@ const ConversationList = ({ chatClient, onSelectUser }) => {
       </div>
 
       {/* Conversation Items */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         {sortedFriends.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <MessageCircle className="w-12 h-12 text-gray-500 mb-2" />

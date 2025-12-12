@@ -127,7 +127,7 @@ const ChatsPage = () => {
     if (selectedUserId) {
       // Show only the chat with back button
       return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100">
+        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100 overflow-hidden">
           {/* Chat Header with Back Button */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-base-300 bg-base-200 flex-shrink-0">
             <button
@@ -166,8 +166,8 @@ const ChatsPage = () => {
     } else {
       // Show only the conversations list
       return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100">
-          <div className="w-full h-full flex flex-col">
+        <div className="flex flex-col h-[calc(100vh-4rem)] pt-2 lg:pt-16 pb-16 bg-base-100 overflow-hidden">
+          <div className="w-full h-full flex flex-col overflow-hidden">
             {chatClient && <ConversationList chatClient={chatClient} onSelectUser={handleSelectUser} />}
           </div>
         </div>
@@ -177,7 +177,7 @@ const ChatsPage = () => {
 
   // Desktop view: Show both conversations list and chat side-by-side
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-screen pt-2 lg:pt-16 pb-16 lg:pb-0 gap-0 lg:gap-0">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] lg:h-screen pt-2 lg:pt-16 pb-16 lg:pb-0 gap-0 lg:gap-0 overflow-hidden">
       <div className="w-full lg:w-80 lg:border-r border-b lg:border-b-0 border-base-300 flex-shrink-0">
         {chatClient && <ConversationList chatClient={chatClient} onSelectUser={handleSelectUser} />}
       </div>

@@ -276,7 +276,7 @@ const AppointmentsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-4" data-theme={theme}>
+    <div className="min-h-screen bg-base-100 pt-2 lg:pt-16 pb-16 lg:pb-8 px-2 sm:px-4 lg:px-6" data-theme={theme}>
       {selectedAppointment ? (
         <AppointmentDetailsView
           appointment={selectedAppointment}
@@ -302,19 +302,19 @@ const AppointmentsPage = () => {
         />
       ) : (
         <>
-          <div className="max-w-7xl mx-auto px-0 lg:px-6 py-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+          <div className="max-w-7xl mx-auto px-0 sm:px-2 lg:px-6 py-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 sm:gap-4 mb-4">
               <div>
-                <h1 className="text-2xl lg:text-3xl font-extrabold text-base-content">Appointments</h1>
-                <p className="text-sm text-base-content/60">Manage your upcoming and past appointments</p>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-base-content">Appointments</h1>
+                <p className="text-xs sm:text-sm text-base-content/60">Manage your upcoming and past appointments</p>
               </div>
               <div className="flex items-center gap-2">
               </div>
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-0 lg:px-6 py-2">
-            <div className="flex gap-2 flex-wrap items-center">
+          <div className="max-w-7xl mx-auto px-0 sm:px-2 lg:px-6 py-2">
+            <div className="flex gap-1 sm:gap-2 flex-wrap items-center">
                 {[
                   { value: 'scheduled', label: 'Today', count: appointmentsForToday.length, Icon: Calendar, priority: true },
                   { value: 'all', label: 'All', count: involvedAppointments.length, Icon: ListIcon },
@@ -354,9 +354,9 @@ const AppointmentsPage = () => {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="max-w-7xl mx-auto px-0 sm:px-2 lg:px-6 py-4 sm:py-8">
             {filterStatus === 'incoming' && incomingRequests.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-8 sm:py-12 px-2">
                 <Calendar className="w-16 h-16 text-base-content/30 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-base-content mb-2">No incoming requests</h3>
                 <p className="text-base-content/60">
@@ -364,19 +364,19 @@ const AppointmentsPage = () => {
                 </p>
               </div>
             ) : filterStatus === 'incoming' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 px-2 sm:px-0">
                 {incomingRequests.map((appointment) => {
                   const requester = appointment.userId;
                   return (
                     <div
                       key={appointment._id}
-                      className="bg-base-100 border-2 border-warning rounded-lg p-4 hover:shadow-lg transition cursor-pointer group"
+                      className="bg-base-100 border-2 border-warning rounded-lg p-2 sm:p-4 hover:shadow-lg transition cursor-pointer group"
                       onClick={() => {
                         setSelectedRequest(appointment);
                         setShowRequestModal(true);
                       }}
                     >
-                      <div className="flex items-start gap-3 mb-3">
+                      <div className="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                           <img
                             src={requester?.profilePic || '/default-profile.svg'}
@@ -388,7 +388,7 @@ const AppointmentsPage = () => {
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base-content truncate">
+                          <h3 className="font-semibold text-xs sm:text-sm text-base-content truncate">
                             {requester?.fullName || 'Someone'}
                           </h3>
                           <p className="text-xs text-base-content/60 truncate">
@@ -397,9 +397,9 @@ const AppointmentsPage = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2 text-xs text-base-content/70 mb-3">
+                      <div className="flex items-center gap-2 text-xs text-base-content/70 mb-2 sm:mb-3">
                         <Calendar className="w-3 h-3" />
-                        <span>{formatAppointmentDateTime(appointment)}</span>
+                        <span className="text-xs">{formatAppointmentDateTime(appointment)}</span>
                       </div>
                       
                       <button
@@ -408,7 +408,7 @@ const AppointmentsPage = () => {
                           setSelectedRequest(appointment);
                           setShowRequestModal(true);
                         }}
-                        className="btn btn-warning btn-sm w-full group-hover:btn-warning-focus"
+                        className="btn btn-warning btn-xs sm:btn-sm w-full group-hover:btn-warning-focus"
                       >
                         Review Request
                       </button>
@@ -421,7 +421,7 @@ const AppointmentsPage = () => {
                 {filterStatus === 'scheduled' ? (
                   <div className="space-y-4">
                     {appointmentsForToday.length === 0 ? (
-                      <div className="text-center py-12">
+                      <div className="text-center py-8 sm:py-12 px-2">
                         <Calendar className="w-16 h-16 text-base-content/30 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-base-content mb-2">No appointments today</h3>
                         <p className="text-base-content/60">
@@ -435,9 +435,9 @@ const AppointmentsPage = () => {
                         const isCurrentOrSoon = Math.abs(new Date() - startTime) < 3600000; // Within 1 hour
                         
                         return (
-                          <div key={appointment._id} className="relative">
-                            <div className="absolute -left-8 top-0 flex flex-col items-center">
-                              <div className={`w-5 h-5 rounded-full border-3 flex items-center justify-center text-xs font-bold ${
+                          <div key={appointment._id} className="relative pl-6 sm:pl-8">
+                            <div className="absolute -left-2 sm:-left-8 top-0 flex flex-col items-center">
+                              <div className={`w-4 sm:w-5 h-4 sm:h-5 rounded-full border-2 sm:border-3 flex items-center justify-center text-xs font-bold ${
                                 isCurrentOrSoon 
                                   ? 'bg-error border-error text-white animate-pulse' 
                                   : 'bg-primary border-primary text-white'
@@ -450,16 +450,16 @@ const AppointmentsPage = () => {
                             </div>
 
                             {/* Card */}
-                            <div className={`ml-8 p-5 rounded-xl border-2 transition-all ${
+                            <div className={`ml-0 sm:ml-8 p-2 sm:p-5 rounded-xl border-2 transition-all ${
                               isCurrentOrSoon
                                 ? 'bg-gradient-to-r from-error/10 to-warning/10 border-error shadow-lg ring-2 ring-error/20'
                                 : 'bg-base-100 border-base-300 hover:shadow-md'
                             }`}>
                               {/* Top section: Avatar, Name, Status */}
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
+                                <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                                   {/* Avatar */}
-                                  <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-offset-2 ring-offset-base-100" style={{
+                                  <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-offset-2 ring-offset-base-100" style={{
                                     ringColor: isCurrentOrSoon ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)'
                                   }}>
                                     <img
@@ -482,7 +482,7 @@ const AppointmentsPage = () => {
 
                                   {/* Name and Specialty */}
                                   <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-base-content text-base truncate">
+                                    <h3 className="font-bold text-xs sm:text-base text-base-content truncate">
                                       {(() => {
                                         const appointmentUserId = appointment.userId?._id || appointment.userId;
                                         const otherUser = appointmentUserId === currentUserId 
@@ -509,10 +509,10 @@ const AppointmentsPage = () => {
                               </div>
 
                               {/* Details: Date, Time, Location */}
-                              <div className="flex flex-col gap-2 mb-4 text-xs text-base-content/70">
+                              <div className="flex flex-col gap-1 sm:gap-2 mb-2 sm:mb-4 text-xs text-base-content/70">
                                 <div className="flex items-center gap-2 font-semibold text-base-content">
-                                  <Clock className="w-4 h-4 text-primary" />
-                                  <span className="text-sm">{format(startTime, 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
+                                  <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                                  <span className="text-xs sm:text-sm">{format(startTime, 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {getMeetingTypeIcon(appointment.meetingType)}
@@ -527,10 +527,10 @@ const AppointmentsPage = () => {
                               </div>
 
                               {/* Action Buttons */}
-                              <div className="flex flex-col gap-2 pt-3 border-t border-base-300">
+                              <div className="flex flex-col gap-1 sm:gap-2 pt-2 sm:pt-3 border-t border-base-300">
                                 <button
                                   onClick={() => setSelectedAppointment(appointment)}
-                                  className={`w-full btn btn-xs ${isCurrentOrSoon ? 'btn-error' : 'btn-primary'}`}
+                                  className={`w-full btn btn-xs sm:btn-sm ${isCurrentOrSoon ? 'btn-error' : 'btn-primary'}`}
                                 >
                                   View Details
                                 </button>
@@ -542,7 +542,7 @@ const AppointmentsPage = () => {
                     )}
                   </div>
                 ) : filterStatus === 'all' ? (
-                  <div className="space-y-6 w-full">
+                  <div className="space-y-4 sm:space-y-6 w-full px-2 sm:px-0">
                     {(() => {
                       // Group appointments by date
                       const groupedByDate = {};
@@ -570,8 +570,8 @@ const AppointmentsPage = () => {
                         return (
                           <div key={dateKey}>
                             {/* Date Header */}
-                            <div className="mb-3 flex items-center gap-3">
-                              <h3 className="text-lg font-bold text-base-content">{dateLabel}</h3>
+                            <div className="mb-2 sm:mb-3 flex items-center gap-2 sm:gap-3 px-2 sm:px-0">
+                              <h3 className="text-base sm:text-lg font-bold text-base-content">{dateLabel}</h3>
                               <div className="flex-1 h-px bg-gradient-to-r from-base-300 to-transparent"></div>
                               <span className="text-sm font-medium text-base-content/60 bg-base-200 px-3 py-1 rounded-full">
                                 {groupedByDate[dateKey].length} appointment{groupedByDate[dateKey].length !== 1 ? 's' : ''}
@@ -579,7 +579,7 @@ const AppointmentsPage = () => {
                             </div>
 
                             {/* Appointments for this date */}
-                            <div className="space-y-3">
+                            <div className="space-y-2 sm:space-y-3 px-2 sm:px-0">
                               {groupedByDate[dateKey]
                                 .sort((a, b) => {
                                   const timeA = typeof a.startTime === 'string' ? parseISO(a.startTime) : new Date(a.startTime);
@@ -588,7 +588,7 @@ const AppointmentsPage = () => {
                                 })
                                 .map((appointment) => (
                       <div key={appointment._id} className="rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-transform bg-gradient-to-r from-base-100 to-base-200">
-                        <div className="flex h-full">
+                        <div className="flex h-full flex-col sm:flex-row">
                           <div
                             className={`w-1 ${(() => {
                               // If other participant is offline, show grey indicator
@@ -608,10 +608,10 @@ const AppointmentsPage = () => {
                               return getStatusAccent(appointment.status);
                             })()}`}
                           />
-                          <div className="flex-1 p-4 flex items-center justify-between gap-4">
+                          <div className="flex-1 p-2 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
                             {/* User Info */}
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
                                 <img
                                   src={
                                     (() => {
@@ -628,8 +628,8 @@ const AppointmentsPage = () => {
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <p className="font-semibold text-base-content truncate">
+                                <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                  <p className="font-semibold text-xs sm:text-base text-base-content truncate">
                                     {(() => {
                                       const appointmentUserId = appointment.userId?._id || appointment.userId;
                                       const otherUserName = appointmentUserId === currentUserId 
@@ -665,7 +665,7 @@ const AppointmentsPage = () => {
                                   })()}
                                 </div>
                                 <p className="text-xs text-base-content/70 flex items-center gap-1 mt-1">
-                                  <Calendar className="w-3 h-3" />
+                                  <Calendar className="w-3 h-3 flex-shrink-0" />
                                   {formatAppointmentDateTime(appointment)}
                                 </p>
                               </div>
@@ -701,7 +701,7 @@ const AppointmentsPage = () => {
 
                             {/* Meeting Type & Title */}
                             <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-                              <span className="badge badge-outline badge-sm flex items-center gap-1">
+                              <span className="badge badge-outline badge-xs sm:badge-sm flex items-center gap-1">
                                 {getMeetingTypeIcon(appointment.meetingType)}
                                 {appointment.meetingType}
                               </span>
@@ -710,7 +710,7 @@ const AppointmentsPage = () => {
                             {/* Action Button */}
                             <button
                               onClick={() => setSelectedAppointment(appointment)}
-                              className="btn btn-xs btn-primary flex-shrink-0"
+                              className="btn btn-xs sm:btn-sm btn-primary flex-shrink-0 whitespace-nowrap"
                             >
                               View
                             </button>
@@ -723,7 +723,7 @@ const AppointmentsPage = () => {
                                   setRatingTarget(appointment);
                                   setRatingModalOpen(true);
                                 }}
-                                className="btn btn-xs btn-outline btn-secondary flex-shrink-0"
+                                className="btn btn-xs sm:btn-sm btn-outline btn-secondary flex-shrink-0 whitespace-nowrap"
                               >
                                 Rate
                               </button>
@@ -735,7 +735,7 @@ const AppointmentsPage = () => {
                                 e.stopPropagation();
                                 handleDeleteClick(appointment._id);
                               }}
-                              className="btn btn-xs btn-outline btn-error flex-shrink-0"
+                              className="btn btn-xs sm:btn-sm btn-outline btn-error flex-shrink-0 whitespace-nowrap"
                             >
                               Cancel
                             </button>
@@ -750,10 +750,10 @@ const AppointmentsPage = () => {
                     })()}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 px-2 sm:px-0">
                     {filteredAppointments.map((appointment) => (
                           <div key={appointment._id} className="rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-transform transform hover:-translate-y-1">
-                            <div className="flex h-full bg-gradient-to-b from-base-100 to-base-200">
+                            <div className="flex h-full flex-col bg-gradient-to-b from-base-100 to-base-200">
                               <div
                                 className={`w-2 hidden md:block ${(() => {
                                   // If other participant is offline, show grey indicator
@@ -773,10 +773,10 @@ const AppointmentsPage = () => {
                                   return getStatusAccent(appointment.status);
                                 })()}`}
                               />
-                              <div className="flex-1 p-3 flex flex-col h-full">
-                                <div className="flex items-center justify-between gap-2 mb-2">
-                                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                                    <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
+                              <div className="flex-1 p-2 sm:p-3 flex flex-col h-full">
+                                <div className="flex items-center justify-between gap-1 sm:gap-2 mb-2">
+                                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-offset-1 ring-offset-base-100">
                                       <img
                                         src={
                                           (() => {
@@ -794,9 +794,9 @@ const AppointmentsPage = () => {
                                     </div>
 
                                     <div className="flex-1 min-w-0">
-                                      <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-start justify-between gap-1 sm:gap-2">
                                         <div className="min-w-0">
-                                          <h3 className="font-medium text-base-content text-sm truncate">
+                                          <h3 className="font-medium text-xs sm:text-sm text-base-content truncate">
                                             {(() => {
                                               const appointmentUserId = appointment.userId?._id || appointment.userId;
                                               const otherUser = appointmentUserId === currentUserId 
@@ -811,7 +811,7 @@ const AppointmentsPage = () => {
                                           {/* Attended badge moved to header right to keep uniform height */}
                                         </div>
 
-                                        <div className="flex items-center gap-2 ml-2 flex-none">
+                                        <div className="flex items-center gap-1 ml-1 sm:ml-2 flex-none">
                                           {appointment.status === 'completed' && (() => {
                                             const ratings = appointment.ratings || [];
                                             const appointmentUserId = appointment.userId?._id || appointment.userId;
@@ -882,8 +882,8 @@ const AppointmentsPage = () => {
 
                                 <div className="flex flex-col gap-1 mb-2 text-xs text-base-content/70">
                                   <div className="flex items-center gap-2 font-semibold text-base-content">
-                                    <Clock className="w-4 h-4 text-primary" />
-                                    <span className="text-sm">{format(new Date(appointment.startTime), 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
+                                    <Clock className="w-4 h-4 text-primary flex-shrink-0" />
+                                    <span className="text-xs sm:text-sm">{format(new Date(appointment.startTime), 'h:mm a')} - {format(typeof appointment.endTime === 'string' ? parseISO(appointment.endTime) : new Date(appointment.endTime), 'h:mm a')}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {getMeetingTypeIcon(appointment.meetingType)}
@@ -897,24 +897,24 @@ const AppointmentsPage = () => {
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-1 mt-auto pt-2">
+                                <div className="flex items-center gap-1 mt-auto pt-2 flex-wrap">
                                   <button
                                     onClick={() => setSelectedAppointment(appointment)}
-                                    className="btn btn-primary btn-sm flex-1"
+                                    className="btn btn-primary btn-xs sm:btn-sm flex-1 min-w-0"
                                   >
                                     View Details
                                   </button>
                                   {appointment.status === 'completed' && (
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setRatingTarget(appointment); setRatingModalOpen(true); }}
-                                      className="btn btn-secondary btn-sm"
+                                      className="btn btn-secondary btn-xs sm:btn-sm flex-shrink-0"
                                     >
                                       Rate
                                     </button>
                                   )}
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleDeleteClick(appointment._id); }}
-                                    className="btn btn-error btn-sm"
+                                    className="btn btn-error btn-xs sm:btn-sm flex-shrink-0"
                                   >
                                     Cancel
                                   </button>
