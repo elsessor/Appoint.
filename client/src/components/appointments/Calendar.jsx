@@ -526,12 +526,11 @@ const Calendar = ({
           // Get appointments for this specific day and filter correctly
           const dayAppointments = getAppointmentsForDate(day);
           
-          // Filter by the viewed user if viewing a friend's calendar
-          // Count confirmed, scheduled, pending, AND completed appointments for capacity (they all occupy slots)
-          const relevantAppointments = viewingFriendId 
+          // Filter for capacity validation (includes completed to prevent double-booking)
+          const capacityAppointments = viewingFriendId 
             ? dayAppointments.filter(appt => {
                 const status = appt.status?.toLowerCase();
-                // Count confirmed, scheduled, pending, and completed for capacity
+                // Count confirmed, scheduled, pending, and completed for capacity validation
                 if (!['confirmed', 'scheduled', 'pending', 'completed'].includes(status)) return false;
                 const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
                 const viewingFriendIdStr = extractId(viewingFriendId);
@@ -539,9 +538,22 @@ const Calendar = ({
               })
             : dayAppointments.filter(appt => ['confirmed', 'scheduled', 'pending', 'completed'].includes(appt.status?.toLowerCase()));
           
-          const dayAppointmentsCount = relevantAppointments.length;
-          const isAtCapacity = dayAppointmentsCount >= maxPerDay;
-          const capacityPercentage = Math.min((dayAppointmentsCount / maxPerDay) * 100, 100);
+          // Filter for visual display (excludes completed - only shows future/current appointments)
+          const displayAppointments = viewingFriendId 
+            ? dayAppointments.filter(appt => {
+                const status = appt.status?.toLowerCase();
+                // Only show confirmed, scheduled, pending in visual counter/bar (exclude completed)
+                if (!['confirmed', 'scheduled', 'pending'].includes(status)) return false;
+                const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
+                const viewingFriendIdStr = extractId(viewingFriendId);
+                return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
+              })
+            : dayAppointments.filter(appt => ['confirmed', 'scheduled', 'pending'].includes(appt.status?.toLowerCase()));
+          
+          const capacityCount = capacityAppointments.length;
+          const displayCount = displayAppointments.length;
+          const isAtCapacity = capacityCount >= maxPerDay;
+          const capacityPercentage = Math.min((displayCount / maxPerDay) * 100, 100);
           
           return (
             <div 
@@ -575,12 +587,12 @@ const Calendar = ({
                       {isAtCapacity && (
                         <span className="text-xs font-bold text-error" title="Day is fully booked">🔴</span>
                       )}
-                      {!isAtCapacity && dayAppointmentsCount > 0 && (
-                        <span className="text-xs font-semibold text-warning" title={`${dayAppointmentsCount}/${maxPerDay} booked`}>
-                          {dayAppointmentsCount}/{maxPerDay}
+                      {!isAtCapacity && displayCount > 0 && (
+                        <span className="text-xs font-semibold text-warning" title={`${displayCount}/${maxPerDay} booked (${capacityCount} total)`}>
+                          {displayCount}/{maxPerDay}
                         </span>
                       )}
-                      {!hasAppts && !dayHoliday && (
+                      {displayCount === 0 && !dayHoliday && (
                         <span className="w-1.5 h-1.5 rounded-full bg-success" title="Available"></span>
                       )}
                     </div>
@@ -592,7 +604,7 @@ const Calendar = ({
                 </div>
 
                 {/* Capacity bar under the day number */}
-                {isCurrentMonth && isDateAvailableNow && dayAppointmentsCount > 0 && (
+                {isCurrentMonth && isDateAvailableNow && displayCount > 0 && (
                   <div className="w-full bg-base-300 rounded-full h-1 mb-1 overflow-hidden">
                     <div 
                       className={`h-full transition-all ${

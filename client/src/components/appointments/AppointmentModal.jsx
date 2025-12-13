@@ -539,10 +539,10 @@ const AppointmentModal = ({
       return appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Count CONFIRMED, SCHEDULED, and PENDING appointments for daily capacity
-        // (All take up appointment slots)
+        // Count CONFIRMED, SCHEDULED, PENDING, and COMPLETED appointments for daily capacity
+        // (All take up appointment slots, including completed ones for historical tracking)
         const status = appt.status?.toLowerCase();
-        if (!['confirmed', 'scheduled', 'pending'].includes(status)) return false;
+        if (!['confirmed', 'scheduled', 'pending', 'completed'].includes(status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -1106,9 +1106,14 @@ const AppointmentModal = ({
                             const { maxPerDay, isFull, count } = capacityData;
                             const allApptsOnDate = getAllAppointmentsForDate(parseISO(formData.startTime));
                             
+                            // Display count: only confirmed, scheduled, pending (excludes completed)
+                            const displayCount = allApptsOnDate.filter(appt => 
+                              ['confirmed', 'scheduled', 'pending'].includes(appt.status?.toLowerCase())
+                            ).length;
+                            
                             return (
                               <div className="pt-3 border-t border-primary/20 space-y-2">
-                                {/* Max appointments capacity bar - Shows total confirmed appointments on this date */}
+                                {/* Max appointments capacity bar - Shows confirmed/scheduled/pending appointments on this date */}
                                 <div className="space-y-1.5">
                                   <div className="flex items-center justify-between">
                                     <p className="text-xs text-base-content/70 font-medium uppercase">Daily Capacity</p>
@@ -1117,17 +1122,17 @@ const AppointmentModal = ({
                                         ? 'bg-error/20 text-error' 
                                         : 'bg-success/20 text-success'
                                     }`}>
-                                      {allApptsOnDate.length} / {maxPerDay}
+                                      {displayCount} / {maxPerDay}
                                     </span>
                                   </div>
                                   {/* Capacity bar */}
                                   <div className="w-full bg-base-300 rounded-full h-2 overflow-hidden">
                                     <div 
                                       className={`h-full transition-all ${
-                                        allApptsOnDate.length === 0 ? 'bg-success' :
+                                        displayCount === 0 ? 'bg-success' :
                                         isFull ? 'bg-error' : 'bg-warning'
                                       }`}
-                                      style={{ width: `${Math.min((allApptsOnDate.length / maxPerDay) * 100, 100)}%` }}
+                                      style={{ width: `${Math.min((displayCount / maxPerDay) * 100, 100)}%` }}
                                     ></div>
                                   </div>
                                   {isFull && (

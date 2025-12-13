@@ -75,6 +75,29 @@ const DayDetailsModal = ({
     return userId === currentUserId || friendId === currentUserId;
   };
 
+  // Calculate if the day is at capacity
+  const isDayFull = React.useMemo(() => {
+    // Count confirmed, scheduled, pending, and completed appointments for capacity validation
+    const capacityAppointments = appointments.filter(appt => {
+      const status = appt.status?.toLowerCase();
+      return ['confirmed', 'scheduled', 'pending', 'completed'].includes(status);
+    });
+
+    // Get max appointments per day
+    let maxPerDay = availability?.maxPerDay || 5;
+    
+    // If viewing friend's calendar, use their availability limits
+    if (viewingFriendId && friendsAvailability[viewingFriendId]) {
+      maxPerDay = friendsAvailability[viewingFriendId].maxPerDay || 5;
+      // If friend has limited status, use minPerDay instead
+      if (friendsAvailability[viewingFriendId].status === 'limited') {
+        maxPerDay = friendsAvailability[viewingFriendId].minPerDay || 1;
+      }
+    }
+
+    return capacityAppointments.length >= maxPerDay;
+  }, [appointments, availability, friendsAvailability, viewingFriendId]);
+
   // Filter appointments based on context and status
   const filteredAppointments = appointments.filter((appt) => {
     const currentUserId = currentUser?._id || currentUser?.id;
@@ -215,7 +238,7 @@ const DayDetailsModal = ({
                     You don't have any appointments scheduled for this day.
                   </p>
                 </div>
-                {isDateAvailableForBooking && onCreateAppointment && (
+                {isDateAvailableForBooking && !isDayFull && onCreateAppointment && (
                   <button
                     onClick={() => {
                       handleClose();
@@ -225,6 +248,11 @@ const DayDetailsModal = ({
                   >
                     New Appointment
                   </button>
+                )}
+                {isDayFull && (
+                  <div className="alert alert-warning text-sm">
+                    <span>This day is fully booked. Please select another date.</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -341,7 +369,7 @@ const DayDetailsModal = ({
           
           {filteredAppointments.length > 0 && (
             <div className="bg-base-100 border-t border-base-300/40 px-3 sm:px-6 py-2 sm:py-3 flex justify-center gap-3 flex-shrink-0">
-              {isDateAvailableForBooking && onCreateAppointment && (
+              {isDateAvailableForBooking && !isDayFull && onCreateAppointment && (
                 <button
                   type="button"
                   onClick={() => {
@@ -352,6 +380,11 @@ const DayDetailsModal = ({
                 >
                   New Appointment
                 </button>
+              )}
+              {isDayFull && (
+                <div className="text-xs text-error font-semibold px-3 py-1">
+                  ⚠ This day is fully booked
+                </div>
               )}
               <button
                 type="button"
