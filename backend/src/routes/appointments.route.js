@@ -11,6 +11,8 @@ import {
   getFriendAppointments,
   getCompletedAppointments,
   getUpcomingAppointmentsCount,
+  userJoinedCall,
+  userLeftCall,
 } from "../controllers/appointments.controller.js";
 
 
@@ -27,6 +29,11 @@ router.get("/completed/:friendId", getCompletedAppointments);
 router.get("/upcoming/:friendId", getUpcomingAppointmentsCount);
 router.get("/friend/:friendId", getFriendAppointments);
 router.get("/:id", getAppointmentById);
+
+// Call tracking routes
+router.post("/:appointmentId/joined", userJoinedCall);
+router.post("/:appointmentId/left", userLeftCall);
+
 router.put("/:id", updateAppointment);
 router.delete("/:id", deleteAppointment);
 

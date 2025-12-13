@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getStreamToken, createMeetingMinutes } from "../lib/api";
+import { getStreamToken, createMeetingMinutes, recordUserLeftCall } from "../lib/api";
 
 import {
   StreamVideo,
@@ -312,6 +312,23 @@ const CallContent = ({ callId, authUser }) => {
 
     toast.dismiss("generating");
   };
+
+  // Record when user leaves the call (moved outside conditional to follow Rules of Hooks)
+  useEffect(() => {
+    if (callingState === CallingState.LEFT) {
+      const handleUserLeft = async () => {
+        try {
+          console.log(`📞 Recording user ${authUser._id} left appointment ${callId}`);
+          await recordUserLeftCall(callId);
+          console.log('✅ Recorded user left call');
+        } catch (error) {
+          console.error('Error recording user left call:', error);
+        }
+      };
+
+      handleUserLeft();
+    }
+  }, [callingState, callId, authUser._id]);
 
   if (callingState === CallingState.LEFT) {
     if (isRecording && recognitionRef.current) {

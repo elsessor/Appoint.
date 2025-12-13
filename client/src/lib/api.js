@@ -307,3 +307,14 @@ export const deleteNotification = async (notificationId) => {
   }
   return data;
 };
+
+// Call tracking endpoints
+export async function recordUserJoinedCall(appointmentId) {
+  const response = await axiosInstance.post(`/appointments/${appointmentId}/joined`);
+  return response.data;
+}
+
+export async function recordUserLeftCall(appointmentId) {
+  const response = await axiosInstance.post(`/appointments/${appointmentId}/left`);
+  return response.data;
+}
