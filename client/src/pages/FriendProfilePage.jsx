@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, MessageCircle, Calendar, Phone, Mail, MapPin, Globe, Briefcase, Star, Clock, TrendingUp, Video, CheckCircle, Heart, Linkedin, Twitter, UserPlusIcon, XIcon, Github, Link as LinkIcon } from 'lucide-react';
-import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, toggleFavorite, sendFriendRequest, cancelFriendRequest, getOutgoingFriendReqs, unfriendUser, getAuthUser, createAppointment } from '../lib/api';
+import { getFriendProfile, getRecentMeetings, getUpcomingAppointmentsCount, toggleFavorite, sendFriendRequest, cancelFriendRequest, getOutgoingFriendReqs, unfriendUser, getAuthUser, createAppointment, getUserAvailability } from '../lib/api';
 import { isOnline } from '../lib/presence';
 import PageLoader from '../components/PageLoader';
 import AppointmentModal from '../components/appointments/AppointmentModal';
 import { useThemeStore } from '../store/useThemeStore';
 import { formatLastOnline } from '../lib/utils';
+import { getSocket } from '../lib/socket';
+import { LANGUAGE_TO_FLAG } from '../constants';
 import toast from 'react-hot-toast';
 
 const FriendProfilePage = () => {
@@ -21,6 +23,7 @@ const FriendProfilePage = () => {
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [friendAvailability, setFriendAvailability] = useState(null);
 
   const { data: friend, isLoading, isError } = useQuery({
     queryKey: ['friendProfile', id],
@@ -125,6 +128,78 @@ const FriendProfilePage = () => {
     }
   }, [outgoingFriendReqs]);
 
+  // Fetch friend's availability for appointment modal
+  useEffect(() => {
+    if (friend?._id) {
+      getUserAvailability(friend._id)
+        .then((response) => {
+          setFriendAvailability({
+            status: response?.availabilityStatus || 'available',
+            maxPerDay: response?.availability?.maxPerDay || 5,
+            minPerDay: response?.availability?.minPerDay || 1,
+            ...response?.availability
+          });
+          console.log('📊 [FriendProfilePage] Fetched friend availability:', {
+            status: response?.availabilityStatus,
+            maxPerDay: response?.availability?.maxPerDay,
+            minPerDay: response?.availability?.minPerDay,
+          });
+        })
+        .catch((error) => console.error('Failed to fetch friend availability:', error));
+    }
+  }, [friend?._id]);
+
+  // Listen for real-time availability changes via Socket.io
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !friend?._id) return;
+
+    const handleAvailabilityChanged = ({ userId, availabilityStatus, availability }) => {
+      // Only update if this event is for the friend we're viewing
+      if (userId === friend._id) {
+        console.log('📊 [FriendProfilePage] Real-time availability change received:', { availabilityStatus, availability });
+        setFriendAvailability({
+          status: availabilityStatus || 'available',
+          maxPerDay: availability?.maxPerDay || 5,
+          minPerDay: availability?.minPerDay || 1,
+          ...availability
+        });
+        // Refetch calendar data to update indicators
+        queryClient.invalidateQueries({ queryKey: ['upcomingAppointments', friend._id] });
+      }
+    };
+
+    socket.on('availability:changed', handleAvailabilityChanged);
+
+    return () => {
+      socket.off('availability:changed', handleAvailabilityChanged);
+    };
+  }, [friend?._id, queryClient]);
+
+  // Listen for appointment changes to refresh calendar
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !friend?._id) return;
+
+    const handleAppointmentEvent = () => {
+      console.log('[FriendProfilePage] Appointment event received - refreshing calendar');
+      // Refetch calendar data when appointments are created/updated/deleted
+      queryClient.invalidateQueries({ queryKey: ['upcomingAppointments', friend._id] });
+    };
+
+    socket.on('appointment:created', handleAppointmentEvent);
+    socket.on('appointment:updated', handleAppointmentEvent);
+    socket.on('appointment:deleted', handleAppointmentEvent);
+    socket.on('appointment:statusChanged', handleAppointmentEvent);
+
+    return () => {
+      socket.off('appointment:created', handleAppointmentEvent);
+      socket.off('appointment:updated', handleAppointmentEvent);
+      socket.off('appointment:deleted', handleAppointmentEvent);
+      socket.off('appointment:statusChanged', handleAppointmentEvent);
+    };
+  }, [friend?._id, queryClient]);
+
   if (isLoading) return <PageLoader />;
 
   if (isError || !friend) {
@@ -146,16 +221,30 @@ const FriendProfilePage = () => {
     );
   }
 
-  const availabilityBadgeColor = friend.availabilityStatus === 'available'
+  const availabilityBadgeColor = (friendAvailability?.status || friend.availabilityStatus) === 'available'
     ? 'btn-success'
-    : friend.availabilityStatus === 'limited'
+    : (friendAvailability?.status || friend.availabilityStatus) === 'limited'
     ? 'btn-warning'
-    : friend.availabilityStatus === 'offline'
+    : (friendAvailability?.status || friend.availabilityStatus) === 'offline'
     ? 'btn-neutral'
     : 'btn-error';
 
   // Live presence check (used to disable booking when user is offline)
   const online = isOnline(friend._id);
+
+  // Helper function to get language flag
+  const getLanguageFlag = (language) => {
+    if (!language) return null;
+    const countryCode = LANGUAGE_TO_FLAG[language.toLowerCase().replace(/\s+/g, '')];
+    if (!countryCode) return null;
+    return (
+      <img
+        src={`https://flagcdn.com/24x18/${countryCode}.png`}
+        alt={`${language} flag`}
+        className="h-3.5 w-5 rounded-sm object-cover"
+      />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-base-100" data-theme={theme}>
@@ -202,8 +291,9 @@ const FriendProfilePage = () => {
                     {/* Status Indicator */}
                     {(() => {
                       const online = isOnline(friend._id);
+                      const currentStatus = friendAvailability?.status || friend.availabilityStatus;
                       const colorClass = online
-                        ? (friend.availabilityStatus === 'available' ? 'bg-success shadow-lg shadow-success/50' : friend.availabilityStatus === 'limited' ? 'bg-warning shadow-lg shadow-warning/50' : 'bg-error shadow-lg shadow-error/50')
+                        ? (currentStatus === 'available' ? 'bg-success shadow-lg shadow-success/50' : currentStatus === 'limited' ? 'bg-warning shadow-lg shadow-warning/50' : 'bg-error shadow-lg shadow-error/50')
                         : 'bg-neutral-500';
                       return (
                         <div className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-3 border-base-100 ${colorClass} flex items-center justify-center`}>
@@ -222,6 +312,24 @@ const FriendProfilePage = () => {
                         <h1 className="text-3xl lg:text-4xl font-bold text-base-content leading-tight">{friend.fullName}</h1>
                       </div>
                       
+                      {/* Job Title & Occupation */}
+                      {(friend.jobTitle || friend.occupation) && (
+                        <div className="mb-2">
+                          {friend.jobTitle && (
+                            <p className="text-lg font-semibold text-primary mb-0.5">{friend.jobTitle}</p>
+                          )}
+                          {friend.occupation && (
+                            <p className="text-sm text-base-content/60">{friend.occupation}</p>
+                          )}
+                          {friend.company && (
+                            <p className="text-sm text-base-content/70 flex items-center justify-center lg:justify-start gap-1">
+                              <Briefcase className="w-3.5 h-3.5" />
+                              {friend.company}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
                       {friend.location && (
                         <p className="text-base text-base-content/70 flex items-center justify-center lg:justify-start gap-2 mb-1 font-medium">
                           <MapPin className="w-4 h-4 text-primary" />
@@ -236,17 +344,26 @@ const FriendProfilePage = () => {
                         </p>
                       )}
 
-                      {/* Languages */}
-                      {(friend.nativeLanguage || friend.learningLanguage) && (
+                      {/* Languages & Nationality */}
+                      {(friend.nationality || (Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0)) && (
                         <div className="flex flex-wrap gap-2 mb-5 justify-center lg:justify-start">
-                          {friend.nativeLanguage && (
-                            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-content rounded-full text-xs font-bold shadow-lg">
-                              {friend.nativeLanguage}
-                            </span>
+                          {friend.nationality && (
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-content rounded-full text-xs font-bold shadow-lg">
+                              {getLanguageFlag(friend.nationality)}
+                              <span>{friend.nationality}</span>
+                            </div>
                           )}
-                          {friend.learningLanguage && (
-                            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary text-secondary-content rounded-full text-xs font-bold shadow-lg">
-                              {friend.learningLanguage}
+                          {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 && (
+                            friend.languagesKnown.slice(0, 2).map((lang, idx) => (
+                              <div key={idx} className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary text-secondary-content rounded-full text-xs font-bold shadow-lg">
+                                {getLanguageFlag(lang)}
+                                <span>{lang}</span>
+                              </div>
+                            ))
+                          )}
+                          {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 2 && (
+                            <span className="inline-flex items-center px-3 py-1.5 bg-secondary/30 text-secondary rounded-full text-xs font-bold shadow-lg">
+                              +{friend.languagesKnown.length - 2}
                             </span>
                           )}
                         </div>
@@ -492,27 +609,27 @@ const FriendProfilePage = () => {
             )}
 
             {/* About Section */}
-            <div className="bg-base-200 rounded-xl p-5 border border-base-300">
-              <h2 className="text-base font-bold text-base-content mb-3 flex items-center gap-2">
+            <div className="bg-base-200 rounded-xl p-6 border border-base-300 lg:col-span-2">
+              <h2 className="text-lg font-bold text-base-content mb-4 flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-primary" />
                 About
               </h2>
               {friend.bio ? (
                 <div>
-                  <p className={`text-base-content/80 text-sm leading-relaxed ${!isAboutExpanded && 'line-clamp-3'}`}>
+                  <p className={`text-base-content/80 text-base leading-relaxed ${!isAboutExpanded && 'line-clamp-4'}`}>
                     {friend.bio}
                   </p>
                   {friend.bio.length > 150 && (
                     <button
                       onClick={() => setIsAboutExpanded(!isAboutExpanded)}
-                      className="mt-2 text-primary text-sm font-medium hover:text-primary-focus transition-colors"
+                      className="mt-3 text-primary text-sm font-medium hover:text-primary-focus transition-colors"
                     >
                       {isAboutExpanded ? 'See less' : 'See more'}
                     </button>
                   )}
                 </div>
               ) : (
-                <p className="text-base-content/40 text-sm italic">No bio added yet</p>
+                <p className="text-base-content/40 text-base italic">No bio added yet</p>
               )}
             </div>
 
@@ -581,13 +698,13 @@ const FriendProfilePage = () => {
                   <div className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
                     <span className="text-base-content/70 font-medium text-sm">Status</span>
                     <span className={`badge font-semibold py-2 px-3 text-xs ${
-                      friend.availabilityStatus === 'available' 
+                      (friendAvailability?.status || friend.availabilityStatus) === 'available' 
                         ? 'badge-success' 
-                        : friend.availabilityStatus === 'limited' 
+                        : (friendAvailability?.status || friend.availabilityStatus) === 'limited' 
                         ? 'badge-warning' 
                         : 'badge-error'
                     }`}>
-                      {friend.availabilityStatus?.charAt(0).toUpperCase() + friend.availabilityStatus?.slice(1) || 'Offline'}
+                      {(friendAvailability?.status || friend.availabilityStatus)?.charAt(0).toUpperCase() + (friendAvailability?.status || friend.availabilityStatus)?.slice(1) || 'Offline'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
@@ -621,7 +738,12 @@ const FriendProfilePage = () => {
                     const isAvailable = availableDays.includes(dayOfWeek);
                     
                     // Get max bookings per day from availability settings
-                    const maxPerDay = friend.availability?.maxPerDay || 5;
+                    let maxPerDay = friend.availability?.maxPerDay || friendAvailability?.maxPerDay || 5;
+                    
+                    // Apply status-based logic: if limited, use minPerDay instead
+                    if ((friendAvailability?.status || friend.availabilityStatus) === 'limited') {
+                      maxPerDay = friend.availability?.minPerDay || friendAvailability?.minPerDay || 1;
+                    }
                     
                     // For now, use a consistent pattern based on day number
                     // Use real booking data from backend
@@ -629,7 +751,7 @@ const FriendProfilePage = () => {
                     const bookingCount = isAvailable ? (bookingArray[i] || 0) : 0;
                     const isFullyBooked = bookingCount >= maxPerDay;
                     const hasBookings = bookingCount > 0 && bookingCount < maxPerDay;
-                    const isAway = friend.availabilityStatus === 'away';
+                    const isAway = (friendAvailability?.status || friend.availabilityStatus) === 'away';
                     
                     // Determine status
                     let status = 'not-scheduled'; // Default
@@ -712,27 +834,45 @@ const FriendProfilePage = () => {
               </div>
             )}
 
-            {/* Languages Sidebar */}
-            {(friend.nativeLanguage || friend.learningLanguage) && (
-              <div className="bg-base-200 rounded-xl p-5 border border-base-300">
-                <h3 className="text-base font-bold text-base-content mb-4 flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-primary" />
-                  Languages
-                </h3>
-                <div className="space-y-2">
-                  {friend.nativeLanguage && (
-                    <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-                      <p className="text-xs font-semibold text-primary">Native Speaker</p>
-                      <p className="text-sm font-bold text-base-content mt-1">{friend.nativeLanguage}</p>
+            {/* Languages & Nationality Sidebar */}
+            {(friend.nationality || (Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0)) && (
+              <div className="bg-base-200 rounded-xl p-5 border border-base-300 space-y-4">
+                {/* Nationality */}
+                {friend.nationality && (
+                  <div>
+                    <h3 className="text-base font-bold text-base-content mb-3 flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-primary" />
+                      Nationality
+                    </h3>
+                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      {getLanguageFlag(friend.nationality)}
+                      <span className="text-sm font-semibold text-base-content">{friend.nationality}</span>
                     </div>
-                  )}
-                  {friend.learningLanguage && (
-                    <div className="p-3 bg-secondary/10 rounded-lg border border-secondary/20">
-                      <p className="text-xs font-semibold text-secondary">Learning</p>
-                      <p className="text-sm font-bold text-base-content mt-1">{friend.learningLanguage}</p>
+                  </div>
+                )}
+
+                {/* Languages */}
+                {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 && (
+                  <div>
+                    <h3 className="text-base font-bold text-base-content mb-3 flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-secondary" />
+                      Languages
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {friend.languagesKnown.slice(0, 2).map((language, index) => (
+                        <div key={index} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-secondary/15 border border-secondary/25 text-secondary rounded-full text-xs font-medium">
+                          {getLanguageFlag(language)}
+                          <span>{language}</span>
+                        </div>
+                      ))}
+                      {friend.languagesKnown.length > 2 && (
+                        <div className="inline-flex items-center px-2.5 py-1 bg-secondary/20 border border-secondary/30 text-secondary rounded-full text-xs font-semibold">
+                          +{friend.languagesKnown.length - 2}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -747,6 +887,23 @@ const FriendProfilePage = () => {
                   {friend.skills.map((skill, index) => (
                     <span key={index} className="inline-flex items-center px-3 py-1.5 bg-primary/10 text-primary border border-primary/30 rounded-full text-xs font-semibold hover:bg-primary/20 transition-colors">
                       {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Interests */}
+            {friend.interests && friend.interests.length > 0 && (
+              <div className="bg-base-200 rounded-xl p-5 border border-base-300">
+                <h3 className="text-base font-bold text-base-content mb-3 flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-secondary" />
+                  Interests
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {friend.interests.map((interest, index) => (
+                    <span key={index} className="inline-flex items-center px-3 py-1.5 bg-secondary/10 text-secondary border border-secondary/30 rounded-full text-xs font-semibold hover:bg-secondary/20 transition-colors">
+                      {interest}
                     </span>
                   ))}
                 </div>
@@ -779,6 +936,7 @@ const FriendProfilePage = () => {
           }}
           initialFriendId={friend._id}
           initialDate={selectedDate}
+          friendsAvailability={friend._id ? { [friend._id]: friendAvailability } : {}}
         />
       )}
     </div>

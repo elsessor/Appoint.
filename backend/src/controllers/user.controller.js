@@ -72,7 +72,7 @@ export async function getMyFriends(req, res) {
   try {
     const user = await User.findById(req.user.id)
       .select("friends favorites")
-      .populate("friends", "fullName profilePic nationality languagesKnown availabilityStatus");
+      .populate("friends", "fullName profilePic nationality languagesKnown availabilityStatus location skills interests");
 
     const friendsWithFavoriteStatus = user.friends.map(friend => {
       const friendObj = friend.toObject();

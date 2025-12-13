@@ -171,15 +171,28 @@ const AppointmentsPage = () => {
   }, [searchParams, appointments]);
 
   
-  const filteredAppointments = filterStatus === 'all'
-    ? involvedAppointments
-    : filterStatus === 'incoming'
-    ? incomingRequests
-    : filterStatus === 'pending'
-    ? userSentPendingAppointments
-    : filterStatus === 'scheduled'
-    ? appointmentsForToday
-    : involvedAppointments.filter((apt) => apt.status === filterStatus);
+  const filteredAppointments = (() => {
+    let appointments;
+    
+    if (filterStatus === 'all') {
+      appointments = involvedAppointments;
+    } else if (filterStatus === 'incoming') {
+      appointments = incomingRequests;
+    } else if (filterStatus === 'pending') {
+      appointments = userSentPendingAppointments;
+    } else if (filterStatus === 'scheduled') {
+      appointments = appointmentsForToday;
+    } else {
+      appointments = involvedAppointments.filter((apt) => apt.status === filterStatus);
+    }
+    
+    // Sort all by latest date first
+    return [...appointments].sort((a, b) => {
+      const dateA = new Date(a.startTime);
+      const dateB = new Date(b.startTime);
+      return dateB - dateA; // Latest first
+    });
+  })();
 
   
   const handleDeleteClick = (appointmentId) => {
@@ -578,7 +591,7 @@ const AppointmentsPage = () => {
                       });
 
                       // Sort dates and appointments within each date
-                      const sortedDates = Object.keys(groupedByDate).sort();
+                      const sortedDates = Object.keys(groupedByDate).sort().reverse();
                       
                       return sortedDates.map((dateKey) => {
                         const startTime = parseISO(dateKey);

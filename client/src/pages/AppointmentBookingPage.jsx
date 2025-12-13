@@ -305,6 +305,28 @@ const AppointmentBookingPage = () => {
       }
     };
 
+    // Handle availability status changed
+    const handleAvailabilityStatusChanged = (data) => {
+      console.log('[AppointmentBooking] Received availability:changed', data);
+      
+      // If it's a friend's availability change, update friendsAvailability
+      if (data.userId && data.userId !== (currentUser?._id || currentUser?.id)) {
+        setFriendsAvailability(prev => ({
+          ...prev,
+          [data.userId]: {
+            ...prev[data.userId],
+            status: data.availabilityStatus,
+            minPerDay: data.availability?.minPerDay,
+            maxPerDay: data.availability?.maxPerDay,
+            ...data.availability
+          }
+        }));
+      } else if (data.userId === (currentUser?._id || currentUser?.id)) {
+        // If it's the current user's status change, invalidate query
+        queryClient.invalidateQueries(['userAvailability', currentUser?._id]);
+      }
+    };
+
     // Wait for socket to be connected before registering listeners
     if (!socket.connected) {
       console.log('[AppointmentBooking] Socket not connected yet, waiting...');
@@ -314,6 +336,7 @@ const AppointmentBookingPage = () => {
         socket.on('appointment:updated', handleAppointmentUpdated);
         socket.on('appointment:statusChanged', handleAppointmentStatusChanged);
         socket.on('appointment:deleted', handleAppointmentDeleted);
+        socket.on('availability:changed', handleAvailabilityStatusChanged);
       };
       
       socket.once('connect', onConnect);
@@ -324,6 +347,7 @@ const AppointmentBookingPage = () => {
         socket.off('appointment:updated', handleAppointmentUpdated);
         socket.off('appointment:statusChanged', handleAppointmentStatusChanged);
         socket.off('appointment:deleted', handleAppointmentDeleted);
+        socket.off('availability:changed', handleAvailabilityStatusChanged);
       };
     }
 
@@ -333,6 +357,7 @@ const AppointmentBookingPage = () => {
     socket.on('appointment:updated', handleAppointmentUpdated);
     socket.on('appointment:statusChanged', handleAppointmentStatusChanged);
     socket.on('appointment:deleted', handleAppointmentDeleted);
+    socket.on('availability:changed', handleAvailabilityStatusChanged);
 
     // Cleanup on unmount
     return () => {
@@ -341,6 +366,7 @@ const AppointmentBookingPage = () => {
       socket.off('appointment:updated', handleAppointmentUpdated);
       socket.off('appointment:statusChanged', handleAppointmentStatusChanged);
       socket.off('appointment:deleted', handleAppointmentDeleted);
+      socket.off('availability:changed', handleAvailabilityStatusChanged);
     };
   }, [queryClient, currentUser, viewingFriendId]);
 
@@ -1136,6 +1162,7 @@ const AppointmentBookingPage = () => {
           }
           friendsAvailability={friendsAvailability}
           appointments={displayAppointments}
+          currentUserStatus={currentUserAvailability?.availabilityStatus || 'available'}
           initialFriendId={viewingFriendId}
           selectedDate={appointmentModalData?.date}
           initialTime={appointmentModalData?.time}

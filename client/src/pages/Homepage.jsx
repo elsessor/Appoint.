@@ -12,7 +12,8 @@ import {
 import { Link } from "react-router";
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon, CalendarIcon, VideoIcon, UserCheckIcon, ClockIcon, SearchIcon, XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { capitialize } from "../lib/utils";
+import { capitalize } from "../lib/utils";
+import { LANGUAGE_TO_FLAG } from "../constants";
 import usePresence from "../hooks/usePresence";
 import useAvailabilityStatus from "../hooks/useAvailabilityStatus";
 import useMultiplePresence from "../hooks/useMultiplePresence";
@@ -21,6 +22,19 @@ import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 import useAuthUser from "../hooks/useAuthUser";
 import FriendsCarousel from "../components/FriendsCarousel";
+
+const getNationalityFlag = (nationality) => {
+  if (!nationality) return null;
+  const countryCode = LANGUAGE_TO_FLAG[nationality?.toLowerCase()];
+  if (!countryCode) return null;
+  return (
+    <img 
+      src={`https://flagcdn.com/24x18/${countryCode}.png`} 
+      alt={`${nationality} flag`} 
+      className="h-3.5 w-5 rounded-sm object-cover" 
+    />
+  );
+};
 
 const HomePage = () => {
   const queryClient = useQueryClient();
@@ -538,7 +552,7 @@ const HomePage = () => {
                   <option value="all">All Languages</option>
                   {availableLanguages.map((lang) => (
                     <option key={lang} value={lang}>
-                      {capitialize(lang)}
+                      {capitalize(lang)}
                     </option>
                   ))}
                 </select>
@@ -614,20 +628,49 @@ const HomePage = () => {
                             </div>
                           </div>
 
-                          {/* Languages Section */}
-                          <div className="flex flex-col gap-1.5">
-                            {(Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0) && (
-                              <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                                {getLanguageFlag(user.languagesKnown?.[0])}
-                                <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}</span>
-                              </span>
+                          {/* Nationality, Skills & Interests Section */}
+                          <div className="flex flex-col gap-1">
+                            {user.nationality && (
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 rounded text-primary font-medium text-xs w-fit">
+                                {getNationalityFlag(user.nationality)}
+                                <span>{user.nationality}</span>
+                              </div>
                             )}
+                            <div className="text-xs space-y-0.5">
+                              <span className="text-base-content/50 font-medium">Skills:</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {Array.isArray(user.skills) && user.skills.length > 0 ? (
+                                  <>
+                                    {user.skills.slice(0, 2).map((skill, idx) => (
+                                      <span key={idx} className="text-xs text-cyan-500">{skill}</span>
+                                    ))}
+                                    {user.skills.length > 2 && (
+                                      <span className="text-xs text-cyan-500 font-medium">+{user.skills.length - 2}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-base-content/40">N/A</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-xs space-y-0.5">
+                              <span className="text-base-content/50 font-medium">Interests:</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {Array.isArray(user.interests) && user.interests.length > 0 ? (
+                                  <>
+                                    {user.interests.slice(0, 2).map((interest, idx) => (
+                                      <span key={idx} className="text-xs text-pink-500">{interest}</span>
+                                    ))}
+                                    {user.interests.length > 2 && (
+                                      <span className="text-xs text-pink-500 font-medium">+{user.interests.length - 2}</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-base-content/40">N/A</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-
-                          {/* Bio Section */}
-                          {user.bio && (
-                            <p className="text-xs sm:text-sm opacity-70 line-clamp-2 leading-relaxed">{user.bio}</p>
-                          )}
 
                           {/* Action Button - Always at bottom */}
                           <button
@@ -717,37 +760,49 @@ const HomePage = () => {
                           </div>
                         </div>
 
-                        {/* Languages Section */}
-                        <div className="flex flex-col gap-1.5">
-                          {(user.nativeLanguage || user.nationality) && (
-                            <span className="badge badge-secondary text-xs sm:text-sm gap-1">
-                              {getLanguageFlag(user.nativeLanguage || user.nationality)}
-                              <span>Nationality: {capitialize(user.nativeLanguage || user.nationality)}</span>
-                            </span>
-                          )}
-                          {(user.learningLanguage || (Array.isArray(user.languagesKnown) && user.languagesKnown.length > 0)) && (
-                            <div className="flex flex-col gap-1.5">
-                              <span className="badge badge-outline text-xs sm:text-sm gap-1">
-                                {user.learningLanguage ? (
-                                  <>
-                                    {getLanguageFlag(user.learningLanguage)}
-                                    <span>Learning: {capitialize(user.learningLanguage)}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    {getLanguageFlag(user.languagesKnown?.[0])}
-                                    <span>Languages: {user.languagesKnown?.slice(0, 2).map(capitialize).join(', ')}{user.languagesKnown?.length > 2 ? ` +${user.languagesKnown.length - 2}` : ''}</span>
-                                  </>
-                                )}
-                              </span>
+                        {/* Nationality, Skills & Interests Section */}
+                        <div className="flex flex-col gap-1">
+                          {user.nationality && (
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 rounded text-primary font-medium text-xs w-fit">
+                              {getNationalityFlag(user.nationality)}
+                              <span>{user.nationality}</span>
                             </div>
                           )}
+                          <div className="text-xs space-y-0.5">
+                            <span className="text-base-content/50 font-medium">Skills:</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {Array.isArray(user.skills) && user.skills.length > 0 ? (
+                                <>
+                                  {user.skills.slice(0, 2).map((skill, idx) => (
+                                    <span key={idx} className="text-xs text-cyan-500">{skill}</span>
+                                  ))}
+                                  {user.skills.length > 2 && (
+                                    <span className="text-xs text-cyan-500 font-medium">+{user.skills.length - 2}</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-base-content/40">N/A</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs space-y-0.5">
+                            <span className="text-base-content/50 font-medium">Interests:</span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {Array.isArray(user.interests) && user.interests.length > 0 ? (
+                                <>
+                                  {user.interests.slice(0, 2).map((interest, idx) => (
+                                    <span key={idx} className="text-xs text-pink-500">{interest}</span>
+                                  ))}
+                                  {user.interests.length > 2 && (
+                                    <span className="text-xs text-pink-500 font-medium">+{user.interests.length - 2}</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-base-content/40">N/A</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-
-                        {/* Bio Section */}
-                        {user.bio && (
-                          <p className="text-xs sm:text-sm opacity-70 line-clamp-2 leading-relaxed">{user.bio}</p>
-                        )}
 
                         {/* Action Button - Always at bottom */}
                         <button

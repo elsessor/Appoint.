@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import Appointment from '../models/Appointment.js';
 import { createNotification } from '../controllers/notifications.controller.js';
+import { emitAppointmentReminder } from '../lib/socket.js';
 
 // Run every 5 minutes to check for upcoming appointments
 export function startReminderScheduler() {
@@ -54,6 +55,7 @@ export function startReminderScheduler() {
 
           for (const participant of participants) {
             try {
+              // Send notification
               await createNotification({
                 recipientId: participant.id,
                 senderId: participant.partnerId,
@@ -62,6 +64,9 @@ export function startReminderScheduler() {
                 message: `Your appointment with ${participant.partnerName} starts in ${Math.round(minutesUntilStart)} minutes (${formattedDate} at ${formattedTime})`,
                 appointmentId: appointment._id,
               });
+              
+              // Emit socket event for real-time modal
+              emitAppointmentReminder(participant.id, appointment);
               
               console.log(`✅ Sent reminder to user ${participant.id} for appointment ${appointment._id}`);
             } catch (notifError) {
@@ -139,6 +144,9 @@ export async function checkRemindersNow() {
             message: `Your appointment with ${participant.partnerName} starts in ${Math.round(minutesUntilStart)} minutes (${formattedDate} at ${formattedTime})`,
             appointmentId: appointment._id,
           });
+          
+          // Emit socket event for real-time modal
+          emitAppointmentReminder(participant.id, appointment);
         }
 
         appointment.reminded = true;

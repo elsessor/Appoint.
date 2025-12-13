@@ -379,18 +379,41 @@ export async function getUpcomingAppointmentsCount(req, res) {
   try {
     const { friendId } = req.params;
     const userId = req.user._id.toString();
+    const days = parseInt(req.query.days) || 7;
 
-    // Count upcoming appointments between the current user and the friend
-    const count = await Appointment.countDocuments({
+    // Get all upcoming appointments between the current user and the friend
+    const appointments = await Appointment.find({
       $or: [
         { userId: userId, friendId: friendId },
         { userId: friendId, friendId: userId }
       ],
       startTime: { $gte: new Date() },
       status: { $in: ['pending', 'confirmed', 'scheduled', 'accepted'] }
-    });
+    }).select('startTime');
 
-    res.status(200).json({ count });
+    // Create an array for booking counts by day (next 7 days)
+    const bookingsByDay = [];
+    for (let i = 0; i < days; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Count appointments on this specific date
+      const count = appointments.filter(appt => {
+        const apptDate = new Date(appt.startTime);
+        const apptDateStr = apptDate.toISOString().split('T')[0];
+        return apptDateStr === dateStr;
+      }).length;
+      
+      bookingsByDay.push(count);
+    }
+
+    const totalCount = appointments.length;
+
+    res.status(200).json({ 
+      count: totalCount,
+      bookingsByDay: bookingsByDay
+    });
   } catch (error) {
     console.error("Error in getUpcomingAppointmentsCount controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -795,6 +818,7 @@ export async function saveCustomAvailability(req, res) {
       slotDuration,
       buffer,
       maxPerDay,
+      minPerDay,
       breakTimes,
       minLeadTime,
       cancelNotice,
@@ -828,6 +852,7 @@ export async function saveCustomAvailability(req, res) {
           slotDuration: slotDuration || 30,
           buffer: buffer || 15,
           maxPerDay: maxPerDay || 5,
+          minPerDay: minPerDay || 1,
           breakTimes: breakTimes || [],
           minLeadTime: minLeadTime || 0,
           cancelNotice: cancelNotice || 0,
@@ -855,7 +880,7 @@ export async function saveCustomAvailability(req, res) {
 
     // Emit availability status change to all connected clients if status changed
     if (availabilityStatus) {
-      emitAvailabilityStatusChanged(userId, availabilityStatus);
+      emitAvailabilityStatusChanged(userId, availabilityStatus, updatedUser.availability);
     }
 
     res.status(200).json({

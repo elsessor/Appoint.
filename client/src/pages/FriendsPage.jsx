@@ -11,6 +11,19 @@ import { isOnline } from '../lib/presence';
 import { getStatusColor, formatStatusLabel } from "../utils/statusColors";
 import FriendsCarousel from "../components/FriendsCarousel";
 
+const getNationalityFlag = (nationality) => {
+  if (!nationality) return null;
+  const countryCode = LANGUAGE_TO_FLAG[nationality?.toLowerCase()];
+  if (!countryCode) return null;
+  return (
+    <img 
+      src={`https://flagcdn.com/24x18/${countryCode}.png`} 
+      alt={`${nationality} flag`} 
+      className="h-3.5 w-5 rounded-sm object-cover" 
+    />
+  );
+};
+
 const LanguageBadge = ({ type, language }) => {
   const langLower = language?.toLowerCase();
   const countryCode = LANGUAGE_TO_FLAG[langLower];
@@ -26,7 +39,7 @@ const LanguageBadge = ({ type, language }) => {
           className="h-3.5 w-5 rounded-sm object-cover"
         />
       )}
-      <span>{type === 'nationality' ? language : 'Learn: ' + language}</span>
+      <span>{language}</span>
     </div>
   );
 };
@@ -212,8 +225,7 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
   const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
-  const nationality = friend.nativeLanguage || friend.native || "Unknown";
-  const learning = friend.learningLanguage || friend.learning || "Unknown";
+  const nationality = friend.nationality || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
   const userOnline = usePresence(friend._id); // Subscribe to presence updates
   const statusColor = !userOnline
@@ -237,79 +249,117 @@ const FriendCard = ({ friend, onUnfriend, currentUserId }) => {
 
   return (
     <>
-      <div className="card relative bg-gradient-to-br from-base-200 to-base-300 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden group h-full flex flex-col">
-        <div className="relative h-20 sm:h-32 bg-gradient-to-r from-primary/20 to-secondary/20">
-          <Link
-            to={`/profile/${friend._id || friend.id}`}
-            className="absolute top-1 sm:top-3 right-1 sm:right-3 btn btn-ghost btn-xs sm:btn-sm btn-circle z-10"
-            title={`View ${name}'s profile`}
-            aria-label={`View ${name} profile`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <User className="w-3 h-3 sm:w-4 sm:h-4" />
-          </Link>
-          <div className="absolute -bottom-4 sm:-bottom-6 left-2 sm:left-4">
-            <div className="relative">
-              <img 
-                src={avatar} 
-                alt={name} 
-                className="w-12 h-12 sm:w-20 sm:h-20 rounded-full border-3 sm:border-4 border-base-200 object-cover group-hover:scale-105 transition-transform"
-              />
-              <div className={`absolute -bottom-0.5 sm:-bottom-1 -right-0.5 sm:-right-1 w-3 h-3 sm:w-5 sm:h-5 rounded-full border-2 sm:border-3 border-base-200 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
+      <div className="card relative bg-base-200 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full">
+        {/* Compact Horizontal Layout */}
+        <div className="card-body p-3 sm:p-4 space-y-3 flex flex-col flex-1">
+          {/* Header: Avatar + Name/Location */}
+          <div className="flex items-start gap-3">
+            <Link
+              to={`/profile/${friend._id || friend.id}`}
+              className="flex-shrink-0"
+            >
+              <div className="relative">
+                <img 
+                  src={avatar} 
+                  alt={name} 
+                  className="w-16 h-16 rounded-full border-3 border-base-300 object-cover group-hover:scale-105 transition-transform"
+                />
+                <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-base-300 ${!userOnline ? 'bg-neutral-500' : status === 'available' ? 'bg-success' : status === 'limited' ? 'bg-warning' : status === 'away' ? 'bg-error' : 'bg-neutral-500'}`} />
+              </div>
+            </Link>
+
+            <div className="flex-1 min-w-0 pt-0.5">
+              <Link
+                to={`/profile/${friend._id || friend.id}`}
+                className="font-semibold text-base hover:text-primary transition-colors line-clamp-1"
+              >
+                {name}
+              </Link>
+              {friend.location && (
+                <div className="flex items-center gap-1 text-xs opacity-70 line-clamp-1">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{friend.location}</span>
+                </div>
+              )}
+            </div>
+
+            <Link
+              to={`/profile/${friend._id || friend.id}`}
+              className="btn btn-ghost btn-xs btn-circle flex-shrink-0"
+              title={`View ${name}'s profile`}
+              aria-label={`View ${name} profile`}
+            >
+              <User className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Nationality */}
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-lg text-xs font-medium text-primary w-fit">
+            {getNationalityFlag(nationality)}
+            <span>{nationality}</span>
+          </div>
+
+          {/* Skills */}
+          <div className="space-y-0.5">
+            <span className="text-xs text-base-content/50 font-medium">Skills:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {Array.isArray(friend.skills) && friend.skills.length > 0 ? (
+                <>
+                  {friend.skills.slice(0, 2).map((skill, idx) => (
+                    <span key={idx} className="text-xs text-cyan-500 hover:text-cyan-400 transition-colors">{skill}</span>
+                  ))}
+                  {friend.skills.length > 2 && (
+                    <span className="text-xs text-cyan-500 font-medium">+{friend.skills.length - 2}</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs text-base-content/40">N/A</span>
+              )}
             </div>
           </div>
-        </div>
 
-        <div className="card-body pt-6 sm:pt-10 pb-2 sm:pb-4 px-3 sm:px-4 flex-1 flex flex-col">
-          <div>
-            <h3 className="card-title text-sm sm:text-lg truncate">{name}</h3>
-            <p className="text-xs opacity-60 line-clamp-1">{status}</p>
-            {friend.location && (
-              <div className="flex items-center gap-1 text-xs opacity-70 mt-0.5 line-clamp-1">
-                <MapPin className="w-2.5 h-2.5 flex-shrink-0" />
-                <span className="truncate">{friend.location}</span>
-              </div>
-            )}
+          {/* Interests */}
+          <div className="space-y-0.5">
+            <span className="text-xs text-base-content/50 font-medium">Interests:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {Array.isArray(friend.interests) && friend.interests.length > 0 ? (
+                <>
+                  {friend.interests.slice(0, 2).map((interest, idx) => (
+                    <span key={idx} className="text-xs text-pink-500 hover:text-pink-400 transition-colors">{interest}</span>
+                  ))}
+                  {friend.interests.length > 2 && (
+                    <span className="text-xs text-pink-500 font-medium">+{friend.interests.length - 2}</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs text-base-content/40">N/A</span>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1 hidden sm:flex">
-            <LanguageBadge type="nationality" language={nationality} />
-            {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 ? (
-              <div className="flex items-center gap-1 flex-wrap">
-                {friend.languagesKnown.slice(0, 2).map((lang, idx) => (
-                  <LanguageBadge key={idx} type="learning" language={lang} />
-                ))}
-                {friend.languagesKnown.length > 2 && (
-                  <span className="badge badge-secondary/20 text-secondary text-xs px-2 py-1 rounded-lg font-medium">+{friend.languagesKnown.length - 2}</span>
-                )}
-              </div>
-            ) : (
-              <LanguageBadge type="learning" language={learning} />
-            )}
-          </div>
-
-          <div className="card-actions justify-between gap-0.5 sm:gap-2 mt-auto">
+          {/* Action Buttons */}
+          <div className="card-actions gap-2 mt-auto pt-2">
             <Link
               to={`/chats/${friend._id || friend.id}`}
-              className="btn btn-xs sm:btn-sm btn-primary flex-1"
+              className="btn btn-sm btn-primary flex-1"
               title="Chat"
             >
-              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Chat</span>
+              <MessageCircle className="w-4 h-4" />
+              <span>Chat</span>
             </Link>
             <button 
-              className="btn btn-circle btn-xs sm:btn-sm btn-ghost"
+              className="btn btn-sm btn-ghost"
               onClick={handleCalendarClick}
               title="Book appointment"
             >
-              <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+              <Calendar className="w-4 h-4" />
             </button>
             <button 
-              className="btn btn-circle btn-xs sm:btn-sm btn-ghost hover:bg-error/20"
+              className="btn btn-sm btn-ghost hover:bg-error/20"
               onClick={() => setShowUnfriendConfirm(true)}
               title="Unfriend"
             >
-              <UserX className="w-3 h-3 sm:w-4 sm:h-4 text-error" />
+              <UserX className="w-4 h-4 text-error" />
             </button>
           </div>
         </div>
@@ -353,8 +403,7 @@ const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const name = friend.fullName || friend.name || "Unknown";
   const avatar = friend.profilePic || friend.avatar || "/default-profile.svg";
-  const nationality = friend.nativeLanguage || friend.native || "Unknown";
-  const learning = friend.learningLanguage || friend.learning || "Unknown";
+  const nationality = friend.nationality || "Unknown";
   const status = (friend.availabilityStatus ?? "offline").toLowerCase();
   const userOnline = usePresence(friend._id); // Subscribe to presence updates
   const statusColor = !userOnline
@@ -406,20 +455,45 @@ const FriendListItem = ({ friend, onUnfriend, currentUserId }) => {
           <p className={`text-xs font-medium capitalize ${statusColor}`}>
             {!userOnline ? 'Offline' : status}
           </p>
-          <div className="flex gap-2 mt-1 text-xs flex-wrap">
-            <span className="badge badge-sm badge-primary">{nationality}</span>
-            {Array.isArray(friend.languagesKnown) && friend.languagesKnown.length > 0 ? (
-              <>
-                {friend.languagesKnown.slice(0, 2).map((lang, idx) => (
-                  <span key={idx} className="badge badge-sm badge-secondary/30">{lang}</span>
-                ))}
-                {friend.languagesKnown.length > 2 && (
-                  <span className="badge badge-sm badge-secondary/30">+{friend.languagesKnown.length - 2}</span>
+          <div className="flex gap-2 mt-1 text-xs flex-wrap items-center">
+            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 rounded text-primary font-medium">
+              {getNationalityFlag(nationality)}
+              <span>{nationality}</span>
+            </div>
+            <div className="text-xs space-y-1">
+              <span className="text-base-content/50 font-medium">Skills:</span>
+              <div className="flex items-center gap-1.5">
+                {Array.isArray(friend.skills) && friend.skills.length > 0 ? (
+                  <>
+                    {friend.skills.slice(0, 2).map((skill, idx) => (
+                      <span key={idx} className="text-xs text-cyan-500">{skill}</span>
+                    ))}
+                    {friend.skills.length > 2 && (
+                      <span className="text-xs text-cyan-500 font-medium">+{friend.skills.length - 2}</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-base-content/40">N/A</span>
                 )}
-              </>
-            ) : (
-              <span className="badge badge-sm badge-secondary/30">{learning}</span>
-            )}
+              </div>
+            </div>
+            <div className="text-xs space-y-1">
+              <span className="text-base-content/50 font-medium">Interests:</span>
+              <div className="flex items-center gap-1.5">
+                {Array.isArray(friend.interests) && friend.interests.length > 0 ? (
+                  <>
+                    {friend.interests.slice(0, 2).map((interest, idx) => (
+                      <span key={idx} className="text-xs text-pink-500">{interest}</span>
+                    ))}
+                    {friend.interests.length > 2 && (
+                      <span className="text-xs text-pink-500 font-medium">+{friend.interests.length - 2}</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-base-content/40">N/A</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -672,10 +746,30 @@ const FriendsPage = () => {
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {[1,2,3,4,5,6].map((i) => (
               <div key={i} className="card bg-base-200 animate-pulse h-40 sm:h-60">
-                <div className="card-body p-2 sm:p-4">
-                  <div className="h-20 sm:h-32 bg-base-300 rounded mb-2 sm:mb-4" />
-                  <div className="h-3 sm:h-4 bg-base-300 rounded w-2/3 mb-1 sm:mb-2" />
-                  <div className="h-2 sm:h-3 bg-base-300 rounded" />
+                <div className="card-body p-3 sm:p-4 space-y-3 flex flex-col flex-1">
+                  {/* Avatar Skeleton */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-full bg-base-300 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 pt-0.5 space-y-2">
+                      <div className="h-4 bg-base-300 rounded w-2/3" />
+                      <div className="h-3 bg-base-300 rounded w-1/2" />
+                    </div>
+                  </div>
+                  
+                  {/* Nationality Skeleton */}
+                  <div className="h-6 bg-base-300 rounded-lg w-24" />
+                  
+                  {/* Skills Skeleton */}
+                  <div className="space-y-1">
+                    <div className="h-3 bg-base-300 rounded w-12" />
+                    <div className="h-3 bg-base-300 rounded w-32" />
+                  </div>
+                  
+                  {/* Interests Skeleton */}
+                  <div className="space-y-1">
+                    <div className="h-3 bg-base-300 rounded w-16" />
+                    <div className="h-3 bg-base-300 rounded w-32" />
+                  </div>
                 </div>
               </div>
             ))}

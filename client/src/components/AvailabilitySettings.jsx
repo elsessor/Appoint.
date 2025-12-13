@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, Save, X, Plus, Trash2, AlertCircle, Coffee } from 'lucide-react';
+import { Clock, Save, X, Plus, Trash2, AlertCircle, Coffee, ToggleLeft, XCircle, Zap, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { axiosInstance } from '../lib/axios';
 
@@ -12,6 +12,7 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
     end: '17:00',
     slotDuration: 30,
     buffer: 15,
+    minPerDay: 1,
     maxPerDay: 5,
     breakTimes: [],
     minLeadTime: 0,
@@ -59,6 +60,7 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
         end: currentAvailability.availability.end || '17:00',
         slotDuration: currentAvailability.availability.slotDuration || 30,
         buffer: currentAvailability.availability.buffer || 15,
+        minPerDay: currentAvailability.availability.minPerDay || 1,
         maxPerDay: currentAvailability.availability.maxPerDay || 5,
         breakTimes: currentAvailability.availability.breakTimes || [],
         minLeadTime: currentAvailability.availability.minLeadTime || 0,
@@ -257,31 +259,37 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
           {/* Availability Status Quick Toggle */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-base-content">Availability Status</h3>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-3">
               {[
-                { status: 'available', label: 'Available', icon: '✓', color: 'success' },
-                { status: 'limited', label: 'Limited', icon: '⚠', color: 'warning' },
-                { status: 'away', label: 'Away', icon: '✕', color: 'error' },
-              ].map(({ status, label, icon, color }) => (
+                { status: 'available', label: 'Available', description: 'Maximum appointments allowed (set below)', icon: CheckCircle, color: 'success', iconColor: 'text-success' },
+                { status: 'limited', label: 'Limited', description: 'Only 1 appointment per day (minimum duration)', icon: AlertTriangle, color: 'warning', iconColor: 'text-warning' },
+                { status: 'away', label: 'Away', description: 'Not accepting bookings', icon: XCircle, color: 'error', iconColor: 'text-error' },
+              ].map(({ status, label, description, icon: IconComponent, color, iconColor }) => (
                 <button
                   key={status}
                   onClick={() => setAvailabilityStatus(status)}
-                  className={`btn btn-outline gap-2 transition-all ${
+                  className={`w-full p-4 rounded-lg border-2 transition-all text-left flex items-start justify-between ${
                     availabilityStatus === status
-                      ? `btn-${color} border-${color} btn-active`
-                      : 'btn-ghost'
+                      ? `border-${color} bg-${color}/10`
+                      : 'border-base-300 bg-base-200'
                   }`}
                 >
-                  <span className="text-lg">{icon}</span>
-                  {label}
+                  <div className="flex items-start gap-3">
+                    <IconComponent className={`w-5 h-5 mt-0.5 flex-shrink-0 ${iconColor}`} />
+                    <div>
+                      <p className="font-semibold text-base-content">{label}</p>
+                      <p className="text-sm text-base-content/70">{description}</p>
+                    </div>
+                  </div>
+                  {availabilityStatus === status && (
+                    <div className="badge badge-success gap-1 h-6">
+                      <CheckCircle className="w-3 h-3" />
+                      Active
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
-            <p className="text-sm text-base-content/70">
-              {availabilityStatus === 'available' && 'Friends can book appointments with you'}
-              {availabilityStatus === 'limited' && 'Limited availability - show as partially available'}
-              {availabilityStatus === 'away' && 'Friends cannot book appointments while away'}
-            </p>
           </div>
 
           {/* Working Hours Section */}
@@ -444,87 +452,180 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-base-content">Slot Configuration</h3>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <label className="label">
-                  <span className="label-text font-medium">Slot Duration (min)</span>
+            {/* First Row - Duration Settings */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Slot Duration</span>
                 </label>
-                <input
-                  type="number"
-                  min="15"
-                  max="120"
-                  step="15"
-                  value={availability.slotDuration}
-                  onChange={(e) => setAvailability(prev => ({
-                    ...prev,
-                    slotDuration: parseInt(e.target.value),
-                  }))}
-                  className="input input-bordered w-full"
-                />
-              </div>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-medium">Buffer Time (min)</span>
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="60"
-                  step="5"
-                  value={availability.buffer}
-                  onChange={(e) => setAvailability(prev => ({
-                    ...prev,
-                    buffer: parseInt(e.target.value),
-                  }))}
-                  className="input input-bordered w-full"
-                />
-              </div>
-
-              <div>
-                <label className="label">
-                  <span className="label-text font-medium">Max Appointments Per Day</span>
-                  <span className="label-text-alt text-info text-xs">(1-20)</span>
-                </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <input
                     type="number"
-                    min="1"
-                    max="20"
-                    value={availability.maxPerDay}
-                    onChange={(e) => {
-                      const value = Math.max(1, Math.min(20, parseInt(e.target.value) || 5));
-                      setAvailability(prev => ({
-                        ...prev,
-                        maxPerDay: value,
-                      }));
-                    }}
-                    className="input input-bordered w-full"
+                    min="15"
+                    max="120"
+                    step="15"
+                    value={availability.slotDuration}
+                    onChange={(e) => setAvailability(prev => ({
+                      ...prev,
+                      slotDuration: parseInt(e.target.value),
+                    }))}
+                    className="input input-bordered w-20 text-center"
                   />
-                  <span className="text-xs text-base-content/60 whitespace-nowrap">{availability.maxPerDay} per day</span>
+                  <span className="text-sm font-medium text-base-content/70">minutes</span>
                 </div>
-                <p className="text-xs text-base-content/60 mt-1">Limit the number of appointments you can have on any single day</p>
+                <p className="text-xs text-base-content/50">Duration of each appointment slot</p>
               </div>
 
-              <div>
-                <label className="label">
-                  <span className="label-text font-medium">Max Duration (min)</span>
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Buffer Time</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="5"
+                    value={availability.buffer}
+                    onChange={(e) => setAvailability(prev => ({
+                      ...prev,
+                      buffer: parseInt(e.target.value),
+                    }))}
+                    className="input input-bordered w-20 text-center"
+                  />
+                  <span className="text-sm font-medium text-base-content/70">minutes</span>
+                </div>
+                <p className="text-xs text-base-content/50">Break time between appointments</p>
+              </div>
+            </div>
+
+            {/* Second Row - Appointment Limits */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-base-200/50 border border-base-300">
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Min Appointments Per Day</span>
+                  <span className="label-text-alt text-warning text-xs font-medium">(1-20)</span>
                 </label>
                 <input
                   type="number"
-                  min="30"
-                  max="480"
-                  step="15"
-                  value={availability.appointmentDuration?.max || 120}
-                  onChange={(e) => setAvailability(prev => ({
-                    ...prev,
-                    appointmentDuration: {
-                      ...prev.appointmentDuration,
-                      max: parseInt(e.target.value),
-                    },
-                  }))}
-                  className="input input-bordered w-full"
+                  min="1"
+                  max={Math.min(20, availability.maxPerDay || 5)}
+                  value={availability.minPerDay || 1}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 1;
+                    const clamped = Math.max(1, Math.min(Math.min(20, availability.maxPerDay || 5), value));
+                    setAvailability(prev => ({
+                      ...prev,
+                      minPerDay: clamped,
+                    }));
+                  }}
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
+                  className="input input-bordered w-full text-center font-semibold text-lg"
                 />
+                <p className="text-xs text-base-content/60">
+                  {availabilityStatus === 'limited'
+                    ? `Limited: Only ${availability.minPerDay || 1} appointment per day`
+                    : 'For Limited availability status'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Max Appointments Per Day</span>
+                  <span className="label-text-alt text-info text-xs font-medium">(1-20)</span>
+                </label>
+                <input
+                  type="number"
+                  min={availability.minPerDay || 1}
+                  max="20"
+                  value={availability.maxPerDay}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 5;
+                    const clamped = Math.max(availability.minPerDay || 1, Math.min(20, value));
+                    setAvailability(prev => ({
+                      ...prev,
+                      maxPerDay: clamped,
+                    }));
+                  }}
+                  onKeyDown={(e) => e.preventDefault()}
+                  onPaste={(e) => e.preventDefault()}
+                  className="input input-bordered w-full text-center font-semibold text-lg"
+                />
+                <p className="text-xs text-base-content/60">
+                  {availabilityStatus === 'available' 
+                    ? `Available: Up to ${availability.maxPerDay} appointments per day`
+                    : 'For Available status'}
+                </p>
+              </div>
+            </div>
+
+            {/* Third Row - Duration Constraints */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Min Duration</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="15"
+                    max={availability.appointmentDuration?.max || 120}
+                    step="15"
+                    value={availability.appointmentDuration?.min || 15}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      const clamped = Math.max(15, Math.min(availability.appointmentDuration?.max || 120, value));
+                      setAvailability(prev => ({
+                        ...prev,
+                        appointmentDuration: {
+                          ...prev.appointmentDuration,
+                          min: clamped,
+                        },
+                      }));
+                    }}
+                    className="input input-bordered w-20 text-center"
+                  />
+                  <span className="text-sm font-medium text-base-content/70">minutes</span>
+                </div>
+                <p className="text-xs text-base-content/50">
+                  {availabilityStatus === 'limited'
+                    ? `Limited: Appointments must be ${availability.appointmentDuration?.min || 15}m`
+                    : 'Minimum appointment length'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="label p-0">
+                  <span className="label-text font-semibold text-base-content">Max Duration</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={availability.appointmentDuration?.min || 15}
+                    max="480"
+                    step="15"
+                    value={availability.appointmentDuration?.max || 120}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      const clamped = Math.max(availability.appointmentDuration?.min || 15, Math.min(480, value));
+                      setAvailability(prev => ({
+                        ...prev,
+                        appointmentDuration: {
+                          ...prev.appointmentDuration,
+                          max: clamped,
+                        },
+                      }));
+                    }}
+                    className="input input-bordered w-20 text-center"
+                  />
+                  <span className="text-sm font-medium text-base-content/70">minutes</span>
+                </div>
+                <p className="text-xs text-base-content/50">
+                  {availabilityStatus === 'available'
+                    ? `Available: Up to ${availability.appointmentDuration?.max || 120}m`
+                    : 'Maximum appointment length'}
+                </p>
               </div>
             </div>
           </div>
@@ -708,14 +809,14 @@ const AvailabilitySettings = ({ isOpen, onClose, currentUser }) => {
           {/* Info Banner */}
           <div className="bg-info/10 border border-info rounded-lg p-4 flex gap-3">
             <AlertCircle className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-info-content">
-              <p className="font-semibold">Settings Overview:</p>
-              <ul className="list-disc list-inside mt-1 space-y-0.5">
-                <li><strong>Status:</strong> Control overall availability</li>
-                <li><strong>Break Times:</strong> Daily recurring breaks (e.g., lunch)</li>
-                <li><strong>Lead Time:</strong> Minimum hours before booking</li>
-                <li><strong>Cancel Notice:</strong> Hours required to cancel</li>
-                <li><strong>Max Per Day:</strong> Maximum appointments per day (1-20)</li>
+            <div className="text-sm">
+              <p className="font-semibold text-white">Settings Overview:</p>
+              <ul className="mt-2 space-y-2">
+                <li className="flex items-center gap-2 text-white"><ToggleLeft className="w-4 h-4 flex-shrink-0 text-white" /><span><strong>Status:</strong> Available = max capacity, Limited = min capacity</span></li>
+                <li className="flex items-center gap-2 text-white"><Coffee className="w-4 h-4 flex-shrink-0 text-white" /><span><strong>Break Times:</strong> Daily recurring breaks (e.g., lunch)</span></li>
+                <li className="flex items-center gap-2 text-white"><Clock className="w-4 h-4 flex-shrink-0 text-white" /><span><strong>Duration:</strong> Min = limited status, Max = available status</span></li>
+                <li className="flex items-center gap-2 text-white"><Zap className="w-4 h-4 flex-shrink-0 text-white" /><span><strong>Lead Time:</strong> Minimum hours before booking</span></li>
+                <li className="flex items-center gap-2 text-white"><XCircle className="w-4 h-4 flex-shrink-0 text-white" /><span><strong>Cancel Notice:</strong> Hours required to cancel</span></li>
               </ul>
             </div>
           </div>
