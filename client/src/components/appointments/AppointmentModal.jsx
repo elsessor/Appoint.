@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { X, Calendar, Clock, Zap, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parseISO, isToday, isBefore, isAfter, addMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
+import { format, parseISO, isToday, isBefore, isAfter, addMinutes, subMinutes, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import { getUserAvailability, getFriendAppointments } from '../../lib/api';
 import { getPhilippineHolidays, isHoliday, getHolidayName } from '../../utils/philippineHolidays';
@@ -613,17 +613,18 @@ const AppointmentModal = ({
       return;
     }
 
-    // Check if the day is fully booked (applies to all statuses)
-    if (capacityData.isFull) {
-      toast.error('This day is fully booked. Please select another date.');
-      return;
-    }
-
     const selectedFriend = friends.find(f => f._id === formData.friendId);
     const friendStatus = friendsAvailability[selectedFriend?._id] || 'available';
     
+    // Check away status first (fail fast)
     if (friendStatus === 'away') {
       toast.error('This friend is currently away');
+      return;
+    }
+
+    // Check if the day is fully booked (applies to all statuses)
+    if (capacityData.isFull) {
+      toast.error('This day is fully booked. Please select another date.');
       return;
     }
 
@@ -658,7 +659,14 @@ const AppointmentModal = ({
       }
     }
 
+    // Validate time slot conflicts and buffer time
+    const buffer = friendAvail?.buffer || 0;
     const friendConflict = selectedDateAppointments.some(existingAppt => {
+      // Exclude current appointment if rescheduling
+      if (isEditMode && (existingAppt._id === appointment._id || existingAppt.id === appointment.id)) {
+        return false;
+      }
+      
       const existingStart = typeof existingAppt.startTime === 'string' 
         ? parseISO(existingAppt.startTime)
         : new Date(existingAppt.startTime);
@@ -668,11 +676,25 @@ const AppointmentModal = ({
       
       if (['declined', 'cancelled'].includes(existingAppt.status)) return false;
       
-      return isBefore(startDateTime, existingEnd) && isAfter(endDateTime, existingStart);
+      // Check direct time conflict
+      const hasTimeConflict = isBefore(startDateTime, existingEnd) && isAfter(endDateTime, existingStart);
+      
+      // Check buffer time before existing appointment (new appointment ends within buffer before existing starts)
+      const existingStartMinusBuffer = subMinutes(existingStart, buffer);
+      const bufferConflictBefore = isBefore(endDateTime, existingStart) && isAfter(endDateTime, existingStartMinusBuffer);
+      
+      // Check buffer time after existing appointment (new appointment starts within buffer after existing ends)
+      const existingEndPlusBuffer = addMinutes(existingEnd, buffer);
+      const bufferConflictAfter = isBefore(startDateTime, existingEndPlusBuffer) && isAfter(startDateTime, existingEnd);
+      
+      return hasTimeConflict || bufferConflictBefore || bufferConflictAfter;
     });
 
     if (friendConflict) {
-      toast.error('This time slot is already booked. Please choose another time.');
+      const msg = buffer > 0 
+        ? `This time slot is booked or conflicts with required ${buffer}min buffer time. Please choose another time.`
+        : 'This time slot is already booked. Please choose another time.';
+      toast.error(msg);
       return;
     }
 

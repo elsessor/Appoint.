@@ -57,11 +57,8 @@ const Calendar = ({
   
   // Unified status filtering function
   const getVisibleStatuses = (isViewingFriend) => {
-    // When viewing friend: show confirmed, scheduled, completed (hide pending for privacy)
-    // When viewing own: show confirmed, scheduled, pending, completed
-    return isViewingFriend 
-      ? ['confirmed', 'scheduled', 'completed']
-      : ['confirmed', 'scheduled', 'pending', 'completed'];
+    // Show pending appointments on both own and friend calendars
+    return ['confirmed', 'scheduled', 'pending', 'completed'];
   };
 
   // Color palette for multi-calendar display

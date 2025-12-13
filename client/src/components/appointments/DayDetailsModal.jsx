@@ -83,9 +83,8 @@ const DayDetailsModal = ({
     const status = appt.status?.toLowerCase();
     
     if (viewingFriendId) {
-      // When viewing friend's calendar: show only confirmed, scheduled, completed
-      // (hide pending requests for privacy, and cancelled/declined for cleanliness)
-      return ['confirmed', 'scheduled', 'completed'].includes(status);
+      // When viewing friend's calendar: show confirmed, scheduled, pending, completed
+      return ['confirmed', 'scheduled', 'pending', 'completed'].includes(status);
     } else {
       // Own calendar: must be participant AND have active status
       const isParticipant = appointmentUserId === currentUserId || appointmentFriendId === currentUserId;
