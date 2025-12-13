@@ -465,8 +465,9 @@ const AppointmentModal = ({
       return appointmentsToUse.filter(appt => {
         if (!appt.startTime) return false;
         
-        // Show confirmed, scheduled, and completed appointments in mini calendar (align with main calendar)
-        if (!['confirmed', 'scheduled', 'completed'].includes(appt.status)) return false;
+        // Show confirmed, scheduled, completed, and pending appointments
+        // All of these count toward capacity (completed appointments still occupy slots)
+        if (!['confirmed', 'scheduled', 'completed', 'pending'].includes(appt.status)) return false;
         
         const apptDateStr = typeof appt.startTime === 'string' 
           ? appt.startTime.split('T')[0]
@@ -753,6 +754,8 @@ const AppointmentModal = ({
     start: '09:00',
     end: '17:00',
     slotDuration: 30,
+    maxPerDay: 5,
+    minPerDay: 1,
   };
 
   return (
@@ -981,7 +984,7 @@ const AppointmentModal = ({
                       ) : (
                         <AvailabilityInfo 
                           availability={selectedFriendAvailability?.availability || {}} 
-                          availabilityStatus={selectedFriendAvailability?.availabilityStatus || friendsAvailability[formData.friendId] || 'available'}
+                          availabilityStatus={selectedFriendAvailability?.status || friendsAvailability[formData.friendId]?.status || 'available'}
                         />
                       )}
                     </div>
@@ -1190,25 +1193,28 @@ const AppointmentModal = ({
                             const dayAppointments = day ? getAppointmentsForDate(day) : [];
                             const hasAppointments = dayAppointments.length > 0;
                             const dayHoliday = day ? getHolidayName(day, phHolidays) : null;
+                            const hasPendingAppointment = dayAppointments.some(appt => appt.status === 'pending');
                             
                             return (
                               <button
                                 key={index}
                                 type="button"
-                                disabled={!day || isDisabled || !isCurrentMonth}
+                                disabled={!day || isDisabled || !isCurrentMonth || hasPendingAppointment}
                                 onClick={() => day && handleDateSelect(day.getDate())}
                                 className={`py-2 text-xs font-medium rounded transition-all relative ${
                                   !day
                                     ? 'text-transparent'
                                     : !isCurrentMonth
                                     ? 'text-base-content/30 cursor-default'
+                                    : hasPendingAppointment
+                                    ? 'bg-warning/20 text-base-content/50 border border-warning/30 cursor-not-allowed'
                                     : isDisabled
                                     ? `text-base-content/30 cursor-not-allowed ${dayHoliday ? 'bg-error/20 border border-error/30' : ''}`
                                     : isSelected
                                     ? 'bg-primary text-primary-content shadow-sm'
                                     : 'text-base-content hover:bg-base-300 border border-base-300 hover:border-primary cursor-pointer'
                                 }`}
-                                title={dayHoliday || (isDisabled ? 'Not available' : '')}
+                                title={hasPendingAppointment ? 'Pending appointment scheduled' : dayHoliday || (isDisabled ? 'Not available' : '')}
                               >
                                 <div className="flex flex-col items-center gap-0.5">
                                   {day ? format(day, 'd') : ''}

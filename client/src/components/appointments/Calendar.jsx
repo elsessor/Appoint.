@@ -530,17 +530,17 @@ const Calendar = ({
           const dayAppointments = getAppointmentsForDate(day);
           
           // Filter by the viewed user if viewing a friend's calendar
-          // Count both confirmed AND scheduled appointments for capacity (they occupy slots)
+          // Count confirmed, scheduled, pending, AND completed appointments for capacity (they all occupy slots)
           const relevantAppointments = viewingFriendId 
             ? dayAppointments.filter(appt => {
                 const status = appt.status?.toLowerCase();
-                // Count confirmed and scheduled for capacity
-                if (!['confirmed', 'scheduled'].includes(status)) return false;
+                // Count confirmed, scheduled, pending, and completed for capacity
+                if (!['confirmed', 'scheduled', 'pending', 'completed'].includes(status)) return false;
                 const { userId: apptUserId, friendId: apptFriendId } = getParticipantIds(appt);
                 const viewingFriendIdStr = extractId(viewingFriendId);
                 return apptUserId === viewingFriendIdStr || apptFriendId === viewingFriendIdStr;
               })
-            : dayAppointments.filter(appt => ['confirmed', 'scheduled'].includes(appt.status?.toLowerCase()));
+            : dayAppointments.filter(appt => ['confirmed', 'scheduled', 'pending', 'completed'].includes(appt.status?.toLowerCase()));
           
           const dayAppointmentsCount = relevantAppointments.length;
           const isAtCapacity = dayAppointmentsCount >= maxPerDay;

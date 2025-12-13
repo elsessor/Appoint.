@@ -124,6 +124,8 @@ const AppointmentBookingPage = () => {
     minLeadTime: 0,
     cancelNotice: 0,
     appointmentDuration: { min: 15, max: 120 },
+    maxPerDay: 5,
+    minPerDay: 1,
   };
 
   // Close search dropdown when clicking outside
@@ -151,7 +153,7 @@ const AppointmentBookingPage = () => {
           const response = await getUserAvailability(friend._id);
           // Store full availability object including maxPerDay
           availabilityMap[friend._id] = {
-            status: response?.availabilityStatus || 'available',
+            status: response?.status || response?.availabilityStatus || 'available',
             maxPerDay: response?.availability?.maxPerDay || 5,
             ...response?.availability
           };
@@ -315,7 +317,7 @@ const AppointmentBookingPage = () => {
           ...prev,
           [data.userId]: {
             ...prev[data.userId],
-            status: data.availabilityStatus,
+            status: data.status || data.availabilityStatus,
             minPerDay: data.availability?.minPerDay,
             maxPerDay: data.availability?.maxPerDay,
             ...data.availability
