@@ -1820,4 +1820,4 @@ AppointmentModal.propTypes = {
   selectedDate: PropTypes.instanceOf(Date),
 };
 
-export default AppointmentModal;
+export default AppointmentModal; 

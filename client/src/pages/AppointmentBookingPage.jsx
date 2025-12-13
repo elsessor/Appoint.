@@ -6,13 +6,14 @@ import CalendarSidebar from '../components/appointments/CalendarSidebar';
 import AppointmentDetailsView from '../components/appointments/AppointmentDetailsView';
 import TodaysAppointmentsModal from '../components/appointments/TodaysAppointmentsModal';
 import AppointmentModal from '../components/appointments/AppointmentModal';
+import AppointmentDueModal from '../components/AppointmentDueModal';
 
 // Memoize components for performance
 const MemoizedCalendar = memo(Calendar);
 const MemoizedCalendarSidebar = memo(CalendarSidebar);
 import AppointmentRequestModal from '../components/appointments/AppointmentRequestModal';
 import ThemeSelector from '../components/ThemeSelector';
-import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability, getFriendAppointments } from '../lib/api';
+import { getMyFriends, getAuthUser, createAppointment, updateAppointment, deleteAppointment, getAppointments, getUserAvailability, getFriendAppointments, recordUserJoinedCall, recordUserLeftCall } from '../lib/api';
 import PageLoader from '../components/PageLoader';
 import { toast } from 'react-hot-toast';
 import { format, parseISO } from 'date-fns';
@@ -49,6 +50,9 @@ const AppointmentBookingPage = () => {
   const [friendsAvailability, setFriendsAvailability] = useState({});
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [appointmentModalData, setAppointmentModalData] = useState(null);
+  const [showDueModal, setShowDueModal] = useState(false);
+  const [dueAppointment, setDueAppointment] = useState(null);
+  const [dueAppointmentOtherUser, setDueAppointmentOtherUser] = useState(null);
 
   // Get current user
   const { data: currentUser, isLoading: loadingUser } = useQuery({
@@ -240,14 +244,21 @@ const AppointmentBookingPage = () => {
     const handleAppointmentStatusChanged = ({ appointment, oldStatus, newStatus }) => {
       console.log('[AppointmentBooking] Received appointment:statusChanged', { oldStatus, newStatus });
       
-      queryClient.invalidateQueries(['appointments']);
+      // Refetch all appointment queries to get updated data
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
       if (viewingFriendId) {
-        queryClient.invalidateQueries(['friendAppointments', viewingFriendId]);
+        queryClient.invalidateQueries({ queryKey: ['friendAppointments', viewingFriendId] });
       }
       
       const currentUserId = currentUser._id || currentUser.id;
       const userId = appointment.userId?._id || appointment.userId;
       const friendId = appointment.friendId?._id || appointment.friendId;
+      
+      // Close due modal if appointment is now completed or missed
+      if ((newStatus === 'completed' || newStatus === 'missed') && showDueModal && dueAppointment?._id === appointment._id) {
+        setShowDueModal(false);
+        setDueAppointment(null);
+      }
       
       // Show appropriate notification based on status change
       const appointmentTime = new Date(appointment.startTime).toLocaleString('en-US', {
@@ -280,6 +291,22 @@ const AppointmentBookingPage = () => {
             }
           });
         }
+      } else if (newStatus === 'completed') {
+        toast.success('Appointment completed! 🎉', {
+          duration: 5000,
+          icon: '✅',
+          style: {
+            whiteSpace: 'pre-line'
+          }
+        });
+      } else if (newStatus === 'missed') {
+        toast.info('Appointment marked as missed', {
+          duration: 5000,
+          icon: '📋',
+          style: {
+            whiteSpace: 'pre-line'
+          }
+        });
       } else if (newStatus === 'cancelled') {
         const otherUserId = userId === currentUserId ? friendId : userId;
         const otherUser = userId === currentUserId ? appointment.friendId : appointment.userId;
@@ -371,6 +398,66 @@ const AppointmentBookingPage = () => {
       socket.off('availability:changed', handleAvailabilityStatusChanged);
     };
   }, [queryClient, currentUser, viewingFriendId]);
+
+  // Monitor appointments for due status (within 5 minutes of start time)
+  useEffect(() => {
+    if (!appointments.length || !currentUser) return;
+
+    const checkDueAppointments = () => {
+      const now = new Date();
+      const currentUserId = currentUser._id || currentUser.id;
+      
+      for (const appointment of appointments) {
+        // Skip if modal is already open
+        if (showDueModal) {
+          continue;
+        }
+
+        // Show modal for confirmed, scheduled, or accepted appointments
+        const validStatuses = ['confirmed', 'scheduled', 'accepted'];
+        if (!validStatuses.includes(appointment.status?.toLowerCase())) {
+          continue;
+        }
+
+        const apptTime = new Date(appointment.startTime);
+        const minutesUntilStart = (apptTime - now) / (1000 * 60);
+
+        // Show modal if appointment starts within 5 minutes and hasn't passed
+        if (minutesUntilStart <= 5 && minutesUntilStart > -1) {
+          // Find the other user (not the current user)
+          const userId = appointment.userId?._id || appointment.userId;
+          const friendId = appointment.friendId?._id || appointment.friendId;
+          const otherUserId = userId === currentUserId ? friendId : userId;
+
+          const otherUser = friends.find(f => f._id === otherUserId);
+          const otherUserName = otherUser?.fullName || otherUser?.name || 'Your Friend';
+
+          console.log('📞 Showing due appointment modal for:', appointment.title);
+          setDueAppointment(appointment);
+          setDueAppointmentOtherUser(otherUserName);
+          setShowDueModal(true);
+          break;
+        }
+      }
+    };
+
+    const interval = setInterval(checkDueAppointments, 10000); // Check every 10 seconds
+    checkDueAppointments(); // Check immediately on component mount
+
+    return () => clearInterval(interval);
+  }, [appointments, currentUser, showDueModal, friends]);
+
+  // Refetch appointments periodically to catch any status changes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const refetchInterval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      console.log('[AppointmentBooking] Periodically refetching appointments');
+    }, 5000); // Refetch every 5 seconds
+
+    return () => clearInterval(refetchInterval);
+  }, [currentUser, queryClient]);
 
   // Scheduling availability - will use friend's actual availability when viewing them
   const getAvailabilityForCalendar = useMemo(() => {
@@ -530,6 +617,65 @@ const AppointmentBookingPage = () => {
     });
   }, [declineAppointmentMutation]);
 
+  // Handle joining a due appointment
+  const handleJoinMeeting = useCallback(async () => {
+    if (!dueAppointment) return;
+    
+    const currentUserId = currentUser._id || currentUser.id;
+    setShowDueModal(false);
+    toast.loading('Recording your presence...');
+    
+    try {
+      // CRITICAL: Wait for the join API to complete before redirecting
+      console.log(`📞 Recording user ${currentUserId} joined appointment ${dueAppointment._id}`);
+      const response = await recordUserJoinedCall(dueAppointment._id);
+      console.log(`✅ User marked as joined:`, response);
+      
+      // Give the server a moment to process
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      toast.dismiss();
+      toast.success('Joining meeting...');
+      
+      // NOW redirect after the API call completes
+      const meetingUrl = dueAppointment.meetingLink || `/call/${dueAppointment._id}`;
+      window.location.href = meetingUrl;
+    } catch (error) {
+      console.error(`❌ Error recording join:`, error);
+      toast.dismiss();
+      
+      // Still redirect but show error
+      toast.error('Could not record presence, but joining meeting...');
+      const meetingUrl = dueAppointment.meetingLink || `/call/${dueAppointment._id}`;
+      
+      // Wait a moment then redirect
+      setTimeout(() => {
+        window.location.href = meetingUrl;
+      }, 1500);
+    }
+  }, [dueAppointment, currentUser]);
+
+  // Handle declining a due appointment
+  const handleDeclineMeeting = useCallback(() => {
+    if (!dueAppointment) return;
+    
+    setShowDueModal(false);
+    toast.info('Meeting declined');
+    
+    // Update appointment status to missed
+    updateAppointmentMutation.mutate({
+      id: dueAppointment._id,
+      status: 'missed'
+    }, {
+      onSuccess: () => {
+        setDueAppointment(null);
+      },
+      onError: () => {
+        setDueAppointment(null);
+      }
+    });
+  }, [dueAppointment, updateAppointmentMutation]);
+
   // Toggle friend visibility in multi-calendar view
   const handleToggleFriendVisibility = useCallback((friendId) => {
     const currentUserId = currentUser?._id || currentUser?.id;
@@ -617,9 +763,9 @@ const AppointmentBookingPage = () => {
     const apptFriendId = appt.friendId?._id || appt.friendId;
     const isUserInvolved = apptUserId === currentUserId || apptFriendId === currentUserId;
     
-    // Exclude cancelled and declined appointments from today's view
+    // Exclude completed, cancelled, declined, and missed appointments from today's view
     const status = appt.status?.toLowerCase();
-    const excludedStatuses = ['cancelled', 'declined'];
+    const excludedStatuses = ['cancelled', 'declined', 'completed', 'missed'];
     const isVisibleStatus = !excludedStatuses.includes(status);
     
     return isToday && isUserInvolved && isVisibleStatus;
@@ -1171,6 +1317,15 @@ const AppointmentBookingPage = () => {
           initialDate={appointmentModalData?.date}
         />
       )}
+
+      {/* Appointment Due Modal - Pops up when appointment is about to start */}
+      <AppointmentDueModal
+        isOpen={showDueModal}
+        appointment={dueAppointment}
+        otherUserName={dueAppointmentOtherUser}
+        onJoin={handleJoinMeeting}
+        onDecline={handleDeclineMeeting}
+      />
     </div>
   );
 };

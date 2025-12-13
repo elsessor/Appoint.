@@ -940,3 +940,151 @@ export async function getUserAvailability(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+// Track when a user joins a call
+export async function userJoinedCall(req, res) {
+  try {
+    const userId = req.user._id.toString();
+    const { appointmentId } = req.params;
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Add user to attendedBy if not already there (current participants)
+    if (!appointment.attendedBy.some(id => id.toString() === userId)) {
+      appointment.attendedBy.push(userId);
+    }
+
+    // Add user to participantsAttended if not already there (historical record)
+    if (!appointment.participantsAttended.some(id => id.toString() === userId)) {
+      appointment.participantsAttended.push(userId);
+    }
+
+    await appointment.save();
+    console.log(`[Appointment] User ${userId} joined call for appointment ${appointmentId}`);
+
+    // Emit event to notify other participant
+    emitAppointmentUpdated(appointment);
+
+    res.status(200).json({ 
+      message: "Joined call successfully",
+      appointment 
+    });
+  } catch (error) {
+    console.error("Error in userJoinedCall controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+// Track when a user leaves a call and auto-complete if both have joined and left
+export async function userLeftCall(req, res) {
+  try {
+    const userId = req.user._id.toString();
+    const { appointmentId } = req.params;
+
+    let appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    const appointmentUserId = appointment.userId.toString();
+    const appointmentFriendId = appointment.friendId.toString();
+    
+    console.log(`\n🔴 ========== USER LEAVING CALL ==========`);
+    console.log(`Appointment ID: ${appointmentId}`);
+    console.log(`User leaving: ${userId}`);
+    console.log(`Creator: ${appointmentUserId} | Friend: ${appointmentFriendId}`);
+    console.log(`Status BEFORE: ${appointment.status}`);
+    
+    // Check if both users have EVER attended (using historical record)
+    const bothAttended = 
+      (appointment.participantsAttended || []).some(id => id.toString() === appointmentUserId) &&
+      (appointment.participantsAttended || []).some(id => id.toString() === appointmentFriendId);
+
+    console.log(`participantsAttended: [${(appointment.participantsAttended || []).map(id => id.toString()).join(', ')}]`);
+    console.log(`attendedBy BEFORE: [${(appointment.attendedBy || []).map(id => id.toString()).join(', ')}]`);
+    console.log(`Both attended: ${bothAttended}`);
+
+    // Remove user from attendedBy when they leave (only keep current participants)
+    appointment.attendedBy = appointment.attendedBy.filter(
+      id => id.toString() !== userId
+    );
+
+    console.log(`attendedBy AFTER: [${appointment.attendedBy.map(id => id.toString()).join(', ')}]`);
+
+    // Check if anyone is still in the call
+    const someoneStillInCall = appointment.attendedBy.length > 0;
+    console.log(`Someone still in call: ${someoneStillInCall}`);
+
+    // Determine final status
+    let statusChanged = false;
+    let oldStatus = appointment.status;
+
+    // Only update status when the LAST person leaves
+    if (!someoneStillInCall && appointment.status !== 'completed' && appointment.status !== 'missed') {
+      if (bothAttended) {
+        // Both attended and now everyone has left - COMPLETED ✅
+        appointment.status = 'completed';
+        statusChanged = true;
+        console.log(`✅ BOTH parties attended + ALL left → MARKING COMPLETED`);
+      } else {
+        // Not everyone attended - check if appointment time passed
+        const now = new Date();
+        const appointmentEndTime = new Date(appointment.endTime);
+        
+        if (now > appointmentEndTime) {
+          appointment.status = 'missed';
+          statusChanged = true;
+          console.log(`❌ NOT both attended + time passed → MARKING MISSED`);
+        } else {
+          console.log(`⏳ NOT both attended + time NOT passed → KEEPING ${appointment.status}`);
+        }
+      }
+    } else {
+      if (someoneStillInCall) {
+        console.log(`⏳ Still ${appointment.attendedBy.length} participant(s) in call → NO STATUS CHANGE`);
+      } else {
+        console.log(`⚠️ Status already ${appointment.status} → SKIPPING UPDATE`);
+      }
+    }
+
+    // SAVE AND VERIFY
+    const beforeSave = appointment.status;
+    await appointment.save();
+    const afterSave = appointment.status;
+    console.log(`Status AFTER save: ${afterSave}`);
+    
+    // CRITICAL VERIFICATION
+    const verifyDb = await Appointment.findById(appointmentId);
+    console.log(`Verified in DB: ${verifyDb.status}`);
+    
+    if (verifyDb.status !== afterSave) {
+      console.error(`⚠️ WARNING: Status mismatch! In-memory: ${afterSave}, DB: ${verifyDb.status}`);
+    }
+
+    console.log(`==========================================\n`);
+
+    // Emit events to notify other participant
+    emitAppointmentUpdated(verifyDb);
+    if (statusChanged && oldStatus !== verifyDb.status) {
+      emitAppointmentStatusChanged(verifyDb, oldStatus, verifyDb.status);
+      console.log(`📡 Emitted: ${oldStatus} → ${verifyDb.status}`);
+    }
+
+    res.status(200).json({ 
+      message: "Left call successfully",
+      appointment: verifyDb,
+      bothAttended,
+      someoneStillInCall,
+      statusChanged,
+      oldStatus,
+      newStatus: verifyDb.status
+    });
+  } catch (error) {
+    console.error(`❌ Error in userLeftCall:`, error.message);
+    console.error(error.stack);
+    res.status(500).json({ message: "Internal Server Error", error: error.message });
+  }
+}
