@@ -35,11 +35,18 @@ const appointmentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "scheduled", "confirmed", "completed", "cancelled", "declined"],
+      enum: ["pending", "scheduled", "confirmed", "completed", "cancelled", "declined", "missed"],
       default: "pending",
     },
     // List of users who actually attended/joined the appointment
     attendedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    // Track all users who have EVER attended (even if they left and rejoined)
+    participantsAttended: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",

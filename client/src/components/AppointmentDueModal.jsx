@@ -112,14 +112,14 @@ const AppointmentDueModal = ({ appointment, isOpen, onJoin, onDecline, otherUser
             className="flex-1 btn btn-outline btn-sm gap-2"
           >
             <X className="w-4 h-4" />
-            Decline
+            Decline Call
           </button>
           <button
             onClick={onJoin}
             className="flex-1 btn btn-primary btn-sm gap-2"
           >
             <Phone className="w-4 h-4" />
-            Join Call
+            Join Meeting
           </button>
         </div>
       </div>
