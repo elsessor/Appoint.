@@ -16,10 +16,14 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
+          // Keep React and React-DOM together in main bundle
           if (id.includes('node_modules')) {
+            // Don't split react and react-dom
+            if (id.includes('react-dom')) return undefined
+            if (id.includes('react') && !id.includes('react-')) return undefined
+            
             if (id.includes('stream-chat')) return 'stream-chat-vendor'
             if (id.includes('react-query') || id.includes('@tanstack/react-query')) return 'react-query-vendor'
-            if (id.includes('react-dom') || id.includes('react/')) return 'react-vendor'
             return 'vendor'
           }
         }
