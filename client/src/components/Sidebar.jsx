@@ -19,9 +19,10 @@ import AvailabilityStatusToggle from "./AvailabilityStatusToggle";
 import { useThemeStore } from "../store/useThemeStore";
 import { THEMES } from "../constants";
 import useLogout from "../hooks/useLogout";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getFriendRequests, getNotifications } from "../lib/api";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getFriendRequests, getNotifications, getUnreadMessagesCount } from "../lib/api";
+import { getSocket } from "../lib/socket";
 
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -33,6 +34,7 @@ const Sidebar = () => {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const { logoutMutation } = useLogout();
   const isOnboarded = authUser?.isOnboarded;
+  const queryClient = useQueryClient();
 
   // Fetch friend requests
   const { data: friendRequests } = useQuery({
@@ -47,6 +49,33 @@ const Sidebar = () => {
     queryFn: getNotifications,
     enabled: Boolean(isOnboarded),
   });
+
+  // Fetch unread messages count - similar to NotificationsPage pattern
+  const { data: unreadData = { unreadCount: 0 } } = useQuery({
+    queryKey: ["unreadMessages"],
+    queryFn: getUnreadMessagesCount,
+    enabled: Boolean(isOnboarded),
+  });
+
+  // Real-time message updates via Socket.IO - invalidate query when notifications:update fires
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !authUser?._id) return;
+
+    console.log('[Sidebar] Setting up socket listeners for unread messages');
+
+    // When backend emits notifications:update, refresh unread count
+    const handleNotificationsUpdate = () => {
+      console.log('[Sidebar] Notifications update received, refetching unread messages');
+      queryClient.invalidateQueries({ queryKey: ["unreadMessages"] });
+    };
+
+    socket.on('notifications:update', handleNotificationsUpdate);
+
+    return () => {
+      socket.off('notifications:update', handleNotificationsUpdate);
+    };
+  }, [authUser?._id, queryClient]);
 
   // Count unread appointment notifications
   const unreadAppointments = notifications.filter(
@@ -63,8 +92,9 @@ const Sidebar = () => {
     (req) => !req.senderSeen
   ).length || 0;
 
-  // Total notification count
+  // Total notification count (including unread messages from React Query)
   const notificationsCount = unreadAppointments + unseenFriendRequests + unseenNewConnections;
+  const unreadMessages = unreadData?.unreadCount || 0;
 
   return (
     <>
@@ -123,12 +153,17 @@ const Sidebar = () => {
 
               <Link
                 to="/chats"
-                className={`flex flex-col items-center justify-center gap-1 px-1.5 py-2 rounded-lg flex-1 transition-colors duration-200 ${
+                className={`flex flex-col items-center justify-center gap-1 px-1.5 py-2 rounded-lg flex-1 transition-colors duration-200 relative ${
                   currentPath.startsWith("/chats") 
                     ? "bg-primary/20 text-primary" 
                     : "text-base-content/70 hover:text-base-content"
                 }`}
               >
+                {unreadMessages > 0 && (
+                  <span className="absolute top-1 right-1 bg-error text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-semibold">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
                 <MessageCircle className="w-5 h-5 flex-shrink-0" />
                 <span className="text-xs">Chat</span>
               </Link>
@@ -415,12 +450,17 @@ const Sidebar = () => {
 
               <Link
                 to="/chats"
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full whitespace-nowrap transition-colors duration-200 ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full whitespace-nowrap transition-colors duration-200 relative ${
                   currentPath.startsWith("/chats") 
                     ? "bg-primary/20 text-primary" 
                     : "text-base-content/70 hover:text-base-content"
                 }`}
               >
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-error text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
                 <MessageCircle className="w-5 h-5 flex-shrink-0" />
                 <span className="opacity-0 group-hover:opacity-100 invisible group-hover:visible text-sm transition-all duration-300 delay-75">Messages</span>
               </Link>
